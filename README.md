@@ -86,5 +86,8 @@ The goal is to grow it step by step over several months without implementing eve
 ## Status
 Initial scaffold only. No business logic implemented yet.
 
+## License
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
 ## Roadmap
 See [docs/roadmap.md](docs/roadmap.md) for the weekly plan.
