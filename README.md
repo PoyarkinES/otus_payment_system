@@ -1,39 +1,90 @@
 # Otus Payment System
 
-Otus Payment System is a learning and portfolio project exploring the design of a fintech payment platform. This repository currently contains only the project scaffold and development plan; it does not implement business functionality.
+Fintech portfolio project for a .NET developer.
 
-## Goal
+## Project goal
+Build a realistic payment platform that demonstrates skills in:
+- ASP.NET Core
+- Entity Framework Core
+- PostgreSQL
+- JWT authentication
+- RabbitMQ
+- CQRS / MediatR
+- Clean Architecture
+- DDD
+- Docker
+- GitHub Actions
+- observability and monitoring
 
-Build the project incrementally to demonstrate practical .NET development and software architecture skills, including secure identity, wallet operations, transfers, asynchronous processing, fraud checks, and payment integrations.
+## Project scope
+This repository is a learning and portfolio project.
+The goal is to grow it step by step over several months without implementing everything at once.
 
-## Planned technology stack
+## Planned bounded contexts
+- Identity
+- Wallet
+- Payments
+- Merchants
+- Fraud
+- Notifications
 
-- .NET and ASP.NET Core
-- PostgreSQL and Entity Framework Core
-- RabbitMQ for asynchronous messaging
-- Redis for caching and supporting distributed workloads
-- Clean Architecture and domain-driven design
-- Docker and GitHub Actions
-- Automated unit and integration testing
-- OpenTelemetry-based observability
+## Development roadmap
+1. Base platform
+   - registration
+   - login
+   - JWT
+   - roles
+   - PostgreSQL
+   - EF Core migrations
 
-Technology choices and versions will be confirmed as development progresses.
+2. Wallets
+   - create wallet
+   - top up
+   - withdraw
+   - history
+   - database transactions
+   - optimistic locking
 
-## Development phases
+3. Transfers between users
+   - wallet to wallet transfer
+   - fees
+   - rollback
+   - audit log
 
-1. **Base platform** — establish architecture, API foundations, persistence, and tests.
-2. **Wallets** — introduce wallet accounts, balance operations, and operation history.
-3. **Transfers between users** — support atomic transfers and auditability.
-4. **Async processing** — introduce events, message consumers, retries, and notifications.
-5. **Anti-fraud** — add risk rules, limits, and review outcomes.
-6. **Payment gateway** — design an external payment API and related integrations.
+4. Async processing
+   - RabbitMQ
+   - domain events
+   - Audit Service
+   - Notification Service
+   - Fraud Service
 
-See the [six-month weekly roadmap](docs/roadmap.md) for goals and expected results for each phase.
+5. Anti-fraud
+   - operation limits
+   - suspicious amounts
+   - high-frequency transfers
+   - blacklist
+   - risk scoring
 
-## Project structure
+6. Payment gateway
+   - merchant API
+   - payment creation endpoint
+   - API keys
+   - webhooks
+   - refunds
+   - payment links
 
-- `src/` — future bounded contexts and application code
-- `tests/` — future automated tests
-- `docs/` — project documentation and roadmap
+## Tech stack
+- .NET
+- ASP.NET Core
+- Entity Framework Core
+- PostgreSQL
+- RabbitMQ
+- MediatR
+- Docker
+- GitHub Actions
 
-This is an educational portfolio project, not a production payment system.
+## Status
+Initial scaffold only. No business logic implemented yet.
+
+## Roadmap
+See [docs/roadmap.md](docs/roadmap.md) for the weekly plan.
