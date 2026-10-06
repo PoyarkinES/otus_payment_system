@@ -93,8 +93,9 @@ Build a realistic fintech system in .NET over 6 months, step by step.
 - Publish `TransferCreated` events
 
 ### Week 15
-- Add Audit Service
+- Add Audit Service (separate bounded context)
 - Add Notification Service
+- Define bounded contexts and domain events
 
 ### Week 16
 - Add Fraud Service

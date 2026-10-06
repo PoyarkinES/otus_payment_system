@@ -93,8 +93,9 @@
 - Публиковать события `TransferCreated`
 
 ### Неделя 15
-- Добавить Audit Service
+- Добавить Audit Service (отдельный bounded context)
 - Добавить Notification Service
+- Определить bounded contexts и domain events
 
 ### Неделя 16
 - Добавить Fraud Service
@@ -165,6 +166,7 @@
 
 ## Итог
 Через 6 месяцев проект должен выглядеть как реальная fintech-система:
+- 6 bounded contexts (Identity, Wallets, Payments, Fraud, Notifications, Audit)
 - 5–8 микросервисов
 - PostgreSQL
 - RabbitMQ

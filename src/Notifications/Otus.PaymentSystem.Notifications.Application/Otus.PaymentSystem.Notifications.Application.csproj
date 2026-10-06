@@ -1,0 +1,5 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Otus.PaymentSystem.Notifications.Domain\Otus.PaymentSystem.Notifications.Domain.csproj" />
+  </ItemGroup>
+</Project>

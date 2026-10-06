@@ -1,0 +1,5 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Otus.PaymentSystem.Identity.Domain\Otus.PaymentSystem.Identity.Domain.csproj" />
+  </ItemGroup>
+</Project>
