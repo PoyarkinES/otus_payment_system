@@ -10,7 +10,6 @@ public record WalletCreated(
 ) : IApplicationEvent
 {
     public Guid EventId { get; } = Guid.NewGuid();
-    public DateTimeOffset Timestamp => Timestamp;
     public Guid CorrelationId { get; init; } = Guid.NewGuid();
     public Guid? CausationId { get; init; }
     public string ContextName => "Wallets";
