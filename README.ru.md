@@ -1,5 +1,7 @@
 # Otus Payment System
 
+[![CI](https://github.com/PoyarkinES/otus_payment_system/actions/workflows/ci.yml/badge.svg)](https://github.com/PoyarkinES/otus_payment_system/actions/workflows/ci.yml)
+
 Учебный fintech-проект для портфолио .NET-разработчика.
 
 ## Цель проекта

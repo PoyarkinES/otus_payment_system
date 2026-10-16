@@ -1,5 +1,7 @@
 # Otus Payment System
 
+[![CI](https://github.com/PoyarkinES/otus_payment_system/actions/workflows/ci.yml/badge.svg)](https://github.com/PoyarkinES/otus_payment_system/actions/workflows/ci.yml)
+
 Fintech portfolio project for a .NET developer.
 
 ## Project goal
