@@ -22,9 +22,9 @@ The goal is to grow it step by step over several months without implementing eve
 
 ## Planned bounded contexts
 - Identity
-- Wallet
+- Wallets
 - Payments
-- Merchants
+- Audit
 - Fraud
 - Notifications
 

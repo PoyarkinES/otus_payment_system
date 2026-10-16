@@ -22,9 +22,9 @@
 
 ## Основные bounded contexts
 - Identity
-- Wallet
+- Wallets
 - Payments
-- Merchants
+- Audit
 - Fraud
 - Notifications
 
