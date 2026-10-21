@@ -67,6 +67,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Otus.PaymentSystem.Identity
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Otus.PaymentSystem.Identity.Infrastructure.Tests", "tests\Otus.PaymentSystem.Identity.Infrastructure.Tests\Otus.PaymentSystem.Identity.Infrastructure.Tests.csproj", "{A639BBA4-8EF5-4829-B4C4-34D4760B8E7F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Otus.PaymentSystem.Identity.Host.Tests", "tests\Otus.PaymentSystem.Identity.Host.Tests\Otus.PaymentSystem.Identity.Host.Tests.csproj", "{993D8121-6899-4442-853C-8BCA97E14B19}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -353,6 +355,18 @@ Global
 		{A639BBA4-8EF5-4829-B4C4-34D4760B8E7F}.Release|x64.Build.0 = Release|Any CPU
 		{A639BBA4-8EF5-4829-B4C4-34D4760B8E7F}.Release|x86.ActiveCfg = Release|Any CPU
 		{A639BBA4-8EF5-4829-B4C4-34D4760B8E7F}.Release|x86.Build.0 = Release|Any CPU
+		{993D8121-6899-4442-853C-8BCA97E14B19}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{993D8121-6899-4442-853C-8BCA97E14B19}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{993D8121-6899-4442-853C-8BCA97E14B19}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{993D8121-6899-4442-853C-8BCA97E14B19}.Debug|x64.Build.0 = Debug|Any CPU
+		{993D8121-6899-4442-853C-8BCA97E14B19}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{993D8121-6899-4442-853C-8BCA97E14B19}.Debug|x86.Build.0 = Debug|Any CPU
+		{993D8121-6899-4442-853C-8BCA97E14B19}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{993D8121-6899-4442-853C-8BCA97E14B19}.Release|Any CPU.Build.0 = Release|Any CPU
+		{993D8121-6899-4442-853C-8BCA97E14B19}.Release|x64.ActiveCfg = Release|Any CPU
+		{993D8121-6899-4442-853C-8BCA97E14B19}.Release|x64.Build.0 = Release|Any CPU
+		{993D8121-6899-4442-853C-8BCA97E14B19}.Release|x86.ActiveCfg = Release|Any CPU
+		{993D8121-6899-4442-853C-8BCA97E14B19}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -388,6 +402,7 @@ Global
 		{81C94313-C4CF-4DA7-BF40-5B23FF12C74D} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{EAF6474E-3D40-472D-8249-095E72997E7B} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{A639BBA4-8EF5-4829-B4C4-34D4760B8E7F} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{993D8121-6899-4442-853C-8BCA97E14B19} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {575DDAC7-3D2D-4628-AC68-EE300802C562}
