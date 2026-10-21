@@ -55,6 +55,7 @@ public class JwtTokenServiceTests
         Assert.Equal(user.Id.ToString(), token.Claims.Single(c => c.Type == JwtRegisteredClaimNames.Sub).Value);
         Assert.Equal("user@example.com", token.Claims.Single(c => c.Type == JwtRegisteredClaimNames.Email).Value);
         Assert.False(string.IsNullOrWhiteSpace(token.Claims.Single(c => c.Type == JwtRegisteredClaimNames.Jti).Value));
+        Assert.Equal("User", token.Claims.Single(c => c.Type == "role").Value);
     }
 
     [Fact]

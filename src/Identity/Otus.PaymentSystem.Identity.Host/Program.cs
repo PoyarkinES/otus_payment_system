@@ -6,6 +6,7 @@ using Otus.PaymentSystem.Identity.Host.Contracts.Auth;
 using Otus.PaymentSystem.Identity.Host.Contracts.Users;
 using Otus.PaymentSystem.Identity.Host.Endpoints;
 using Otus.PaymentSystem.Identity.Host.Middleware;
+using Otus.PaymentSystem.Identity.Host.Seeding;
 using Otus.PaymentSystem.Identity.Infrastructure;
 using Otus.PaymentSystem.Identity.Infrastructure.Security;
 
@@ -42,7 +43,10 @@ builder.Services
             ClockSkew = TimeSpan.FromSeconds(30)
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireClaim("role", "Admin"));
+});
 
 // Валидаторы запросов (FluentValidation)
 builder.Services.AddSingleton<RegisterRequestValidator>();
@@ -73,5 +77,12 @@ app.MapAuthEndpoints();
 
 // /users/me, /users/{id}/block, /users/{id}/unblock
 app.MapUsersEndpoints();
+
+// Seed dev-админа: в Development создаём/повышаем пользователя из конфига (Seed:Admin).
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    await DevAdminSeeder.SeedAsync(scope.ServiceProvider, app.Configuration);
+}
 
 app.Run();

@@ -17,6 +17,7 @@ public class User
     public Email Email { get; private set; } = null!;
     public string PasswordHash { get; private set; } = null!;
     public UserStatus Status { get; private set; }
+    public UserRole Role { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public int Version { get; private set; }
@@ -35,6 +36,7 @@ public class User
         Email = email;
         PasswordHash = passwordHash;
         Status = UserStatus.Active;
+        Role = UserRole.User;
         CreatedAt = DateTimeOffset.UtcNow;
         UpdatedAt = CreatedAt;
         Version = 0;
@@ -103,6 +105,16 @@ public class User
         PasswordHash = newPasswordHash;
         Touch();
         Raise(new PasswordChanged(Id, UpdatedAt));
+    }
+
+    /// <summary>Повышает пользователя до администратора. Идемпотентно.</summary>
+    public void PromoteToAdmin()
+    {
+        if (Role == UserRole.Admin)
+            return;
+
+        Role = UserRole.Admin;
+        Touch();
     }
 
     /// <summary>Очищает накопленные доменные события (вызывается после публикации/сохранения).</summary>

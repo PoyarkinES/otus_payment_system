@@ -29,9 +29,9 @@ public static class UsersEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
-        // TODO(12.8): навесить Admin-политику на block/unblock.
         group.MapPost("/{id:guid}/block", Block)
             .WithName("BlockUser")
+            .RequireAuthorization("AdminOnly")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -39,6 +39,7 @@ public static class UsersEndpoints
 
         group.MapPost("/{id:guid}/unblock", Unblock)
             .WithName("UnblockUser")
+            .RequireAuthorization("AdminOnly")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
