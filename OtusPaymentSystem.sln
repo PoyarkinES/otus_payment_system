@@ -63,6 +63,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Otus.PaymentSystem.Identity.Domain.Tests", "tests\Otus.PaymentSystem.Identity.Domain.Tests\Otus.PaymentSystem.Identity.Domain.Tests.csproj", "{81C94313-C4CF-4DA7-BF40-5B23FF12C74D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Otus.PaymentSystem.Identity.Application.Tests", "tests\Otus.PaymentSystem.Identity.Application.Tests\Otus.PaymentSystem.Identity.Application.Tests.csproj", "{EAF6474E-3D40-472D-8249-095E72997E7B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -325,6 +327,18 @@ Global
 		{81C94313-C4CF-4DA7-BF40-5B23FF12C74D}.Release|x64.Build.0 = Release|Any CPU
 		{81C94313-C4CF-4DA7-BF40-5B23FF12C74D}.Release|x86.ActiveCfg = Release|Any CPU
 		{81C94313-C4CF-4DA7-BF40-5B23FF12C74D}.Release|x86.Build.0 = Release|Any CPU
+		{EAF6474E-3D40-472D-8249-095E72997E7B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EAF6474E-3D40-472D-8249-095E72997E7B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EAF6474E-3D40-472D-8249-095E72997E7B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{EAF6474E-3D40-472D-8249-095E72997E7B}.Debug|x64.Build.0 = Debug|Any CPU
+		{EAF6474E-3D40-472D-8249-095E72997E7B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EAF6474E-3D40-472D-8249-095E72997E7B}.Debug|x86.Build.0 = Debug|Any CPU
+		{EAF6474E-3D40-472D-8249-095E72997E7B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EAF6474E-3D40-472D-8249-095E72997E7B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EAF6474E-3D40-472D-8249-095E72997E7B}.Release|x64.ActiveCfg = Release|Any CPU
+		{EAF6474E-3D40-472D-8249-095E72997E7B}.Release|x64.Build.0 = Release|Any CPU
+		{EAF6474E-3D40-472D-8249-095E72997E7B}.Release|x86.ActiveCfg = Release|Any CPU
+		{EAF6474E-3D40-472D-8249-095E72997E7B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -358,6 +372,7 @@ Global
 		{AC31C123-BC33-49AE-BFC3-61BA83825039} = {65CF2E6E-01EC-BEE7-B1D3-E8A876CE86F6}
 		{CEF499B8-E25B-4BF4-8B52-E4994FCE9333} = {65ABFB5D-2B10-DF64-BF12-C17976F8E5D9}
 		{81C94313-C4CF-4DA7-BF40-5B23FF12C74D} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{EAF6474E-3D40-472D-8249-095E72997E7B} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {575DDAC7-3D2D-4628-AC68-EE300802C562}

@@ -11,7 +11,7 @@ namespace Otus.PaymentSystem.Identity.Domain.Aggregates;
 /// </summary>
 public class User
 {
-    private readonly List<IDomainEvent> _domainEvents = new();
+    private readonly List<IDomainEvent> _domainEvents = [];
 
     public Guid Id { get; private set; }
     public Email Email { get; private set; } = null!;
