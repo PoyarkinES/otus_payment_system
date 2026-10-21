@@ -76,6 +76,21 @@ public class User
         Raise(new UserUnblocked(Id, unblockedBy, UpdatedAt));
     }
 
+    /// <summary>
+    /// Меняет email. Новый email не должен совпадать с текущим.
+    /// Уникальность проверяется на уровне Application (IUserRepository).
+    /// </summary>
+    public void ChangeEmail(Email newEmail)
+    {
+        if (newEmail == Email)
+            throw new DomainException("Новый email совпадает с текущим.");
+
+        var old = Email;
+        Email = newEmail;
+        Touch();
+        Raise(new EmailChanged(Id, old.Value, newEmail.Value, UpdatedAt));
+    }
+
     /// <summary>Меняет хэш пароля (сам пароль уже захэширован).</summary>
     public void ChangePassword(string newPasswordHash)
     {
@@ -93,7 +108,11 @@ public class User
     /// <summary>Очищает накопленные доменные события (вызывается после публикации/сохранения).</summary>
     public void ClearDomainEvents() => _domainEvents.Clear();
 
-    private void Touch() => UpdatedAt = DateTimeOffset.UtcNow;
+    private void Touch()
+    {
+        UpdatedAt = DateTimeOffset.UtcNow;
+        Version++;
+    }
 
     private void Raise(IDomainEvent domainEvent) => _domainEvents.Add(domainEvent);
 }

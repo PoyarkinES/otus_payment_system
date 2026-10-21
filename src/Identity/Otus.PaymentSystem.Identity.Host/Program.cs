@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Otus.PaymentSystem.Identity.Application.Commands.Register;
 using Otus.PaymentSystem.Identity.Host.Contracts.Auth;
+using Otus.PaymentSystem.Identity.Host.Contracts.Users;
 using Otus.PaymentSystem.Identity.Host.Endpoints;
 using Otus.PaymentSystem.Identity.Host.Middleware;
 using Otus.PaymentSystem.Identity.Infrastructure;
@@ -46,6 +47,7 @@ builder.Services.AddAuthorization();
 // Валидаторы запросов (FluentValidation)
 builder.Services.AddSingleton<RegisterRequestValidator>();
 builder.Services.AddSingleton<LoginRequestValidator>();
+builder.Services.AddSingleton<UpdateProfileRequestValidator>();
 
 var app = builder.Build();
 
@@ -68,5 +70,8 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
 
 // /auth/register, /auth/login, /auth/me
 app.MapAuthEndpoints();
+
+// /users/me, /users/{id}/block, /users/{id}/unblock
+app.MapUsersEndpoints();
 
 app.Run();
