@@ -1,10 +1,15 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Otus.PaymentSystem.Identity.Application.Commands.Login;
 using Otus.PaymentSystem.Identity.Application.Commands.Register;
 using Otus.PaymentSystem.Identity.Host.Contracts.Auth;
+using Otus.PaymentSystem.Identity.Host.Security;
 
 namespace Otus.PaymentSystem.Identity.Host.Endpoints;
+
+/// <summary>Ответ GET /auth/me.</summary>
+public record MeResult(Guid UserId, string Email);
 
 /// <summary>Эндпоинты аутентификации: /auth/register, /auth/login.</summary>
 public static class AuthEndpoints
@@ -26,7 +31,24 @@ public static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
+        group.MapGet("/me", Me)
+            .WithName("Me")
+            .RequireAuthorization()
+            .Produces<MeResult>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
         return app;
+    }
+
+    /// <summary>Данные текущего пользователя из claims (без похода в БД).</summary>
+    private static IResult Me(System.Security.Claims.ClaimsPrincipal user)
+    {
+        var userId = user.GetUserId();
+        var email = user.GetEmail();
+        if (userId is null || string.IsNullOrEmpty(email))
+            return Results.Unauthorized();
+
+        return Results.Ok(new MeResult(userId.Value, email));
     }
 
     private static async Task<IResult> RegisterAsync(
