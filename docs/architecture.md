@@ -22,7 +22,7 @@ Key principles:
 
 1. **Dependency Rule** — dependencies point inward, toward the domain.
 2. **Domain at the center** — the domain knows nothing about the database, message broker, or web framework.
-3. **Contexts as a modular monolith** — each bounded context evolves independently and can later be extracted into a separate service.
+3. **Contexts as independent solutions** — each bounded context lives in its own `.sln` and folder, following a common `src` / `test` layout. This makes it easy to extract a context into a separate service later.
 4. **Explicit contracts between contexts** — synchronous via API / Anti-Corruption Layer, asynchronous via domain events.
 
 The current stage (Week 1) is a **scaffold**: solution and project structure plus base domain-event abstractions. Business logic is not implemented yet.
@@ -88,7 +88,7 @@ flowchart TD
 
 ## 4. Solution structure
 
-All projects live in a single solution file, OtusPaymentSystem.sln.
+The repository is organized as a set of **independent microservice solutions**, one per bounded context, plus a standalone Shared solution. Each solution follows the same `src` / `test` layout.
 
 Overall picture of the contexts and their interaction:
 
@@ -123,29 +123,39 @@ flowchart TB
     F -- events --> A
 ```
 
-    src/
-    ├── Shared/Otus.PaymentSystem.SharedKernel
-    ├── Identity/       {Domain, Application, Infrastructure}
-    ├── Wallets/        {Domain, Application, Infrastructure}
-    ├── Payments/       {Domain, Application, Infrastructure}
-    ├── Fraud/          {Domain, Application, Infrastructure}
-    ├── Notifications/  {Domain, Application, Infrastructure}
-    └── Audit/          {Domain, Application, Infrastructure}
+    .
+    ├── Directory.Build.props        # shared MSBuild settings (TFM, nullable, analyzers)
+    ├── global.json                  # pinned .NET SDK version
+    ├── Shared/
+    │   ├── Otus.PaymentSystem.Shared.sln
+    │   ├── src/Otus.PaymentSystem.SharedKernel/
+    │   └── test/
+    ├── Identity/
+    │   ├── Otus.PaymentSystem.Identity.sln
+    │   ├── src/Otus.PaymentSystem.Identity.{Domain,Application,Infrastructure}/
+    │   └── test/
+    ├── Wallets/                    # same layout
+    ├── Payments/                   # same layout
+    ├── Fraud/                      # same layout
+    ├── Notifications/              # same layout
+    └── Audit/                      # same layout (with test project placeholders)
+
+Each `.sln` contains only its own projects (and references to `Shared/src/Otus.PaymentSystem.SharedKernel` from the Domain projects).
 
 ### 4.1 Naming conventions
 
 - Projects: Otus.PaymentSystem.{Context}.{Layer}
 - Namespace matches the project name.
-- Tests: Otus.PaymentSystem.{Context}.{Layer}.Tests (tests/ folder inside the context).
+- Tests: Otus.PaymentSystem.{Context}.{Layer}.Tests, located in `<Context>/test/`.
 
 ## 5. Dependency rules (current state)
 
-Actual dependencies recorded in .csproj at the time of task #18:
+Actual dependencies recorded in .csproj at the time of task #18 (paths updated for the new layout):
 
 | Layer | References |
 |---|---|
 | SharedKernel | — (no dependencies) |
-| *.Domain | SharedKernel |
+| *.Domain | SharedKernel (`..\..\..\Shared\src\Otus.PaymentSystem.SharedKernel\...`) |
 | *.Application | *.Domain |
 | *.Infrastructure | *.Domain |
 
@@ -158,6 +168,7 @@ Actual dependencies recorded in .csproj at the time of task #18:
 - Clean Architecture — layer separation.
 - DDD — aggregates and domain events in Domain.
 - Domain Events — base abstractions in SharedKernel.
+- Independent solutions per context — ready to be extracted into services.
 
 ### 6.2 Planned
 
