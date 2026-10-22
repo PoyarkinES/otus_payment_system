@@ -8,6 +8,16 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Otus.PaymentSystem.Identity
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Otus.PaymentSystem.Identity.Infrastructure", "src\Otus.PaymentSystem.Identity.Infrastructure\Otus.PaymentSystem.Identity.Infrastructure.csproj", "{A1B2C3D4-0102-4000-8000-000000000004}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Otus.PaymentSystem.Identity.Host", "src\Otus.PaymentSystem.Identity.Host\Otus.PaymentSystem.Identity.Host.csproj", "{A1B2C3D4-0102-4000-8000-000000000005}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Otus.PaymentSystem.Identity.Domain.Tests", "test\Otus.PaymentSystem.Identity.Domain.Tests\Otus.PaymentSystem.Identity.Domain.Tests.csproj", "{A1B2C3D4-0102-4000-8000-000000000006}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Otus.PaymentSystem.Identity.Application.Tests", "test\Otus.PaymentSystem.Identity.Application.Tests\Otus.PaymentSystem.Identity.Application.Tests.csproj", "{A1B2C3D4-0102-4000-8000-000000000007}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Otus.PaymentSystem.Identity.Infrastructure.Tests", "test\Otus.PaymentSystem.Identity.Infrastructure.Tests\Otus.PaymentSystem.Identity.Infrastructure.Tests.csproj", "{A1B2C3D4-0102-4000-8000-000000000008}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Otus.PaymentSystem.Identity.Host.Tests", "test\Otus.PaymentSystem.Identity.Host.Tests\Otus.PaymentSystem.Identity.Host.Tests.csproj", "{A1B2C3D4-0102-4000-8000-000000000009}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -26,6 +36,26 @@ Global
 		{A1B2C3D4-0102-4000-8000-000000000004}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A1B2C3D4-0102-4000-8000-000000000004}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A1B2C3D4-0102-4000-8000-000000000004}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000005}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000005}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000005}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000005}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000006}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000006}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000006}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000006}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000007}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000007}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000007}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000007}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000008}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000008}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000008}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000008}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000009}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000009}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000009}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0102-4000-8000-000000000009}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
