@@ -55,12 +55,12 @@ This document defines the bounded context map, aggregate boundaries, domain even
 
 | Context | Project Path | Domain Type | Phase |
 |---|---|---|---|
-| Identity | `src/Identity/` | **Supporting Subdomain** (foundational) | Phase 1 |
-| Wallets | `src/Wallets/` | **Supporting Subdomain** | Phase 2 |
-| Payments | `src/Payments/` | **CORE DOMAIN** | Phase 3, 6 |
-| Fraud | `src/Fraud/` | **Supporting Subdomain** | Phase 5 |
-| Notifications | `src/Notifications/` | **Supporting Subdomain** | Phase 4 |
-| Audit | `src/Audit/` | **Supporting Subdomain** | Phase 4 |
+| Identity | `Identity/` | **Supporting Subdomain** (foundational) | Phase 1 |
+| Wallets | `Wallets/` | **Supporting Subdomain** | Phase 2 |
+| Payments | `Payments/` | **CORE DOMAIN** | Phase 3, 6 |
+| Fraud | `Fraud/` | **Supporting Subdomain** | Phase 5 |
+| Notifications | `Notifications/` | **Supporting Subdomain** | Phase 4 |
+| Audit | `Audit/` | **Supporting Subdomain** | Phase 4 |
 
 ---
 
@@ -70,7 +70,7 @@ This document defines the bounded context map, aggregate boundaries, domain even
 
 ### 2.1 Identity Context
 
-**Path:** `src/Identity/`
+**Path:** `Identity/`
 
 **Description:** Manages user lifecycle, authentication, authorization, and token lifecycle. This is the upstream context -- every other context depends on it. All external contexts reference users only by `UserId` (a GUID).
 
@@ -120,7 +120,7 @@ This document defines the bounded context map, aggregate boundaries, domain even
 
 ### 2.2 Wallets Context
 
-**Path:** `src/Wallets/`
+**Path:** `Wallets/`
 
 **Description:** Manages digital wallets, balance operations (top-up, withdrawal), and operation history. This is a supporting subdomain. Wallets is upstream for Payments because transfers debit/credit wallets.
 
@@ -175,7 +175,7 @@ This document defines the bounded context map, aggregate boundaries, domain even
 
 ### 2.3 Payments Context (CORE DOMAIN)
 
-**Path:** `src/Payments/`
+**Path:** `Payments/`
 
 **Description:** The core domain of the system. Manages wallet-to-wallet transfers, fees, refunds, merchant payments, and the payment gateway API. This is where the primary business value is created.
 
@@ -273,7 +273,7 @@ This document defines the bounded context map, aggregate boundaries, domain even
 
 ### 2.4 Fraud Context
 
-**Path:** `src/Fraud/`
+**Path:** `Fraud/`
 
 **Description:** Detects suspicious transactions, manages risk scoring, blacklists, and operational limits. This is a supporting subdomain. Fraud is called **synchronously** during transfer validation (blocking decision) and also processes events asynchronously for alert generation.
 
@@ -322,7 +322,7 @@ This document defines the bounded context map, aggregate boundaries, domain even
 
 ### 2.5 Notifications Context
 
-**Path:** `src/Notifications/`
+**Path:** `Notifications/`
 
 **Description:** Manages notification delivery (email, SMS, push) to users. This is a supporting subdomain. It subscribes to events from all other contexts and dispatches appropriate notifications.
 
@@ -370,7 +370,7 @@ This document defines the bounded context map, aggregate boundaries, domain even
 
 ### 2.6 Audit Context (NEW)
 
-**Path:** `src/Audit/`
+**Path:** `Audit/`
 
 **Description:** Immutable audit logging for all system operations. This is a supporting subdomain that subscribes to events from ALL other contexts. Separate from Notifications because audit is about compliance and traceability, not user communication.
 
