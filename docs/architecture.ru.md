@@ -22,7 +22,7 @@
 
 1. **Dependency Rule** — зависимости направлены только внутрь, к домену.
 2. **Domain в центре** — домен не знает ни о БД, ни о брокере сообщений, ни о веб-фреймворке.
-3. **Контексты как модульный монолит** — каждый bounded context развивается независимо и в перспективе может быть выделен в отдельный сервис.
+3. **Контексты как независимые решения** — каждый bounded context живёт в своём `.sln` и папке, с единой структурой `src` / `test`. Это упрощает последующее выделение контекста в отдельный сервис.
 4. **Явные контракты между контекстами** — синхронные через API / Anti-Corruption Layer, асинхронные через доменные события.
 
 На текущем этапе (Неделя 1) создан **каркас**: структура решения и проектов, базовые абстракции доменных событий. Бизнес-логика ещё не реализована.
@@ -88,7 +88,7 @@ flowchart TD
 
 ## 4. Структура решения
 
-Все проекты собраны в одном solution-файле OtusPaymentSystem.sln.
+Репозиторий организован как набор **независимых микросервисных решений**: по одному на bounded context, плюс отдельное решение Shared. Каждое решение имеет единую структуру `src` / `test`.
 
 Общая картина контекстов и их взаимодействия:
 
@@ -123,29 +123,39 @@ flowchart TB
     F -- events --> A
 ```
 
-    src/
-    ├── Shared/Otus.PaymentSystem.SharedKernel
-    ├── Identity/       {Domain, Application, Infrastructure}
-    ├── Wallets/        {Domain, Application, Infrastructure}
-    ├── Payments/       {Domain, Application, Infrastructure}
-    ├── Fraud/          {Domain, Application, Infrastructure}
-    ├── Notifications/  {Domain, Application, Infrastructure}
-    └── Audit/          {Domain, Application, Infrastructure}
+    .
+    ├── Directory.Build.props        # общие настройки MSBuild (TFM, nullable, анализаторы)
+    ├── global.json                  # зафиксированная версия .NET SDK
+    ├── Shared/
+    │   ├── Otus.PaymentSystem.Shared.sln
+    │   ├── src/Otus.PaymentSystem.SharedKernel/
+    │   └── test/
+    ├── Identity/
+    │   ├── Otus.PaymentSystem.Identity.sln
+    │   ├── src/Otus.PaymentSystem.Identity.{Domain,Application,Infrastructure}/
+    │   └── test/
+    ├── Wallets/                    # такая же структура
+    ├── Payments/                   # такая же структура
+    ├── Fraud/                      # такая же структура
+    ├── Notifications/              # такая же структура
+    └── Audit/                      # такая же структура (с заготовками тестовых проектов)
+
+Каждый `.sln` содержит только свои проекты (и ссылки на `Shared/src/Otus.PaymentSystem.SharedKernel` из Domain-проектов).
 
 ### 4.1 Соглашения об именовании
 
 - Проекты: Otus.PaymentSystem.{Context}.{Layer}
 - Namespace совпадает с именем проекта.
-- Тесты: Otus.PaymentSystem.{Context}.{Layer}.Tests (папка tests/ внутри контекста).
+- Тесты: Otus.PaymentSystem.{Context}.{Layer}.Tests, папка `<Context>/test/`.
 
 ## 5. Правила зависимостей (текущее состояние)
 
-Реальные зависимости, зафиксированные в .csproj на момент задачи #18:
+Реальные зависимости, зафиксированные в .csproj на момент задачи #18 (пути обновлены под новую структуру):
 
 | Слой | Ссылается на |
 |---|---|
 | SharedKernel | — (нет зависимостей) |
-| *.Domain | SharedKernel |
+| *.Domain | SharedKernel (`..\..\..\Shared\src\Otus.PaymentSystem.SharedKernel\...`) |
 | *.Application | *.Domain |
 | *.Infrastructure | *.Domain |
 
@@ -158,6 +168,7 @@ flowchart TB
 - Clean Architecture — разделение на слои.
 - DDD — агрегаты и доменные события в Domain.
 - Domain Events — базовые абстракции в SharedKernel.
+- Независимые решения на каждый контекст — готовы к выделению в сервисы.
 
 ### 6.2 Планируются
 
