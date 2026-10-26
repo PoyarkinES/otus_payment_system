@@ -1,212 +1,305 @@
-# Архитектура решения и слои приложения
+# Архитектура Otus Payment System
 
-> Задача: **[P1W1] Описать архитектуру решения и слои приложения (#18)**
-> Связанные документы: [Bounded Contexts](./bounded-contexts.md) · [Auth Requirements](./auth-requirements.ru.md) · [Roadmap](./roadmap.ru.md)
+## 1. Обзор
 
-## 1. Назначение документа
+Система построена как набор микросервисов. Каждый сервис владеет своей базой данных и общается с другими двумя способами:
 
-Этот документ описывает **техническую архитектуру** решения Otus Payment System: какие слои выделены, как они зависят друг от друга, как устроено решение и проекты, какие паттерны и сквозные механизмы используются.
+- **Синхронно (HTTP)** — когда нужен немедленный ответ (например, Payments ждёт ответ от Wallets).
+- **Асинхронно (RabbitMQ)** — когда можно «положить и забыть» (например, уведомления и аудит).
 
-Он **дополняет** bounded-contexts.md:
+### 1.1. Состав системы
 
-| Документ | Отвечает на вопрос |
-|---|---|
-| bounded-contexts.md | **Что** за контексты, где их границы, какие агрегаты и события |
-| architecture.ru.md (этот) | **Как** устроено решение технически: слои, зависимости, структура проектов |
+| Сервис | Роль | Ответственность |
+|--------|------|-----------------|
+| **Identity** | upstream | Аутентификация, выдача JWT, роли, контактные данные (email) |
+| **Wallets** | supporting | Балансы пользователей, холды |
+| **Payments** | **core** | Жизненный цикл перевода, все бизнес-решения, идемпотентность |
+| **Fraud** | supporting | Синхронная проверка переводов, настройки fallback |
+| **Notifications** | downstream | Email / push уведомления |
+| **Audit** | downstream | Журнал всех событий системы |
 
-## 2. Архитектурный стиль
+Инфраструктура:
+- **API Gateway** — единая точка входа для клиентов (JWT, роутинг)
+- **RabbitMQ** — брокер сообщений
+- **Redis** — кэш для валидации получателей (защита Identity от SPOF)
+- **PostgreSQL** — своя база у каждого сервиса
 
-Проект следует **Clean Architecture** в сочетании с **DDD** и (в перспективе) **CQRS**.
+### 1.2. Ключевые принципы
 
-Ключевые принципы:
+1. **Деньги живут только в Wallets.** Ни один другой сервис не меняет баланс.
+2. **Payments решает — Wallets исполняет.** Вся логика жизненного цикла перевода — в Payments.
+3. **Холд до проверки.** Деньги резервируются до вердикта Fraud.
+4. **Sync там, где нужно решение сейчас. Async там, где можно подождать.**
+5. **Своя БД у каждого сервиса.** Общение только через API или события.
+6. **Идемпотентность превыше всего.** Повторный запрос с тем же ключом всегда возвращает сохранённый результат, независимо от текущего состояния мира.
 
-1. **Dependency Rule** — зависимости направлены только внутрь, к домену.
-2. **Domain в центре** — домен не знает ни о БД, ни о брокере сообщений, ни о веб-фреймворке.
-3. **Контексты как независимые решения** — каждый bounded context живёт в своём `.sln` и папке, с единой структурой `src` / `test`. Это упрощает последующее выделение контекста в отдельный сервис.
-4. **Явные контракты между контекстами** — синхронные через API / Anti-Corruption Layer, асинхронные через доменные события.
+---
 
-На текущем этапе (Неделя 1) создан **каркас**: структура решения и проектов, базовые абстракции доменных событий. Бизнес-логика ещё не реализована.
+## 2. Схема взаимодействия
 
-## 3. Слои приложения
+![Container diagram](./images/architecture.png)
 
-В каждом bounded context выделяются три слоя (проекта), плюс общий SharedKernel.
+*Схема: см. файл `docs/images/architecture.png` (или `docs/architecture.drawio`).*
 
-Направление зависимостей (снаружи внутрь):
+### 2.1. Связи между компонентами
 
-```mermaid
-flowchart TD
-    Infra[Infrastructure] --> App[Application]
-    App --> Domain[Domain]
-    Domain --> SK[SharedKernel]
-```
+**Синхронные вызовы (HTTP):**
 
-### 3.1 Domain
+| Откуда | Куда | Назначение |
+|--------|------|------------|
+| Client | API Gateway | Все запросы |
+| API Gateway | Identity | `/auth/*` — логин, регистрация |
+| API Gateway | Wallets | `/wallets/*` — баланс, пополнение, вывод |
+| API Gateway | Payments | `/transfers/*` — переводы (только JWT-валидация и роутинг) |
+| Payments | Redis | Проверка кэша валидации получателя |
+| Payments | Identity | Валидация получателя (при cache miss) |
+| Payments | Wallets | `hold` / `confirm` / `release` / `getHold` (для сверки) |
+| Payments | Fraud | `check` (Approve / Block) |
+| Payments | Fraud | `getSettings` (получение порога fallback) |
+| Notifications | Identity | Получение email получателя для отправки письма |
 
-**Проект:** Otus.PaymentSystem.{Context}.Domain
+**Асинхронные события (RabbitMQ):**
 
-- **Содержит:** корни агрегатов и сущности, value objects, доменные события, доменные сервисы, доменные исключения, инварианты.
-- **Зависимости:** только SharedKernel. Никаких ссылок на EF Core, ASP.NET Core, брокеры.
-- **Правила:**
-  - Домен — единственный источник бизнес-правил и инвариантов.
-  - Доменные события объявляются здесь.
-  - Изменение состояния — только через методы агрегата.
+| Кто публикует | Кто подписан | События |
+|---------------|--------------|---------|
+| Payments | Notifications, Audit | `TransferCreated`, `TransferCompleted`, `TransferFailed` |
+| Wallets | Notifications, Audit | `WalletCredited`, `WalletDebited` |
 
-### 3.2 Application
+---
 
-**Проект:** Otus.PaymentSystem.{Context}.Application
+## 3. Как работает перевод (пошагово)
 
-- **Содержит:** команды и запросы (CQRS), обработчики (MediatR), DTO, интерфейсы внешних зависимостей (репозитории, клиенты, публикаторы событий), прикладные сервисы и оркестрацию.
-- **Зависимости:** Domain.
-- **Правила:**
-  - Слой **не содержит** бизнес-правил — только оркестрация домена.
-  - Внешние зависимости описываются **интерфейсами** здесь, реализуются в Infrastructure.
-  - Рекомендуемые папки: Commands/, Queries/, DTOs/, Interfaces/, Services/.
+Пример: Алиса переводит Борису 1000 ₽.
 
-### 3.3 Infrastructure
+### 3.1. Предварительные шаги
 
-**Проект:** Otus.PaymentSystem.{Context}.Infrastructure
+1. **Регистрация.** Клиент → Gateway → Identity. Identity сохраняет пользователя, возвращает `UserId`.
+2. **Логин.** Клиент → Gateway → Identity. Identity проверяет пароль и выдаёт **JWT**.
+3. **Пополнение.** Клиент → Gateway → Wallets. Wallets создаёт/пополняет баланс: `available += 5000`.
 
-- **Содержит:** DbContext и конфигурации EF Core, репозитории, реализации клиентов внешних сервисов, публикация/подписка на события, миграции.
-- **Зависимости:** Domain (см. раздел 5 о плановой зависимости от Application).
-- **Правила:**
-  - Никакой бизнес-логики — только техническая реализация.
-  - Реализует интерфейсы, объявленные в Application (когда они появятся).
+### 3.2. Перевод
 
-### 3.4 SharedKernel
+**Шаг 1. Запрос от клиента.**
+Клиент генерирует **Idempotency-Key** и отправляет `POST /transfers` с телом `{toUserId, amount, currency}`. В теле **нет** `fromUserId` — отправитель определяется по JWT.
 
-**Проект:** Otus.PaymentSystem.SharedKernel
+**Шаг 2. API Gateway.**
+- Проверяет JWT **локально** по публичному ключу Identity.
+- Извлекает `UserId` (это `fromUserId`) из токена.
+- Маршрутизирует запрос в Payments, добавляя заголовок `X-User-Id: {fromUserId}`.
 
-- **Содержит:** минимальный набор общих абстракций: IDomainEvent, IApplicationEvent, базовые примитивы.
-- **Зависимости:** отсутствуют.
-- **Правила:**
-  - Не превращать в свалку общего кода. Только то, что действительно разделяется всеми контекстами.
+> **Доверие к заголовку:** в MVP Payments доверяет `X-User-Id`, потому что вызовы идут только через внутреннюю сеть. В production — mTLS или подписанный внутренний JWT (см. Known Limitations).
 
-**Базовые абстракции событий (реальный код):**
+**Шаг 3. Payments — создание перевода и валидация.**
+Здесь **строгий порядок действий** (защита от race conditions и дублей):
 
-- IDomainEvent — базовый интерфейс: EventId, Timestamp, CorrelationId, CausationId.
-- IApplicationEvent : IDomainEvent — маркер для событий, публикуемых в брокер; добавляет ContextName и RoutingKey.
+1. **Проверка Idempotency-Key.** Payments ищет ключ в своей БД. Если ключ уже есть — **немедленно** возвращает сохранённый результат (успех или ошибку) и завершает работу. Валидация получателя не выполняется.
+2. **Валидация получателя (Redis/Identity).** Если ключ новый:
+   - Payments проверяет в **Redis** ключ `user:{toUserId}`.
+   - Если есть в кэше — берёт оттуда (быстро, Identity не дёргаем).
+   - Если нет (cache miss) — синхронно вызывает `Identity` (`GET /users/{toUserId}`). Сохраняет ответ в Redis (TTL 60 сек для существующих, 10 сек для несуществующих).
+   - Если получателя не существует — Transfer → `Failed`, клиент получает ошибку.
+3. **Создание перевода.** Создаёт `Transfer` со статусом `Created`, сохраняет Idempotency-Key.
+4. Отвечает клиенту `202 Accepted`.
 
-## 4. Структура решения
+> **Почему проверка ключа идёт первой:** Если клиент повторит запрос с тем же ключом, а получателя за это время удалили из Identity, мы всё равно должны вернуть ему изначальный успешный результат, а не ошибку валидации.
 
-Репозиторий организован как набор **независимых микросервисных решений**: по одному на bounded context, плюс отдельное решение Shared. Каждое решение имеет единую структуру `src` / `test`.
+**Шаг 4. Payments → Wallets: hold (заморозка).**
+Payments просит Wallets заморозить сумму у Алисы, передавая `transferId` как idempotency key.
+- Wallets проверяет: нет ли уже холда с таким `transferId`? Если есть — возвращает существующий `holdId` (идемпотентность).
+- Проверяет баланс: `available >= 1000`?
+- Если нет → ошибка `InsufficientFunds`, Transfer → `Failed`.
+- Если да → создаёт `Hold{transferId, userId, amount}` с UNIQUE(transferId), уменьшает `available`, увеличивает `held`. Возвращает `holdId`.
+- Payments сохраняет `holdId`, Transfer → `Held`.
 
-Общая картина контекстов и их взаимодействия:
+**Шаг 5. Payments → Fraud: проверка.**
+Payments синхронно вызывает Fraud и **ждёт** вердикт.
 
-```mermaid
-flowchart TB
-    subgraph Identity
-        I[Identity]
-    end
+**Шаг 6. Fraud — вердикт.**
+Fraud применяет правила и возвращает `Approve` или `Block`. 
+*(Примечание: если Fraud недоступен или не ответил за N секунд — это сбой вызова, обрабатывается в Шаге 7).*
 
-    subgraph Core
-        P[Payments - CORE]
-    end
+**Шаг 7. Payments обрабатывает вердикт.**
 
-    subgraph Supporting
-        W[Wallets]
-        F[Fraud]
-        N[Notifications]
-        A[Audit]
-    end
+| Исход | Действие Payments |
+|-------|-------------------|
+| `Approve` | → Wallets: `confirm(holdId)`, Transfer → `Completed` |
+| `Block` | → Wallets: `release(holdId)`, Transfer → `Failed` |
+| Timeout / Fraud недоступен | Fallback: если `amount < порога` → как `Approve`, иначе → как `Block` |
 
-    I -. ACL: UserId only .-> P
-    I -. ACL: UserId only .-> W
-    I -. ACL: UserId only .-> F
+> **Порог fallback** хранится в Fraud. Payments получает его через `GET /fraud/settings` при старте и кэширует с TTL (например, 5 минут). Если Fraud недоступен и кэш пуст — используется дефолтный порог (0 = блокировать всё).
 
-    P -- sync: debit/credit --> W
-    P -- sync: evaluate --> F
+**Шаг 8. Wallets — финализация.**
+По команде `confirm` Wallets **одной транзакцией**:
+- списывает у Алисы (`held -= 1000`),
+- зачисляет Борису (`available += 1000`). **Если у Бориса нет кошелька — Wallets создаёт его автоматически** (так как пользователь валидирован).
+- помечает холд как `Completed`.
 
-    P -- events --> N
-    P -- events --> A
-    W -- events --> A
-    I -- events --> A
-    F -- events --> A
-```
+По команде `release` Wallets возвращает деньги в `available` Алисы и помечает холд как `Released`.
 
-    .
-    ├── Directory.Build.props        # общие настройки MSBuild (TFM, nullable, анализаторы)
-    ├── global.json                  # зафиксированная версия .NET SDK
-    ├── Shared/
-    │   ├── Otus.PaymentSystem.Shared.sln
-    │   ├── src/Otus.PaymentSystem.SharedKernel/
-    │   └── test/
-    ├── Identity/
-    │   ├── Otus.PaymentSystem.Identity.sln
-    │   ├── src/Otus.PaymentSystem.Identity.{Domain,Application,Infrastructure}/
-    │   └── test/
-    ├── Wallets/                    # такая же структура
-    ├── Payments/                   # такая же структура
-    ├── Fraud/                      # такая же структура
-    ├── Notifications/              # такая же структура
-    └── Audit/                      # такая же структура (с заготовками тестовых проектов)
+**Идемпотентность:**
+- `confirm` для `Completed` холда → возвращает OK (не списывает повторно).
+- `confirm` для `Released` холда → возвращает ошибку `Conflict`.
+- `release` для `Released` холда → возвращает OK.
+- `release` для `Completed` холда → возвращает ошибку `Conflict`.
 
-Каждый `.sln` содержит только свои проекты (и ссылки на `Shared/src/Otus.PaymentSystem.SharedKernel` из Domain-проектов).
+**Шаг 9. Payments публикует событие.**
+В RabbitMQ (через Outbox) уходит событие `TransferCompleted` или `TransferFailed`.
 
-### 4.1 Соглашения об именовании
+Подписчики:
+- **Notifications** — шлёт письма. Чтобы отправить письмо Борису, Notifications идёт в `Identity` (получает email по `toUserId`).
+- **Audit** — записывает событие в журнал.
 
-- Проекты: Otus.PaymentSystem.{Context}.{Layer}
-- Namespace совпадает с именем проекта.
-- Тесты: Otus.PaymentSystem.{Context}.{Layer}.Tests, папка `<Context>/test/`.
+**Шаг 10. Клиент получает результат.**
+Клиент периодически опрашивает `GET /transfers/{id}`, пока статус не станет `Completed` или `Failed`.
 
-## 5. Правила зависимостей (текущее состояние)
+### 3.3. Обработка неизвестного результата `confirm`
 
-Реальные зависимости, зафиксированные в .csproj на момент задачи #18 (пути обновлены под новую структуру):
+**Сценарий:** Payments вызвал `confirm`, Wallets списал и зачислил, но ответ потерялся.
+**Решение:**
+- После retry без ответа — Transfer переходит в статус **`Confirming`** (не `Failed`!).
+- В MVP фонового процесса сверки (reconciliation) нет. Перевод в `Confirming` требует ручного вмешательства (проверки статуса холда в Wallets). В production — фоновый процесс вызывает `getHold(holdId)` и завершает перевод.
 
-| Слой | Ссылается на |
-|---|---|
-| SharedKernel | — (нет зависимостей) |
-| *.Domain | SharedKernel (`..\..\..\Shared\src\Otus.PaymentSystem.SharedKernel\...`) |
-| *.Application | *.Domain |
-| *.Infrastructure | *.Domain |
+---
 
-**Наблюдение и техдолг.** В канонической Clean Architecture Infrastructure обычно зависит от Application (реализует объявленные там интерфейсы). Сейчас Infrastructure ссылается напрямую на Domain — это корректно для текущего каркаса, пока интерфейсов в Application нет. По мере появления CQRS-обработчиков и интерфейсов репозиториев/клиентов следует переключить Infrastructure на Application и зафиксировать это в Architecture.Tests (см. раздел 8).
+## 4. Внутренние паттерны
 
-## 6. Паттерны
+### 4.1. Hold (холд) — в Wallets
+Резервирование денег (`available -= amount`, `held += amount`). Модель данных: `Holds` (`transferId` UNIQUE). State machine: `Active` → `Completed` / `Released` / `Expired`. Повторные `hold`/`confirm`/`release` идемпотентны.
 
-### 6.1 Уже применяются (каркас)
+### 4.2. Idempotency-Key — в Payments
+Ключ клиента. Защищает от двойного нажатия и retry. Сохраняется вместе с Transfer. 
+**Строгое правило:** Проверка ключа всегда предшествует любой другой бизнес-логике (включая валидацию получателя).
 
-- Clean Architecture — разделение на слои.
-- DDD — агрегаты и доменные события в Domain.
-- Domain Events — базовые абстракции в SharedKernel.
-- Независимые решения на каждый контекст — готовы к выделению в сервисы.
+### 4.3. Outbox — в Payments и в Wallets
+Событие сохраняется в БД в одной транзакции с бизнес-данными. Фоновый процесс публикует в RabbitMQ. Гарантирует, что событие не потеряется при падении сервиса.
 
-### 6.2 Планируются
+### 4.4. Fallback при недоступности Fraud — в Payments
+Если Fraud упал — пропускаем только мелкие переводы. Таймаут 2 сек, Circuit Breaker (Polly). Порог получается из Fraud (`getSettings`) и кэшируется.
 
-- CQRS + MediatR — разделение команд и запросов в Application.
-- Repository + Unit of Work — доступ к данным через интерфейсы (Application) и реализации (Infrastructure).
-- Anti-Corruption Layer — изоляция внешних контекстов (см. bounded-contexts.md).
-- Optimistic Locking — конкурентный доступ к кошелькам.
-- Outbox — надёжная публикация событий в брокер.
+### 4.5. Watchdog для зависших холдов — в Wallets (в MVP не реализован)
+Фоновый процесс, отменяющий холды старше N минут без подтверждения. В MVP не реализован: если Payments упал между `hold` и `confirm`, деньги остаются замороженными, требуется ручное вмешательство.
 
-## 7. Сквозные механизмы (cross-cutting)
+### 4.6. Cache-Aside для валидации получателя — в Payments + Redis
+**Проблема:** Синхронный вызов Identity на каждый перевод делает его единой точкой отказа (SPOF).
+**Решение:** Payments кэширует результат проверки в Redis.
+- Ключ: `user:{toUserId}`.
+- TTL: 60 секунд (существующие), 10 секунд (negative caching для несуществующих).
+- При падении Identity Payments продолжает работать с теми, кого недавно проверял.
 
-| Механизм | Инструмент | Слой |
-|---|---|---|
-| Валидация | FluentValidation | Application |
-| Логирование | Serilog | Infrastructure / Host |
-| Трассировка | OpenTelemetry | Infrastructure / Host |
-| Аутентификация | JWT | Host + Identity |
-| Обработка ошибок | Middleware + ProblemDetails | Host |
-| Конфигурация | IOptions + appsettings | Infrastructure / Host |
+### 4.7. Обработка сбоев между шагами
+- **Сбой `hold`:** retry (защищён `transferId`). Если не помог — `Failed`.
+- **Сбой `confirm`:** retry. Если не помог — статус `Confirming` (ручная сверка в MVP).
+- **Сбой `release`:** retry. Если не помог — `Failed`, холд висит (ручная чистка в MVP).
+- **Сбой Payments целиком:** перевод остаётся в `Created` / `Held` / `Confirming` (ручная сверка).
 
-## 8. Тестирование
+---
 
-- **Domain.Tests** — юнит-тесты инвариантов и доменных сервисов.
-- **Application.Tests** — тесты обработчиков с мок-зависимостями.
-- **Integration.Tests** — тесты с реальной БД (Testcontainers).
-- **Architecture.Tests** — проверка Dependency Rule (Domain не ссылается на Infrastructure и т.п.).
+## 5. События
 
-## 9. Целевое состояние (6 месяцев)
+### 5.1. Кто публикует
+- **Payments (через Outbox):** `TransferCreated`, `TransferCompleted`, `TransferFailed`.
+- **Wallets (через Outbox):** `WalletCredited`, `WalletDebited`. События холдов не публикует.
+- **Identity и Fraud** в MVP событий не публикуют.
 
-- 6 bounded contexts, каждый по схеме Domain/Application/Infrastructure.
-- Синхронные вызовы между контекстами — через API + ACL.
-- Асинхронные — через RabbitMQ и доменные события.
-- PostgreSQL — основное хранилище, Redis — кэш/лимиты.
-- CQRS + MediatR, Repository + Unit of Work.
-- Docker + CI/CD, мониторинг (Serilog, OpenTelemetry, Prometheus, Grafana).
+### 5.2. Кто подписан
+- **Notifications** — на все события Payments и Wallets.
+- **Audit** — на все события Payments и Wallets.
+- **Fraud** — ни на что не подписан в MVP.
 
-## 10. Связанные задачи
+### 5.3. Гарантии доставки
+- **At-least-once**: событие может прийти дважды.
+- **Порядок не гарантирован**: Audit сортирует по `createdAt`.
+- Подписчики идемпотентны: Notifications хранит `SentMessages` с `eventId`; Audit — уникальный `eventId`.
 
-- #23 — Определение границ доменов и bounded contexts → bounded-contexts.md
-- #15 — Authentication and Authorization Requirements → auth-requirements.ru.md
-- Roadmap → roadmap.ru.md
+---
+
+## 6. Модели данных (по сервисам)
+
+### Identity DB
+`Users` (UserId, email, пароль, статус), `Roles`, `UserRoles`.
+
+### Wallets DB
+`Wallets` (UserId, available, held, version), `Holds` (holdId, transferId UNIQUE, status), `WalletTransactions`, `Outbox`.
+
+### Payments DB
+`Transfers` (статусы: Created / Held / Completed / Failed / Confirming), `IdempotencyKeys`, `Outbox`.
+
+### Fraud DB
+`Rules`, `FraudSettings` (fallbackThreshold), `Decisions`, `Blacklist`.
+
+### Notifications DB
+`Templates`, `SentMessages` (eventId UNIQUE, channel, status), `UserPreferences`.
+
+### Audit DB
+`Events` (append-only, eventId UNIQUE, correlationId nullable).
+
+### Redis (Кэш)
+`user:{userId}` → `{ exists: bool, status: string }` (TTL: 60s/10s).
+
+---
+
+## 7. Ключевые решения
+
+| Решение | Обоснование |
+|---------|-------------|
+| **Строгий порядок: Ключ → Валидация → Создание** | Защита от race condition. Ретрай с известным ключом всегда возвращает результат, даже если получателя удалили. |
+| **Redis-кэш для валидации получателя** | Убирает Identity с критического пути каждого перевода (защита от SPOF), снижает задержки и нагрузку. |
+| **Холд до Fraud** | Деньги резервируются до вердикта. Нет окна, в котором Алиса может их потратить. |
+| **Sync Fraud** | Решение нужно немедленно. |
+| **Async Notifications / Audit** | Перевод завершён, письмо — не критично. |
+| **Идемпотентность hold/confirm/release** | Защита от двойных списаний при retry. |
+| **Outbox в Payments и Wallets** | Гарантированная публикация событий. |
+| **Статус `Confirming`** | При неизвестном результате `confirm` не помечаем `Failed`, чтобы не потерять деньги. |
+| **Local JWT validation на Gateway** | Gateway только проверяет подпись и роутит. Не знает про бизнес-логику. |
+| **Автосоздание кошелька** | Безопасно, так как Payments до этого валидировал получателя через Redis/Identity. |
+
+---
+
+## 8. Отличия от исходных документов
+
+### 8.1. Добавлено
+API Gateway, Hold-паттерн, Idempotency-Key, Outbox (Payments + Wallets), Fallback, Audit, Redis-кэш, статус `Confirming`, автосоздание кошелька.
+
+### 8.2. Отложено
+Merchants, Async follow-up для Fraud, Review-флоу, Событие `UserRegistered` от Identity.
+
+---
+
+## 9. Known limitations (MVP)
+
+- **Merchants**
+- **Review-флоу**
+- **Async follow-up для Fraud**
+- **Watchdog для холдов** — при падении Payments между hold и confirm холд висит, нужно ручное вмешательство.
+- **Reconciliation для `Confirming`** — переводы в `Confirming` требуют ручной сверки с Wallets.
+- **Событие `UserRegistered`** — в MVP валидация идет через Redis+Identity (sync). В production — событие от Identity и локальная проекция в Payments/Notifications.
+- **Service-to-service аутентификация** — **(Security concern)**. Payments доверяет заголовку `X-User-Id` от Gateway.
+- **Интеграция с внешним платёжным провайдером**
+- **Внешние каналы уведомлений** (SMTP, FCM/APNs)
+- **Correlation ID** (поле есть, но не заполняется)
+- **Мультивалютность** (только RUB)
+- **Мониторинг** (Prometheus, Grafana, Jaeger)
+
+---
+
+## 10. Технологический стек
+
+- .NET / ASP.NET Core
+- Entity Framework Core + PostgreSQL
+- RabbitMQ
+- **Redis**
+- YARP
+- JWT
+- MediatR / CQRS
+- FluentValidation
+- Polly
+- Docker + docker-compose
+- GitHub Actions
+
+---
+
+## 11. Ссылки
+
+- [Bounded Contexts](./bounded-contexts.md)
+- [Roadmap](./roadmap.md)
+- [README](../README.md)
