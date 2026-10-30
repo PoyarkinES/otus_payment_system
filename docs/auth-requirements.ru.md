@@ -161,6 +161,8 @@ Issue считается завершенным, когда:
 ## 13. Чеклист последующей реализации
 
 > Легенда статусов: `[ ]` не начато, `[~]` в работе, `[x]` завершено.
+>
+> **Статус на 30.10.2026:** Identity MVP закрыл часть пунктов A–D и G (User, роли, hasher, register/login, JWT, admin-policy, unit-тесты). Refresh/logout, PostgreSQL-миграции, rate limiting, ownership, correlation ID и integration-тесты перенесены в M1–M3. Актуальный план — [roadmap.ru.md](./roadmap.ru.md).
 
 ### A. Модель identity и хранение (связи: 4, 5.1, 5.4, 9)
 - [ ] Создать сущность `User` с полями из раздела 9 (id, email, password hash, roles, status, timestamps).
