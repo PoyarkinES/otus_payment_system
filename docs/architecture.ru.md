@@ -219,6 +219,8 @@ Fraud применяет правила и возвращает `Approve` или
 
 ## 6. Модели данных (по сервисам)
 
+> Подробная схема с колонками, индексами и статусами реализации: [db-schema.ru.md](./db-schema.ru.md).
+
 ### Identity DB
 `Users` (UserId, email, пароль, статус), `Roles`, `UserRoles`.
 

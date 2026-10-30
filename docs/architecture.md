@@ -241,6 +241,9 @@ Order not guaranteed: Audit sorts by createdAt.
 Subscribers are idempotent: Notifications stores SentMessages with eventId; Audit — unique eventId.
 
 6. Data models (by service)
+
+> Detailed schema with columns, indexes, and implementation status (Russian): [db-schema.ru.md](./db-schema.ru.md).
+
 Identity DB
 Users (UserId, email, password, status), Roles, UserRoles.
 
