@@ -306,7 +306,12 @@ Multi-currency (RUB only)
 
 Monitoring (Prometheus, Grafana, Jaeger)
 
-10. Technology stack
+10. Clients: Web and Mobile
+Web SPA and mobile apps talk only to Gateway/BFF.
+Web runs in parallel with M2–M6 and ships with 1.0; mobile is post-1.0 (M8).
+No direct service URLs, no direct PostgreSQL/Mongo/MinIO access.
+
+11. Technology stack
 .NET / ASP.NET Core
 
 Entity Framework Core + PostgreSQL
@@ -331,7 +336,7 @@ GitHub Actions
 
 Post-1.0: MongoDB, MinIO/S3, gRPC
 
-11. References
+12. References
 Bounded Contexts
 
 Roadmap

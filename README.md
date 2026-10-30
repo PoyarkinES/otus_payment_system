@@ -96,7 +96,9 @@ See [ADR 0001](./docs/adr/0001-api-gateway.md).
 | M4 (February 2027) | RabbitMQ, Audit Service, Notifications Service |
 | M5 (March 2027) | Fraud: limits, velocity, fallback, blacklist, risk scoring |
 | M6 (April 2027) | Merchant Payments: API keys, webhooks, refunds, release 1.0 |
+| Web UI (parallel M2–M6) | Login, profile, wallet, transfers, E2E via Gateway |
 | M7 (April–May 2027) | **Post-1.0:** KYC/Onboarding — MongoDB, MinIO, gRPC, PII security |
+| M8 (May–June 2027) | **Post-1.0:** Mobile MVP — auth, wallet, transfers, push |
 
 Critical path:
 

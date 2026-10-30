@@ -96,7 +96,9 @@
 | M4 (февраль 2027) | RabbitMQ, Audit Service, Notifications Service |
 | M5 (март 2027) | Fraud: лимиты, velocity, fallback, blacklist, risk scoring |
 | M6 (апрель 2027) | Merchant Payments: API keys, webhooks, refunds, релиз 1.0 |
+| Web UI (параллельно M2–M6) | Вход, профиль, кошелёк, переводы, E2E через Gateway |
 | M7 (апрель–май 2027) | **Post-1.0:** KYC/Onboarding — MongoDB, MinIO, gRPC, безопасность PII |
+| M8 (май–июнь 2027) | **Post-1.0:** Mobile MVP — auth, кошелёк, переводы, push |
 
 Критический путь:
 

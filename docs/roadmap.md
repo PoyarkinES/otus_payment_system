@@ -61,10 +61,45 @@ Gateway → PostgreSQL → Wallets → Transfers → Outbox/RabbitMQ → Audit/N
 | **M5** | 22 Feb – 21 Mar 2027 | Fraud: rules, fallback, alerts | [#44](https://github.com/PoyarkinES/otus_payment_system/issues/44) | Sync block before confirm + fallback when Fraud is down |
 | **M6** | 22 Mar – 18 Apr 2027 | Merchant Payments + Release 1.0 | [#45](https://github.com/PoyarkinES/otus_payment_system/issues/45) | API keys, payments, webhooks, refunds, release |
 | **M7** | 19 Apr – 23 May 2027 | **Post-1.0:** KYC/Onboarding — MongoDB, MinIO, gRPC | [#73](https://github.com/PoyarkinES/otus_payment_system/issues/73) | Synthetic document → MinIO, metadata → Mongo, status over gRPC, Payments threshold |
+| **M8** | 24 May – 20 Jun 2027 | **Post-1.0:** Mobile MVP — auth, wallet, transfers, push | [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) | Mobile client via Gateway/BFF; push and biometrics |
 
-**Total:** 24 weeks of core development (M1–M6) + 5 post-1.0 weeks (M7). A full frontend UI is a post-1.0 track.
+**Total:** 24 weeks of core development (M1–M6) + 5 post-1.0 weeks (M7) + 4 mobile weeks (M8). **Web UI runs in parallel with M2–M6 and ships with 1.0**; it is not post-1.0.
 
-**Team:** 3 people. M7 can run in parallel with M6 if someone is free earlier, but **KYC must not block 1.0** and is enabled behind a feature flag.
+**Team:** 3 people: 2 backend + 1 frontend. M7/M8 can run in parallel with core if someone is free, but **KYC/Mobile must not block 1.0**; they are behind a feature flag / separate app.
+
+### 4.1 UI track: Web and Mobile
+
+With a dedicated frontend developer, UI cannot wait until after 1.0 — otherwise they are idle while backend builds Wallets/Transfers.
+
+- **Web MVP** runs in parallel with M2–M6 and ships with release 1.0.
+- **Mobile MVP** is M8, after 1.0 and KYC; push needs a backend extension in Notifications.
+
+| Track | When | Epic | Tasks |
+|---|---|---|---|
+| **Web** | M2–M6, parallel to backend | [#80](https://github.com/PoyarkinES/otus_payment_system/issues/80) | [#82](https://github.com/PoyarkinES/otus_payment_system/issues/82)–[#89](https://github.com/PoyarkinES/otus_payment_system/issues/89) |
+| **Mobile** | M8, post-1.0 | [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) | [#90](https://github.com/PoyarkinES/otus_payment_system/issues/90)–[#93](https://github.com/PoyarkinES/otus_payment_system/issues/93) |
+
+**UI rules:**
+
+- The client talks **only to Gateway/BFF**; direct Identity/Wallets/Payments URLs are forbidden.
+- Contract is OpenAPI/BFF; generate the client from OpenAPI, avoid hand-written DTO duplication.
+- Frontend chooses the stack; React/TS + Vite is the default for web, recorded in README.
+- Until endpoints exist, use mocks, but agree contracts first.
+- Web: login/register, profile, wallet, operations, transfer, errors, E2E smoke.
+- Mobile: auth + secure storage, wallet, transfer, push/biometrics/offline.
+- Security: no refresh token in localStorage; mobile uses Keychain/Keystore; no PII in logs.
+
+**Dependencies:**
+
+| Web task | Needs backend |
+|---|---|
+| Skeleton/API client | Gateway + `/health`, M1 |
+| Auth/profile | login/refresh, `/bff/me`, M1W3–W4 |
+| Wallet | `/bff/wallets`, M2W7 |
+| Transfer | `/bff/transfers`, M3W12 |
+| KYC upload | KYC M7W26–W27 |
+
+**Risks:** OpenAPI drift, BFF delay, CORS, mobile push backend. Mitigation: contract-first, mock server, E2E via Gateway.
 
 ## 5. Weeks
 
@@ -210,10 +245,13 @@ Rules:
 | PII leaks into logs/repository | Low | Critical | Synthetic documents only, masking, no PII in logs, W28 security checklist |
 | Three people get in each other's way | Medium | Medium | Contracts in W25, clear track ownership, cross-review, feature flag |
 | Teammates join later | High | Medium | Core plan first, KYC post-1.0; newcomers start with tests/docs, not the money path |
+| Web UI drifts from BFF/OpenAPI | Medium | Medium | Contract-first, mock server, UI tasks in the same weeks as backend |
+| One frontend dev for web + mobile | High | Medium | Mobile only after 1.0 (M8); web has priority |
+| Mobile push without backend | Medium | Medium | Push backend (FCM/APNs) is a separate post-1.0 Notifications task, not a 1.0 blocker |
 
 ## 10. Out of core scope
 
-- Full frontend UI (React/Blazor) — **post-1.0**.
+- **Mobile UI** — **M8 post-1.0**; web UI ships with 1.0 and runs in parallel with M2–M6.
 - KYC/Onboarding — **M7 post-1.0**, must not block 1.0 and is behind a feature flag.
 - Kubernetes, service mesh, Event Sourcing — not before 1.0.
 - Redis as a general cache/limiter — no; only `user:{id}` in M3.
@@ -225,9 +263,9 @@ Rules:
 
 ## 11. Board rules
 
-- **Milestones** = M0–M7 (M7 is post-1.0).
-- **Issues** = weeks `[M1W1]`…`[M7W29]` + detailed tasks (#8–#22).
-- **Labels**: `area/*` (including `area/kyc`), `type/*`, `priority/P0–P2`, `week/01–29`, `status/*`, `post-1.0`.
+- **Milestones** = M0–M8 (M7–M8 are post-1.0).
+- **Issues** = weeks `[M1W1]`…`[M8W33]` + detailed tasks (#8–#22) + UI tasks `[UI/Web]`/`[UI/Mobile]`.
+- **Labels**: `area/*` (including `area/kyc`, `area/frontend`), `platform/web`, `platform/mobile`, `type/*` (including `type/ui`), `priority/P0–P2`, `week/01–33`, `status/*`, `post-1.0`.
 - **WIP ≤ 2**; update status every Friday.
 - One issue = one vertical slice, not "do everything".
 - If a task does not fit a week, cut scope rather than move the critical path.
@@ -242,7 +280,8 @@ Rules:
 ## 13. Links
 
 - Dashboard: [#70](https://github.com/PoyarkinES/otus_payment_system/issues/70)
-- Epics: [#39](https://github.com/PoyarkinES/otus_payment_system/issues/39) M0 · [#40](https://github.com/PoyarkinES/otus_payment_system/issues/40) M1 · [#41](https://github.com/PoyarkinES/otus_payment_system/issues/41) M2 · [#42](https://github.com/PoyarkinES/otus_payment_system/issues/42) M3 · [#43](https://github.com/PoyarkinES/otus_payment_system/issues/43) M4 · [#44](https://github.com/PoyarkinES/otus_payment_system/issues/44) M5 · [#45](https://github.com/PoyarkinES/otus_payment_system/issues/45) M6 · [#73](https://github.com/PoyarkinES/otus_payment_system/issues/73) M7
+- Epics: [#39](https://github.com/PoyarkinES/otus_payment_system/issues/39) M0 · [#40](https://github.com/PoyarkinES/otus_payment_system/issues/40) M1 · [#41](https://github.com/PoyarkinES/otus_payment_system/issues/41) M2 · [#42](https://github.com/PoyarkinES/otus_payment_system/issues/42) M3 · [#43](https://github.com/PoyarkinES/otus_payment_system/issues/43) M4 · [#44](https://github.com/PoyarkinES/otus_payment_system/issues/44) M5 · [#45](https://github.com/PoyarkinES/otus_payment_system/issues/45) M6 · [#73](https://github.com/PoyarkinES/otus_payment_system/issues/73) M7 · [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) M8
+- UI: [#80](https://github.com/PoyarkinES/otus_payment_system/issues/80) Web · [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) Mobile
 - [ADR 0001 — API Gateway](./adr/0001-api-gateway.md)
 - [ADR 0002 — KYC storage](./adr/0002-kyc-storage.md)
 - [ADR 0003 — KYC gRPC](./adr/0003-kyc-grpc.md)

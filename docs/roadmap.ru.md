@@ -62,10 +62,45 @@ Gateway → PostgreSQL → Wallets → Transfers → Outbox/RabbitMQ → Audit/N
 | **M5** | 22 февраля — 21 марта 2027 | Fraud: правила, fallback, алерты | [#44](https://github.com/PoyarkinES/otus_payment_system/issues/44) | Sync-блокировка до confirm + fallback при недоступности Fraud |
 | **M6** | 22 марта — 18 апреля 2027 | Merchant Payments + Release 1.0 | [#45](https://github.com/PoyarkinES/otus_payment_system/issues/45) | API keys, платежи, webhooks, возвраты, релиз |
 | **M7** | 19 апреля — 23 мая 2027 | **Post-1.0:** KYC/Onboarding — MongoDB, MinIO, gRPC | [#73](https://github.com/PoyarkinES/otus_payment_system/issues/73) | Синтетический документ → MinIO, метаданные → Mongo, статус по gRPC, порог в Payments |
+| **M8** | 24 мая — 20 июня 2027 | **Post-1.0:** Mobile MVP — auth, кошелёк, переводы, push | [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) | Мобильный клиент через Gateway/BFF; push и биометрия |
 
-**Итого:** 24 недели core-разработки (M1–M6) + 5 недель post-1.0 (M7). Полный frontend UI — отдельный post-1.0 трек, чтобы не сорвать backend-цели.
+**Итого:** 24 недели core-разработки (M1–M6) + 5 недель post-1.0 (M7) + 4 недели mobile (M8). **Web UI идёт параллельно M2–M6 и входит в 1.0** — это не post-1.0.
 
-**Команда:** 3 человека. M7 можно вести параллельно с M6, если один человек освобождается раньше, но **KYC не должен блокировать релиз 1.0** и включается feature flag’ом.
+**Команда:** 3 человека: 2 backend + 1 frontend. M7/M8 можно вести параллельно с core, если освобождается человек, но **KYC/Mobile не должны блокировать релиз 1.0** и включаются feature flag’ом / отдельным приложением.
+
+### 4.1 UI-трек: Web и Mobile
+
+С выделенным фронтендером UI нельзя оставлять «на после 1.0»: иначе он простаивает, пока backend делает Wallets/Transfers. Поэтому:
+
+- **Web MVP** идёт параллельно M2–M6 и входит в релиз 1.0.
+- **Mobile MVP** — M8, после 1.0 и KYC; push требует backend-расширения Notifications.
+
+| Трек | Когда | Эпик | Задачи |
+|---|---|---|---|
+| **Web** | M2–M6, параллельно backend | [#80](https://github.com/PoyarkinES/otus_payment_system/issues/80) | [#82](https://github.com/PoyarkinES/otus_payment_system/issues/82)–[#89](https://github.com/PoyarkinES/otus_payment_system/issues/89) |
+| **Mobile** | M8, post-1.0 | [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) | [#90](https://github.com/PoyarkinES/otus_payment_system/issues/90)–[#93](https://github.com/PoyarkinES/otus_payment_system/issues/93) |
+
+**Правила UI-трека:**
+
+- Клиент ходит **только через Gateway/BFF**; прямые URL Identity/Wallets/Payments в коде запрещены.
+- Контракт — OpenAPI/BFF; клиент генерируется из OpenAPI, чтобы не плодить ручные DTO.
+- Стек выбирает фронтендер; для web — React/TS + Vite как дефолт, но решение фиксируется в README.
+- До готовности endpoint’ов UI работает на моках, но контракты согласуются заранее.
+- Web: login/register, профиль, кошелёк, операции, перевод, ошибки, E2E smoke.
+- Mobile: auth + secure storage, кошелёк, перевод, push/биометрия/offline.
+- Безопасность: не хранить refresh token в localStorage; mobile — Keychain/Keystore; PII не логировать.
+
+**Зависимости:**
+
+| Web-задача | Нужен backend |
+|---|---|
+| Каркас/API-клиент | Gateway + `/health`, M1 |
+| Auth/профиль | login/refresh, `/bff/me`, M1W3–W4 |
+| Кошелёк | `/bff/wallets`, M2W7 |
+| Перевод | `/bff/transfers`, M3W12 |
+| KYC upload | KYC M7W26–W27 |
+
+**Риски:** расхождение OpenAPI и реализации, задержка BFF, CORS, push-бэкенд для mobile. Мера: контракты в начале недели, mock-сервер, E2E через Gateway.
 
 ## 5. M1. Edge & Foundation (2–29 ноября 2026)
 
@@ -313,10 +348,13 @@ flowchart LR
 | PII попадёт в логи/репозиторий | Низкая | Критическое | Только синтетические документы, маскирование, запрет PII в логах, security checklist W28 |
 | Три человека мешают друг другу | Средняя | Среднее | Контракты в W25, чёткое владение треками, ревью PR, feature flag |
 | Команда подключается позже | Высокая | Среднее | Сначала core-план, KYC — post-1.0; новички начинают с тестов/доков, не с денежного контура |
+| Web UI отстаёт от BFF/OpenAPI | Средняя | Среднее | Contract-first, mock-сервер, UI-задачи в тех же неделях, что и backend |
+| Один фронтендер на web + mobile | Высокая | Среднее | Mobile только после 1.0 (M8); web — приоритет |
+| Mobile push без backend | Средняя | Среднее | Push-бэкенд (FCM/APNs) — отдельная post-1.0 задача Notifications, не блокирует 1.0 |
 
 ## 15. Что вне core-плана
 
-- Полный frontend UI (React/Blazor) — **post-1.0**, после стабильного BFF.
+- **Mobile UI** — **M8 post-1.0**; web UI входит в 1.0 и идёт параллельно M2–M6.
 - KYC/Onboarding — **M7 post-1.0**, не блокирует 1.0 и включается feature flag’ом.
 - Kubernetes, service mesh, Event Sourcing — не раньше 1.0.
 - Redis как общий кэш/лимиты — нет; Redis только под `user:{id}` в M3.
@@ -328,9 +366,9 @@ flowchart LR
 
 ## 16. Правила доски
 
-- **Milestones** = M0–M7 (M7 — post-1.0).
-- **Issues** = недели `[M1W1] Неделя: …`…`[M7W29] Неделя: …` + детальные задачи (старые #8–#22).
-- **Labels**: `area/*` (включая `area/kyc`), `type/*`, `priority/P0–P2`, `week/01–29`, `status/*`, `post-1.0`.
+- **Milestones** = M0–M8 (M7–M8 — post-1.0).
+- **Issues** = недели `[M1W1] Неделя: …`…`[M8W33] Неделя: …` + детальные задачи (старые #8–#22) + UI-задачи `[UI/Web]`/`[UI/Mobile]`.
+- **Labels**: `area/*` (включая `area/kyc`, `area/frontend`), `platform/web`, `platform/mobile`, `type/*` (включая `type/ui`), `priority/P0–P2`, `week/01–33`, `status/*`, `post-1.0`.
 - **WIP ≤ 2**, в пятницу — статус и перенос хвостов.
 - **Один issue = один вертикальный срез**, а не «сделать всё».
 - Если задача не влезает в неделю — режем scope, а не двигаем критический путь.
@@ -348,10 +386,11 @@ gh project create --owner PoyarkinES --title "Otus Payment System — Roadmap"
 
 | Поле | Тип | Значения |
 |---|---|---|
-| Month | Single select | M0, M1, M2, M3, M4, M5, M6, M7 (post-1.0) |
-| Week | Number | 1–29 |
+| Month | Single select | M0–M8 (M7–M8 post-1.0) |
+| Week | Number | 1–33 |
 | Status | Single select | Todo, In Progress, Blocked, Done |
-| Area | Single select | Identity, Wallets, Payments, Fraud, Notifications, Audit, Gateway, KYC, Platform |
+| Area | Single select | Identity, Wallets, Payments, Fraud, Notifications, Audit, Gateway, KYC, Frontend, Platform |
+| Platform | Single select | Web, Mobile, Backend |
 | Priority | Single select | P0, P1, P2 |
 
 Представления:
@@ -373,7 +412,8 @@ gh project create --owner PoyarkinES --title "Otus Payment System — Roadmap"
 ## 18. Ссылки
 
 - Дашборд: [#70](https://github.com/PoyarkinES/otus_payment_system/issues/70)
-- Эпики: [#39](https://github.com/PoyarkinES/otus_payment_system/issues/39) M0 · [#40](https://github.com/PoyarkinES/otus_payment_system/issues/40) M1 · [#41](https://github.com/PoyarkinES/otus_payment_system/issues/41) M2 · [#42](https://github.com/PoyarkinES/otus_payment_system/issues/42) M3 · [#43](https://github.com/PoyarkinES/otus_payment_system/issues/43) M4 · [#44](https://github.com/PoyarkinES/otus_payment_system/issues/44) M5 · [#45](https://github.com/PoyarkinES/otus_payment_system/issues/45) M6 · [#73](https://github.com/PoyarkinES/otus_payment_system/issues/73) M7
+- Эпики: [#39](https://github.com/PoyarkinES/otus_payment_system/issues/39) M0 · [#40](https://github.com/PoyarkinES/otus_payment_system/issues/40) M1 · [#41](https://github.com/PoyarkinES/otus_payment_system/issues/41) M2 · [#42](https://github.com/PoyarkinES/otus_payment_system/issues/42) M3 · [#43](https://github.com/PoyarkinES/otus_payment_system/issues/43) M4 · [#44](https://github.com/PoyarkinES/otus_payment_system/issues/44) M5 · [#45](https://github.com/PoyarkinES/otus_payment_system/issues/45) M6 · [#73](https://github.com/PoyarkinES/otus_payment_system/issues/73) M7 · [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) M8
+- UI: [#80](https://github.com/PoyarkinES/otus_payment_system/issues/80) Web · [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) Mobile
 - [ADR 0001 — API Gateway](./adr/0001-api-gateway.md)
 - [ADR 0002 — KYC storage](./adr/0002-kyc-storage.md)
 - [ADR 0003 — KYC gRPC](./adr/0003-kyc-grpc.md)

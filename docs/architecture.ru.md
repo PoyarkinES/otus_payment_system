@@ -331,7 +331,39 @@ KYC не нужен для базового перевода, но добавл�
 
 ---
 
-## 11. Технологический стек
+## 11. Клиенты: Web и Mobile
+
+UI — не bounded context и не отдельный сервис. Web и Mobile — клиенты, которые ходят **только через Gateway/BFF**.
+
+```mermaid
+flowchart LR
+    WEB[Web SPA] --> GW[Gateway/BFF]
+    MOB[Mobile iOS/Android] --> GW
+    GW --> ID[Identity]
+    GW --> W[Wallets]
+    GW --> P[Payments]
+    GW --> KYC[KYC]
+```
+
+**Web:**
+
+- SPA (React/TS + Vite или выбранный стек), работает с `http://localhost:8080`.
+- Access token — в памяти; refresh — по схеме Identity (не в localStorage).
+- OpenAPI-клиент генерируется из контракта Gateway; прямые URL сервисов запрещены.
+- Идёт параллельно M2–M6 и входит в 1.0.
+
+**Mobile:**
+
+- iOS/Android (React Native/Flutter/MAUI — выбирает фронтендер), тот же Gateway/BFF.
+- Токены — Keychain/Keystore; биометрия; deep links.
+- Push требует backend-расширения Notifications (FCM/APNs) — post-1.0, M8.
+- Не блокирует 1.0.
+
+**Общее:** CORS на Gateway, correlation ID в ошибках, единый ProblemDetails, никакого прямого доступа к PostgreSQL/Mongo/MinIO.
+
+---
+
+## 12. Технологический стек
 
 - .NET / ASP.NET Core
 - Entity Framework Core + PostgreSQL
@@ -348,11 +380,12 @@ KYC не нужен для базового перевода, но добавл�
 
 ---
 
-## 12. Ссылки
+## 13. Ссылки
 
 - [Bounded Contexts](./bounded-contexts.md)
 - [Roadmap RU](./roadmap.ru.md) · [Roadmap EN](./roadmap.md)
 - [ADR 0001 — API Gateway](./adr/0001-api-gateway.md)
 - [ADR 0002 — KYC storage](./adr/0002-kyc-storage.md)
 - [ADR 0003 — KYC gRPC](./adr/0003-kyc-grpc.md)
+- UI: [#80](https://github.com/PoyarkinES/otus_payment_system/issues/80) Web · [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) Mobile
 - [README RU](../README.ru.md) · [README EN](../README.md)
