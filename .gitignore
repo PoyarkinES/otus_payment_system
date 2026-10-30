@@ -45,3 +45,5 @@ Thumbs.db
 
 ## Logs
 identity.log
+
+.env

@@ -14,6 +14,7 @@ public class RegisterCommandHandler(IUserRepository users, IPasswordHasher hashe
     : IRequestHandler<RegisterCommand, RegisterResult>
 {
     /// <inheritdoc />
+    /// <exception cref="DomainException"></exception>
     public async Task<RegisterResult> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
         var email = new Email(request.Email);
@@ -28,6 +29,7 @@ public class RegisterCommandHandler(IUserRepository users, IPasswordHasher hashe
         var user = User.Register(email, hash);
 
         await users.AddAsync(user, cancellationToken);
+        await users.SaveChangesAsync(cancellationToken);
 
         return new RegisterResult(user.Id, user.Email.Value);
     }

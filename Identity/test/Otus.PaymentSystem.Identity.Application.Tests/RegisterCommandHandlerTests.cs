@@ -39,6 +39,7 @@ public class RegisterCommandHandlerTests
         await users.Received(1).AddAsync(
             Arg.Is<User>(u => u.Email.Value == ValidEmail && u.PasswordHash == expectedHash),
             Arg.Any<CancellationToken>());
+        await users.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -54,6 +55,7 @@ public class RegisterCommandHandlerTests
 
         Assert.Contains("занят", ex.Message);
         await users.DidNotReceive().AddAsync(Arg.Any<User>(), Arg.Any<CancellationToken>());
+        await users.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
