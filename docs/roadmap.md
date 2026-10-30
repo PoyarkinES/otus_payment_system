@@ -77,7 +77,7 @@ With a dedicated frontend developer, UI cannot wait until after 1.0 — otherwis
 | Track | When | Epic | Tasks |
 |---|---|---|---|
 | **Web** | M2–M6, parallel to backend | [#80](https://github.com/PoyarkinES/otus_payment_system/issues/80) | [#82](https://github.com/PoyarkinES/otus_payment_system/issues/82)–[#89](https://github.com/PoyarkinES/otus_payment_system/issues/89) |
-| **Mobile** | M8, post-1.0 | [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) | [#90](https://github.com/PoyarkinES/otus_payment_system/issues/90)–[#93](https://github.com/PoyarkinES/otus_payment_system/issues/93) |
+| **Mobile** | M8, post-1.0 | [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) | [#90](https://github.com/PoyarkinES/otus_payment_system/issues/90)–[#93](https://github.com/PoyarkinES/otus_payment_system/issues/93) + push backend [#94](https://github.com/PoyarkinES/otus_payment_system/issues/94) |
 
 **UI rules:**
 

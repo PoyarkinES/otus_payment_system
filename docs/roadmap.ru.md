@@ -78,7 +78,7 @@ Gateway → PostgreSQL → Wallets → Transfers → Outbox/RabbitMQ → Audit/N
 | Трек | Когда | Эпик | Задачи |
 |---|---|---|---|
 | **Web** | M2–M6, параллельно backend | [#80](https://github.com/PoyarkinES/otus_payment_system/issues/80) | [#82](https://github.com/PoyarkinES/otus_payment_system/issues/82)–[#89](https://github.com/PoyarkinES/otus_payment_system/issues/89) |
-| **Mobile** | M8, post-1.0 | [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) | [#90](https://github.com/PoyarkinES/otus_payment_system/issues/90)–[#93](https://github.com/PoyarkinES/otus_payment_system/issues/93) |
+| **Mobile** | M8, post-1.0 | [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) | [#90](https://github.com/PoyarkinES/otus_payment_system/issues/90)–[#93](https://github.com/PoyarkinES/otus_payment_system/issues/93) + push backend [#94](https://github.com/PoyarkinES/otus_payment_system/issues/94) |
 
 **Правила UI-трека:**
 
