@@ -38,3 +38,41 @@ jobs:
 
       - name: Build
         run: dotnet build ${{ matrix.solution }} --no-restore --configuration Release
+
+  identity-integration-tests:
+    name: Identity integration tests (PostgreSQL)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: otus_identity_test
+          POSTGRES_USER: otus
+          POSTGRES_PASSWORD: otus
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U otus -d otus_identity_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      IDENTITY_TEST_DB: "Host=localhost;Port=5432;Database=otus_identity_test;Username=otus;Password=otus"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Test
+        run: >
+          dotnet test
+          Identity/test/Otus.PaymentSystem.Identity.Infrastructure.Tests/Otus.PaymentSystem.Identity.Infrastructure.Tests.csproj
+          --configuration Release
+          --filter "FullyQualifiedName~EfUserRepositoryPostgresTests"

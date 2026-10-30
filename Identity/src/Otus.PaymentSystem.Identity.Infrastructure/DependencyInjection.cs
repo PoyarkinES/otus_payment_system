@@ -16,8 +16,12 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        var connectionString = configuration.GetConnectionString("IdentityDb")
+                               ?? throw new InvalidOperationException(
+                                   "ConnectionStrings:IdentityDb не настроен.");
+
         services.AddDbContext<IdentityDbContext>(options =>
-            options.UseInMemoryDatabase("identity"));
+            options.UseNpgsql(connectionString));
 
         services.AddScoped<IUserRepository, EfUserRepository>();
 
