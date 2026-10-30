@@ -16,6 +16,7 @@ jobs:
       matrix:
         solution:
           - Shared/Otus.PaymentSystem.Shared.sln
+          - Gateway/Otus.PaymentSystem.Gateway.sln
           - Identity/Otus.PaymentSystem.Identity.sln
           - Wallets/Otus.PaymentSystem.Wallets.sln
           - Payments/Otus.PaymentSystem.Payments.sln
