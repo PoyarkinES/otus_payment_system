@@ -1,4 +1,4 @@
-﻿# Bounded Contexts & Domain Boundaries
+# Bounded Contexts & Domain Boundaries
 
 ## Executive Summary
 
@@ -62,6 +62,26 @@ This document defines the bounded context map, aggregate boundaries, domain even
 | Notifications | `Notifications/` | **Supporting Subdomain** | Phase 4 |
 | Audit | `Audit/` | **Supporting Subdomain** | Phase 4 |
 
+### 1.4 API Gateway (edge, not a bounded context)
+
+**Path:** `Gateway/`
+
+The API Gateway / BFF is an **edge infrastructure service**, not a bounded context. It has no aggregates, domain events, or business rules.
+
+**Responsibilities:**
+
+- route public requests to Identity, Wallets, Payments, Fraud, Audit, and Notifications;
+- validate JWT at the edge and forward `Authorization`;
+- terminate CORS for the frontend;
+- apply rate limiting;
+- propagate correlation IDs;
+- aggregate read models for the UI (`/bff/me`, `/bff/wallets`, `/bff/transfers`);
+- expose aggregated health and links to service OpenAPI documents.
+
+**Why it is needed early:** without it, the frontend must know every service, duplicate auth/CORS/error handling, and aggregate data client-side. It is introduced in M1, before Wallets and the full UI.
+
+**Do not confuse with the Payment Gateway:** the Payment Gateway (merchant acquiring, API keys, webhooks, refunds) is a business capability inside Payments and is delivered in M6. See [ADR 0001](./adr/0001-api-gateway.md).
+
 ---
 
 ## 2. Detailed Context Analysis
@@ -122,7 +142,9 @@ This document defines the bounded context map, aggregate boundaries, domain even
 
 **Path:** `Wallets/`
 
-**Description:** Manages digital wallets, balance operations (top-up, withdrawal), and operation history. This is a supporting subdomain. Wallets is upstream for Payments because transfers debit/credit wallets.
+> **MVP note (2026-10-30):** this section describes the target model. The MVP design actually planned for M1–M5 is in [architecture.ru.md](./architecture.ru.md): `available`/`held`, `Holds` with `UNIQUE(transferId)`, `hold`/`confirm`/`release`, `WalletTransactions`, Redis recipient cache. Where they differ, `architecture.ru.md` is the source of truth for the MVP.
+
+**Description:** Manages digital wallets, balance operations (top-up, withdrawal), holds, and operation history. This is a supporting subdomain. Wallets is upstream for Payments because transfers hold/confirm/release wallet funds.
 
 #### Aggregate Roots
 
@@ -136,15 +158,27 @@ This document defines the bounded context map, aggregate boundaries, domain even
 - **Fields:**
   - `Id` (Guid)
   - `UserId` (Guid) - FK to Identity
-  - `Currency` (string, ISO 4217: RUB, USD, EUR)
-  - `Balance` (decimal, 18.4 precision)
+  - `Currency` (string, ISO 4217; MVP — RUB only)
+  - `Available` (decimal, 18.4 precision)
+  - `Held` (decimal, 18.4 precision)
   - `Status` (WalletStatus: Active, Frozen, Closed)
   - `Version` (int) - optimistic concurrency token
   - `CreatedAt` (DateTimeOffset)
   - `UpdatedAt` (DateTimeOffset)
-- **Domain Events:** `WalletCreated`, `BalanceDeposited`, `BalanceWithdrawn`, `BalanceTransferredIn`, `BalanceTransferredOut`, `WalletFrozen`, `WalletClosed`
+- **Domain Events:** `WalletCreated`, `WalletCredited`, `WalletDebited`, `WalletFrozen`, `WalletClosed` (hold events are not published in the MVP)
 
-**WalletOperation** (Entity within Wallet aggregate)
+**Hold** (Entity within Wallet aggregate)
+- **Responsibilities:** Reserves funds for a pending transfer until Fraud decides
+- **Fields:**
+  - `Id` (Guid)
+  - `TransferId` (Guid) - UNIQUE, idempotency key from Payments
+  - `UserId` (Guid)
+  - `Amount` (decimal)
+  - `Status` (HoldStatus: Active, Completed, Released, Expired)
+  - `CreatedAt`, `UpdatedAt` (DateTimeOffset)
+- **Invariants:** `hold` moves amount from `Available` to `Held`; `confirm` moves from `Held` to the recipient; `release` returns `Held` to `Available`; repeated operations are idempotent.
+
+**WalletOperation / WalletTransaction** (Entity within Wallet aggregate)
 - **Responsibilities:** Records every balance-changing operation with full audit trail
 - **Fields:**
   - `Id` (Guid)
@@ -176,6 +210,8 @@ This document defines the bounded context map, aggregate boundaries, domain even
 ### 2.3 Payments Context (CORE DOMAIN)
 
 **Path:** `Payments/`
+
+> **MVP note (2026-10-30):** the transfer lifecycle in the MVP is defined in [architecture.ru.md](./architecture.ru.md): `Idempotency-Key` first, recipient validation via Redis/Identity, `Created` → `Held` → (`Completed` | `Failed` | `Confirming`), `hold`/`confirm`/`release` in Wallets, sync Fraud check. Where this section differs, `architecture.ru.md` wins for M1–M5.
 
 **Description:** The core domain of the system. Manages wallet-to-wallet transfers, fees, refunds, merchant payments, and the payment gateway API. This is where the primary business value is created.
 
@@ -419,7 +455,7 @@ All events from all contexts. Routing keys prefixed by context name:
 
 **Protocol:** REST over HTTP/JSON (gRPC is optional for high-throughput internal calls)
 
-**Key design:** Payments is the orchestrator. It calls Wallets synchronously for debit/credit operations within a saga pattern. If debit succeeds but credit fails, Payments initiates a compensating transaction (rollback).
+**Key design (MVP, see architecture.ru.md):** Payments is the orchestrator. It asks Wallets to `hold` the amount before the Fraud decision, then calls `confirm` (money moves to the recipient) or `release` (funds return to the sender). This is not a debit/credit saga: money moves only on `confirm`, and `release` is the compensation path. `hold`/`confirm`/`release` are idempotent and keyed by `transferId`/`holdId`.
 
 ### 3.2 Asynchronous Boundaries (RabbitMQ Events)
 
@@ -503,7 +539,7 @@ Payments.Application/
 
 **Problem:** Payments orchestrates transfers but must not depend on Wallets' internal balance calculation or operation recording.
 
-**Solution:** Payments defines `WalletBalance` DTO with only `WalletId`, `Balance`, `Currency`. It calls Wallets' debit/credit APIs. The Wallets context owns the balance logic entirely.
+**Solution:** Payments defines a minimal `WalletHold` DTO (`WalletId`, `Amount`, `Currency`, `TransferId`) and calls Wallets' `hold`/`confirm`/`release` APIs. The Wallets context owns the balance and hold logic entirely.
 
 **Implementation:**
 ```
@@ -637,7 +673,7 @@ src/
 
 ### Why Wallets is upstream for Payments?
 - Payments "orders" balance operations from Wallets
-- Wallets defines the contract for debit/credit
+- Wallets defines the contract for `hold`/`confirm`/`release`
 - Payments does not know Wallets internals (only through API)
 
 ### Why Fraud is sync + async?

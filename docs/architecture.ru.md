@@ -301,5 +301,6 @@ Merchants, Async follow-up для Fraud, Review-флоу, Событие `UserRe
 ## 11. Ссылки
 
 - [Bounded Contexts](./bounded-contexts.md)
-- [Roadmap](./roadmap.md)
-- [README](../README.md)
+- [Roadmap RU](./roadmap.ru.md) · [Roadmap EN](./roadmap.md)
+- [ADR 0001 — API Gateway](./adr/0001-api-gateway.md)
+- [README RU](../README.ru.md) · [README EN](../README.md)
