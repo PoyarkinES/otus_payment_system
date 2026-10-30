@@ -96,6 +96,7 @@
 | M4 (февраль 2027) | RabbitMQ, Audit Service, Notifications Service |
 | M5 (март 2027) | Fraud: лимиты, velocity, fallback, blacklist, risk scoring |
 | M6 (апрель 2027) | Merchant Payments: API keys, webhooks, refunds, релиз 1.0 |
+| M7 (апрель–май 2027) | **Post-1.0:** KYC/Onboarding — MongoDB, MinIO, gRPC, безопасность PII |
 
 Критический путь:
 
@@ -106,9 +107,11 @@ Gateway → PostgreSQL → Wallets (+ holds) → Transfers (Redis, hold, Fraud s
 ## Статус
 
 - **Identity MVP** готов: регистрация, логин, JWT, роли, профиль, block/unblock, unit-тесты.
-- **M1** стартует 2 ноября 2026: Gateway, PostgreSQL, refresh-токены, CI-тесты, Docker.
-- **Не сделано:** PostgreSQL, миграции, Gateway/BFF, refresh/logout, rate limiting, структурное логирование, тесты в CI.
+- **Gateway** готов: YARP, JWT-валидация, `X-User-Id`, CORS, `/health`, 8 тестов, CI.
+- **M1 в работе:** следующие шаги — PostgreSQL для Identity, refresh/JWKS, Docker Compose.
+- **Не сделано:** PostgreSQL, миграции, refresh/logout, rate limiting, структурное логирование, тесты в CI.
 - Wallets/Transfers/Fraud/Notifications/Audit пока содержат только доменные события.
+- **Post-1.0:** KYC/Onboarding (MongoDB + MinIO + gRPC), не блокирует 1.0.
 
 Актуальный статус и порядок задач — в pinned issue [#70](https://github.com/PoyarkinES/otus_payment_system/issues/70).
 
@@ -124,6 +127,7 @@ Gateway → PostgreSQL → Wallets (+ holds) → Transfers (Redis, hold, Fraud s
 - MediatR
 - Docker
 - GitHub Actions
+- **Post-1.0:** MongoDB, MinIO/S3, gRPC (KYC)
 
 ## Лицензия
 

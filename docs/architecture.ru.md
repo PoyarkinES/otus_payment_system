@@ -17,12 +17,16 @@
 | **Fraud** | supporting | Синхронная проверка переводов, настройки fallback |
 | **Notifications** | downstream | Email / push уведомления |
 | **Audit** | downstream | Журнал всех событий системы |
+| **KYC** | supporting, **post-1.0** | Документы, верификация личности, метаданные KYC-кейса |
 
 Инфраструктура:
 - **API Gateway** — единая точка входа для клиентов (JWT, роутинг)
 - **RabbitMQ** — брокер сообщений
 - **Redis** — кэш для валидации получателей (защита Identity от SPOF)
 - **PostgreSQL** — своя база у каждого сервиса
+- **MongoDB** — метаданные KYC-кейсов (post-1.0)
+- **MinIO/S3** — файлы KYC-документов (post-1.0)
+- **gRPC** — внутренний KYC API (post-1.0)
 
 ### 1.2. Ключевые принципы
 
@@ -282,7 +286,52 @@ Merchants, Async follow-up для Fraud, Review-флоу, Событие `UserRe
 
 ---
 
-## 10. Технологический стек
+## 10. Post-1.0: KYC/Onboarding (M7)
+
+KYC — отдельный supporting-контекст, который **не входит в релиз 1.0** и включается feature flag’ом. Он не двигает деньги и не заменяет Identity.
+
+### 10.1. Компоненты
+
+```mermaid
+flowchart LR
+    FE[Frontend] --> GW[Gateway]
+    GW --> KYC[KYC.Host]
+    KYC --> MDB[(MongoDB: KycCase)]
+    KYC --> S3[(MinIO/S3: files)]
+    KYC --> VP[Verification provider stub]
+    PAY[Payments] -->|gRPC GetKycStatus| KYC
+    ID[Identity] -->|gRPC GetKycStatus| KYC
+    KYC -->|events| MQ[RabbitMQ]
+```
+
+### 10.2. Границы
+
+- **KYC.Host** — единственный владелец KYC-данных. Gateway не читает Mongo и не отдаёт файлы напрямую.
+- **MongoDB** — `kyc_cases`: userId, status, documents[], providerResult, timestamps. Гибкая схема нужна из-за разных типов документов и ответов провайдера.
+- **MinIO/S3** — сами сканы. В Mongo только `fileId`, content-type, размер, хэш. Не GridFS.
+- **gRPC** — внутренний `GetKycStatus`/`WatchKycStatus`; REST — для фронтенда через Gateway.
+- **Payments** — перед переводом выше порога спрашивает KYC-статус; при выключенном feature flag поведение 1.0 не меняется.
+- **Notifications** — уведомление о смене KYC-статуса.
+
+### 10.3. Безопасность и PII
+
+- только синтетические документы в dev/demo и репозитории;
+- шифрование at rest и in transit;
+- номера документов — хеш + маска, не plaintext;
+- доступ к файлам только через KYC-сервис, signed URL с коротким TTL;
+- аудит каждого доступа/изменения;
+- retention/удаление;
+- запрет PII в логах и ошибках.
+
+### 10.4. Почему не в 1.0
+
+KYC не нужен для базового перевода, но добавляет новый контекст, Mongo, MinIO, gRPC и требования к безопасности. Это отдельный трек M7, который не должен блокировать релиз 1.0.
+
+Подробнее: [ADR 0002](./adr/0002-kyc-storage.md) и [ADR 0003](./adr/0003-kyc-grpc.md).
+
+---
+
+## 11. Технологический стек
 
 - .NET / ASP.NET Core
 - Entity Framework Core + PostgreSQL
@@ -295,12 +344,15 @@ Merchants, Async follow-up для Fraud, Review-флоу, Событие `UserRe
 - Polly
 - Docker + docker-compose
 - GitHub Actions
+- **Post-1.0:** MongoDB, MinIO/S3, gRPC
 
 ---
 
-## 11. Ссылки
+## 12. Ссылки
 
 - [Bounded Contexts](./bounded-contexts.md)
 - [Roadmap RU](./roadmap.ru.md) · [Roadmap EN](./roadmap.md)
 - [ADR 0001 — API Gateway](./adr/0001-api-gateway.md)
+- [ADR 0002 — KYC storage](./adr/0002-kyc-storage.md)
+- [ADR 0003 — KYC gRPC](./adr/0003-kyc-grpc.md)
 - [README RU](../README.ru.md) · [README EN](../README.md)

@@ -96,6 +96,7 @@ See [ADR 0001](./docs/adr/0001-api-gateway.md).
 | M4 (February 2027) | RabbitMQ, Audit Service, Notifications Service |
 | M5 (March 2027) | Fraud: limits, velocity, fallback, blacklist, risk scoring |
 | M6 (April 2027) | Merchant Payments: API keys, webhooks, refunds, release 1.0 |
+| M7 (April–May 2027) | **Post-1.0:** KYC/Onboarding — MongoDB, MinIO, gRPC, PII security |
 
 Critical path:
 
@@ -106,9 +107,11 @@ Gateway → PostgreSQL → Wallets (+ holds) → Transfers (Redis, hold, Fraud s
 ## Status
 
 - **Identity MVP** is done: registration, login, JWT, roles, profile, block/unblock, unit tests.
-- **M1** starts on 2 November 2026: Gateway, PostgreSQL, refresh tokens, CI tests, Docker.
-- **Missing:** PostgreSQL, migrations, Gateway/BFF, refresh/logout, rate limiting, structured logging, tests in CI.
+- **Gateway** is done: YARP, JWT validation, `X-User-Id`, CORS, `/health`, 8 tests, CI.
+- **M1 in progress:** next are PostgreSQL for Identity, refresh/JWKS, Docker Compose.
+- **Missing:** PostgreSQL, migrations, refresh/logout, rate limiting, structured logging, tests in CI.
 - Wallets/Transfers/Fraud/Notifications/Audit currently contain domain events only.
+- **Post-1.0:** KYC/Onboarding (MongoDB + MinIO + gRPC), does not block 1.0.
 
 Current status and task order: pinned issue [#70](https://github.com/PoyarkinES/otus_payment_system/issues/70).
 
@@ -124,6 +127,7 @@ Current status and task order: pinned issue [#70](https://github.com/PoyarkinES/
 - MediatR
 - Docker
 - GitHub Actions
+- **Post-1.0:** MongoDB, MinIO/S3, gRPC (KYC)
 
 ## License
 

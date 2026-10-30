@@ -14,6 +14,7 @@ Payments	core	Transfer lifecycle, all business decisions, idempotency
 Fraud	supporting	Synchronous transfer validation, fallback settings
 Notifications	downstream	Email / push notifications
 Audit	downstream	Log of all system events
+KYC	supporting, post-1.0	Identity documents, verification, KYC case metadata
 Infrastructure:
 
 API Gateway — single entry point for clients (JWT, routing)
@@ -23,6 +24,12 @@ RabbitMQ — message broker
 Redis — cache for recipient validation (protection of Identity from SPOF)
 
 PostgreSQL — own database for each service
+
+MongoDB — KYC case metadata (post-1.0)
+
+MinIO/S3 — KYC document files (post-1.0)
+
+gRPC — internal KYC API (post-1.0)
 
 1.2. Key principles
 Money lives only in Wallets. No other service changes balances.
@@ -322,9 +329,15 @@ Docker + docker-compose
 
 GitHub Actions
 
+Post-1.0: MongoDB, MinIO/S3, gRPC
+
 11. References
 Bounded Contexts
 
 Roadmap
+
+ADR 0002 — KYC storage
+
+ADR 0003 — KYC gRPC
 
 README

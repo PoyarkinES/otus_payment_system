@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document defines the bounded context map, aggregate boundaries, domain events, and integration patterns for the Otus Payment System. The system is modeled as a **distributed domain** with 6 bounded contexts. The **Payments context is the core domain**, Identity is the **upstream context** for all others, and Fraud, Notifications, and Audit are **downstream supporting contexts**.
+This document defines the bounded context map, aggregate boundaries, domain events, and integration patterns for the Otus Payment System. The system is modeled as a **distributed domain** with 6 core bounded contexts plus **KYC/Onboarding** as a post-1.0 supporting context. The **Payments context is the core domain**, Identity is the **upstream context** for all others, and Fraud, Notifications, and Audit are **downstream supporting contexts**.
 
 **Key architectural decisions:**
 - Payments context owns the transfer lifecycle end-to-end; Wallets is a supporting context providing balance operations
@@ -10,6 +10,7 @@ This document defines the bounded context map, aggregate boundaries, domain even
 - All contexts publish events to RabbitMQ for Audit and Notifications (fire-and-forget)
 - Identity is the single upstream context; all other contexts reference only `UserId` (never the full User model)
 - A new **Audit context** is recommended as a dedicated concern, separate from Notifications
+- **KYC/Onboarding** is a post-1.0 supporting context: MongoDB for case metadata, MinIO/S3 for files, gRPC for internal status. It does not move money and does not replace Identity.
 
 ---
 
@@ -441,17 +442,83 @@ All events from all contexts. Routing keys prefixed by context name:
 
 ---
 
+### 2.7 KYC/Onboarding Context (post-1.0)
+
+**Path:** `Kyc/`
+
+**Description:** Identity verification for higher limits and merchant onboarding. This is a **post-1.0 supporting context** (M7). It does not move money, does not issue tokens, and does not replace Identity. It owns sensitive personal data, so its access and storage rules are stricter than any other context.
+
+#### Aggregate Roots
+
+**KycCase** (Aggregate Root)
+- **Responsibilities:** Lifecycle of a user's identity verification, document set, provider result
+- **Statuses:** `Draft`, `Pending`, `Approved`, `Rejected`, `RequiresAction`
+- **Fields:**
+  - `Id` (Guid/string)
+  - `UserId` (Guid) - Identity reference only
+  - `Status` (KycStatus)
+  - `Documents` (array of KycDocument)
+  - `ProviderResult` (document) - provider-specific payload
+  - `CreatedAt`, `UpdatedAt` (DateTimeOffset)
+- **Invariants:**
+  - A case cannot be `Approved` without at least one verified document.
+  - Raw document numbers are never stored in plaintext; only hash + mask.
+  - Access to documents is audited.
+- **Domain Events:** `KycSubmitted`, `KycApproved`, `KycRejected`, `KycRequiresAction`
+
+**KycDocument** (Entity within KycCase)
+- **Fields:**
+  - `Id` (Guid)
+  - `Type` (passport, international_passport, driver_license)
+  - `Country` (string)
+  - `SeriesNumberHash` (string)
+  - `SeriesNumberMasked` (string)
+  - `IssuedAt`, `ExpiresAt` (DateOnly)
+  - `FileId` (string) - MinIO/S3 object key
+  - `ContentType`, `SizeBytes`, `Sha256`
+  - `Verification` (provider status, confidence, rawResponseRef)
+
+#### Storage
+
+| Data | Store | Reason |
+|---|---|---|
+| KYC case metadata, documents, provider payloads | MongoDB `kyc_cases` | Flexible schema across document/provider types |
+| Scans/photos | MinIO/S3 private bucket | Binary objects, signed URL, lifecycle, encryption |
+| Audit of access/changes | Audit context | Compliance and traceability |
+
+Not GridFS, not PostgreSQL JSONB for this use case. See [ADR 0002](./adr/0002-kyc-storage.md).
+
+#### Internal API
+
+- gRPC `GetKycStatus(userId)` and optional `WatchKycStatus(userId)` for internal callers.
+- REST upload/status through Gateway for the frontend.
+- Payments applies a threshold behind a feature flag.
+- See [ADR 0003](./adr/0003-kyc-grpc.md).
+
+#### Security
+
+- Synthetic documents only in dev/demo.
+- Encryption at rest/in transit; masked/hashed document numbers.
+- Only KYC service accesses Mongo/MinIO; Gateway never reads files.
+- Audit every access/change; retention/deletion policy.
+- No PII in logs or error messages.
+
+---
+
 ## 3. Cross-Context Communication
 
 ### 3.1 Synchronous Boundaries (REST/gRPC)
 
 | Caller | Callee | Purpose | Method | Details |
 |---|---|---|---|---|
-| Payments | Wallets | Debit source wallet | `POST /api/wallets/{walletId}/debit` | Returns success/failure; Payments handles rollback |
-| Payments | Wallets | Credit destination wallet | `POST /api/wallets/{walletId}/credit` | Returns success/failure; Payments handles rollback |
-| Payments | Fraud | Evaluate transfer risk | `POST /api/fraud/evaluate` | Blocking call; returns Pass/Block with reason |
+| Payments | Wallets | Hold source funds | `POST /api/wallets/holds` | Idempotent by `transferId`; returns `holdId` |
+| Payments | Wallets | Confirm hold | `POST /api/wallets/holds/{holdId}/confirm` | Moves held funds to recipient; idempotent |
+| Payments | Wallets | Release hold | `POST /api/wallets/holds/{holdId}/release` | Returns funds to sender; idempotent |
+| Payments | Fraud | Evaluate transfer risk | `POST /api/fraud/check` | Blocking call; returns Approve/Block with reason |
 | Payments | Identity | Validate user exists | `GET /api/users/{userId}` | Lightweight check; returns 404 if not found |
 | Fraud | Identity | Resolve user details | `GET /api/users/{userId}` | For alert context (name, email) |
+| Payments | KYC | Get KYC status (post-1.0) | gRPC `GetKycStatus` | Blocking check above threshold; feature flag |
+| Gateway | KYC | Upload/status (post-1.0) | `POST /api/kyc/documents`, `GET /api/kyc/status` | REST at the edge; no direct Mongo/MinIO access |
 
 **Protocol:** REST over HTTP/JSON (gRPC is optional for high-throughput internal calls)
 
