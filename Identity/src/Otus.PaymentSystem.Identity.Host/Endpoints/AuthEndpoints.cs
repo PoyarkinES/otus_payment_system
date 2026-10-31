@@ -5,6 +5,7 @@ using Otus.PaymentSystem.Identity.Application.Commands.Login;
 using Otus.PaymentSystem.Identity.Application.Commands.Register;
 using Otus.PaymentSystem.Identity.Host.Contracts.Auth;
 using Otus.PaymentSystem.Identity.Host.Security;
+using Otus.PaymentSystem.Identity.Domain.Exceptions;
 
 namespace Otus.PaymentSystem.Identity.Host.Endpoints;
 
@@ -55,13 +56,16 @@ public static class AuthEndpoints
         RegisterRequest request,
         RegisterRequestValidator validator,
         IMediator mediator,
+        ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
+        var logger = loggerFactory.CreateLogger("Auth");
         var validation = await validator.ValidateAsync(request, ct);
         if (!validation.IsValid)
             return Results.ValidationProblem(validation.ToDictionary());
 
         var result = await mediator.Send(new RegisterCommand(request.Email, request.Password), ct);
+        logger.LogInformation("User registered {UserId}", result.UserId);
         return Results.Created($"/users/{result.UserId}", result);
     }
 
@@ -69,13 +73,24 @@ public static class AuthEndpoints
         LoginRequest request,
         LoginRequestValidator validator,
         IMediator mediator,
+        ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
+        var logger = loggerFactory.CreateLogger("Auth");
         var validation = await validator.ValidateAsync(request, ct);
         if (!validation.IsValid)
             return Results.ValidationProblem(validation.ToDictionary());
 
-        var result = await mediator.Send(new LoginCommand(request.Email, request.Password), ct);
-        return Results.Ok(result);
+        try
+        {
+            var result = await mediator.Send(new LoginCommand(request.Email, request.Password), ct);
+            logger.LogInformation("User logged in");
+            return Results.Ok(result);
+        }
+        catch (DomainException ex)
+        {
+            logger.LogWarning("Login failed: {Reason}", ex.Message);
+            throw;
+        }
     }
 }
