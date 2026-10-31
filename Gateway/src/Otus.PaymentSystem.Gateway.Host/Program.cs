@@ -71,11 +71,11 @@ builder.Services.AddCors(options =>
 WebApplication app = builder.Build();
 
 app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseSerilogRequestLogging();
 app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseMiddleware<UserIdHeaderMiddleware>();
 app.UseAuthorization();
-app.UseSerilogRequestLogging();
 
 // Health-check самого Gateway. Агрегированный /bff/health появится в M1W4 (#49).
 app.MapGet("/health", () => Results.Ok(new
