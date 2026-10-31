@@ -1,4 +1,6 @@
 using System.Text;
+using Serilog;
+using Serilog.Formatting.Compact;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Otus.PaymentSystem.Identity.Application.Commands.Register;
@@ -12,6 +14,12 @@ using Otus.PaymentSystem.Identity.Infrastructure.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(new CompactJsonFormatter()));
+
 // Swagger / OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -20,7 +28,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssemblyContaining<RegisterCommand>());
 
-// Infrastructure: EF Core InMemory, PasswordHasher, JWT
+// Infrastructure: EF Core PostgreSQL, PasswordHasher, JWT
 builder.Services.AddIdentityInfrastructure(builder.Configuration);
 
 // JWT bearer: валидация входящих токенов
@@ -43,6 +51,7 @@ builder.Services
             ClockSkew = TimeSpan.FromSeconds(30)
         };
     });
+
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy => policy.RequireClaim("role", "Admin"));
@@ -54,6 +63,9 @@ builder.Services.AddSingleton<LoginRequestValidator>();
 builder.Services.AddSingleton<UpdateProfileRequestValidator>();
 
 var app = builder.Build();
+
+app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseSerilogRequestLogging();
 
 // Swagger UI в Development
 if (app.Environment.IsDevelopment())
@@ -85,4 +97,11 @@ if (app.Environment.IsDevelopment())
     await DevAdminSeeder.SeedAsync(scope.ServiceProvider, app.Configuration);
 }
 
-app.Run();
+try
+{
+    app.Run();
+}
+finally
+{
+    Log.CloseAndFlush();
+}

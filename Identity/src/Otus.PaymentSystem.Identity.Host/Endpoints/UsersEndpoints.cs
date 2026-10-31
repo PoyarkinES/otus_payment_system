@@ -78,12 +78,16 @@ public static class UsersEndpoints
         Guid id,
         System.Security.Claims.ClaimsPrincipal user,
         IMediator mediator,
+        ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
+        var logger = loggerFactory.CreateLogger("Users");
+
         var adminId = user.GetUserId();
         if (adminId is null) return Results.Unauthorized();
 
         await mediator.Send(new BlockUserCommand(id, adminId.Value), ct);
+        logger.LogInformation("User blocked {TargetUserId} by {AdminId}", id, adminId.Value);
         return Results.NoContent();
     }
 
@@ -91,12 +95,16 @@ public static class UsersEndpoints
         Guid id,
         System.Security.Claims.ClaimsPrincipal user,
         IMediator mediator,
+        ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
+        var logger = loggerFactory.CreateLogger("Users");
+
         var adminId = user.GetUserId();
         if (adminId is null) return Results.Unauthorized();
 
         await mediator.Send(new UnblockUserCommand(id, adminId.Value), ct);
+        logger.LogInformation("User unblocked {TargetUserId} by {AdminId}", id, adminId.Value);
         return Results.NoContent();
     }
 }

@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Otus.PaymentSystem.Gateway.Host.Middleware;
 using Otus.PaymentSystem.Gateway.Host.Security;
+using Serilog;
+using Serilog.Formatting.Compact;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -10,8 +12,16 @@ builder.Services
     .AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(new CompactJsonFormatter()));
+
 JwtOptions jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
-                 ?? throw new InvalidOperationException("Секция Jwt не настроена.");
+                                               ?? throw new InvalidOperationException("Секция Jwt не настроена.");
 
 if (string.IsNullOrWhiteSpace(jwt.Secret) || jwt.Secret.Length < 32)
 {
@@ -65,6 +75,7 @@ app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseMiddleware<UserIdHeaderMiddleware>();
 app.UseAuthorization();
+app.UseSerilogRequestLogging();
 
 // Health-check самого Gateway. Агрегированный /bff/health появится в M1W4 (#49).
 app.MapGet("/health", () => Results.Ok(new
@@ -75,7 +86,14 @@ app.MapGet("/health", () => Results.Ok(new
 
 app.MapReverseProxy();
 
-app.Run();
+try
+{
+    app.Run();
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
 /// <summary>Нужен для интеграционных тестов через WebApplicationFactory.</summary>
 public partial class Program
