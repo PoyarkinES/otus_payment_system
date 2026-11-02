@@ -70,20 +70,26 @@
 ### Шаг 2. Артефакт OpenAPI — ✅ (`openapi/identity.v1.json`)
 
 1. `IncludeXmlComments` + `<GenerateDocumentationFile>` в Identity.Host.
-2. Стабильные `OperationId` (через `WithName`), полный набор `ProducesProblem`/`ProducesValidationProblem`, Bearer security scheme, `servers` = адрес Gateway.
-3. `dotnet new tool-manifest` + `dotnet tool install swashbuckle.aspnetcore.cli --version 7.2.0`.
-4. Генерация:
+2. Стабильные `OperationId` (из `WithName`), полный набор `ProducesProblem`/`ProducesValidationProblem`, Bearer security scheme, `servers` = адрес Gateway, флаг `Swagger:Enabled` для запуска без Development.
+3. Генерация — запуск Host и снятие `/swagger/v1/swagger.json`:
    ```powershell
-   dotnet swagger tofile --output openapi/identity.v1.json `
-     Identity/src/Otus.PaymentSystem.Identity.Host/bin/Debug/net10.0/Otus.PaymentSystem.Identity.Host.dll v1
+   $env:ASPNETCORE_ENVIRONMENT='Production'
+   $env:Swagger__Enabled='true'
+   $env:Jwt__Secret='dev-only-super-secret-key-change-me-32chars-min'
+   $env:ConnectionStrings__IdentityDb='Host=localhost;Port=5433;Database=otus_identity;Username=otus;Password=otus'
+
+   dotnet run --project Identity/src/Otus.PaymentSystem.Identity.Host --no-launch-profile --urls http://127.0.0.1:5100
+
+   curl.exe -sS -f http://127.0.0.1:5100/swagger/v1/swagger.json -o openapi/identity.v1.json
    ```
-5. CI: job `openapi-drift` — restore tools, regenerate, `git diff --exit-code -- openapi`.
+   Swashbuckle CLI (`dotnet swagger tofile`) не используется: установка инструмента требует nuget.org, недоступного в среде разработки.
+4. CI: job `openapi-drift` повторяет те же шаги и падает на `git diff --exit-code -- openapi`.
 
 **DoD:** файл в репозитории, CI краснеет при изменении DTO без перегенерации.
 
-### Шаг 3. #21 — валидация DTO
+### Шаг 3. #21 — валидация DTO — ✅
 
-Единый pipeline FluentValidation, `errors` в формате из api-errors, тесты на пустой email/слабый пароль/длинные поля.
+Единый `ValidationFilter<T>` в `Shared.AspNetCore`, правила в валидаторах, `errors` в формате api-errors, тесты валидаторов.
 
 **DoD:** 400 с `errors` по полям, схема в спеке обновлена.
 
