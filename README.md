@@ -36,6 +36,7 @@ The repository is organized as a set of independent microservice solutions. Each
 .
 ├── Directory.Build.props        # shared MSBuild settings (TFM, nullable, analyzers)
 ├── global.json                  # pinned .NET SDK version
+├── openapi/                     # Identity OpenAPI contract (generated, do not edit)
 ├── Shared/
 │   ├── Otus.PaymentSystem.Shared.sln
 │   ├── src/Otus.PaymentSystem.SharedKernel/

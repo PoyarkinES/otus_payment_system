@@ -76,3 +76,39 @@ jobs:
           Identity/test/Otus.PaymentSystem.Identity.Infrastructure.Tests/Otus.PaymentSystem.Identity.Infrastructure.Tests.csproj
           --configuration Release
           --filter "FullyQualifiedName~EfUserRepositoryPostgresTests"
+
+  openapi-drift:
+    name: OpenAPI contract drift
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build Identity Host
+        run: dotnet build Identity/src/Otus.PaymentSystem.Identity.Host/Otus.PaymentSystem.Identity.Host.csproj --configuration Release
+
+      - name: Export and compare OpenAPI
+        env:
+          ASPNETCORE_ENVIRONMENT: Production
+          Swagger__Enabled: "true"
+          Jwt__Secret: "ci-only-super-secret-key-change-me-32chars"
+          ConnectionStrings__IdentityDb: "Host=localhost;Database=otus_identity;Username=otus;Password=otus"
+        run: |
+          dotnet run --project Identity/src/Otus.PaymentSystem.Identity.Host --configuration Release --no-build --no-launch-profile --urls http://127.0.0.1:5100 &
+          server=$!
+          spec=$(mktemp)
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:5100/swagger/v1/swagger.json -o "$spec"; then
+              mv "$spec" openapi/identity.v1.json
+              break
+            fi
+            sleep 1
+          done
+          kill $server || true
+          git diff --exit-code -- openapi
