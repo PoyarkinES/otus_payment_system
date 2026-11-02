@@ -1,3 +1,4 @@
+using Otus.PaymentSystem.Identity.Domain.Errors;
 using MediatR;
 using Otus.PaymentSystem.Identity.Application.Interfaces;
 using Otus.PaymentSystem.Identity.Domain.Aggregates;
@@ -23,7 +24,7 @@ public class RegisterCommandHandler(IUserRepository users, IPasswordHasher hashe
         // операция (PBKDF2/Argon2). Делать её ради того, чтобы потом выбросить
         // результат с "Email уже занят", — пустая трата CPU (и вектор DoS).
         if (await users.GetByEmailAsync(email, cancellationToken) is not null)
-            throw new DomainException("Email уже занят.");
+            throw new DomainException("Email уже занят.", DomainError.Conflict);
 
         var hash = hasher.Hash(request.Password);
         var user = User.Register(email, hash);

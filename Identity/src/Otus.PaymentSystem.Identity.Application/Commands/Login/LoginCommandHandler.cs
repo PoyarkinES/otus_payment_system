@@ -1,3 +1,4 @@
+using Otus.PaymentSystem.Identity.Domain.Errors;
 using MediatR;
 using Otus.PaymentSystem.Identity.Application.Interfaces;
 using Otus.PaymentSystem.Identity.Domain.Aggregates;
@@ -19,19 +20,19 @@ public class LoginCommandHandler(IUserRepository users, IPasswordHasher hasher, 
         var email = new Email(request.Email);
 
         User user = await users.GetByEmailAsync(email, cancellationToken)
-                    ?? throw new DomainException("Неверные учётные данные.");
+                    ?? throw new DomainException("Неверные учётные данные.", DomainError.Unauthorized);
 
         // Проверяем пароль ДО статуса, чтобы не раскрывать существование
         // и состояние аккаунта клиенту, который не доказал владение им.
         // Иначе перебором email'ов можно узнать, кто зарегистрирован
         // и кто заблокирован (user enumeration). До Verify ответы одинаковы.
         if (!hasher.Verify(request.Password, user.PasswordHash))
-            throw new DomainException("Неверные учётные данные.");
+            throw new DomainException("Неверные учётные данные.", DomainError.Unauthorized);
 
         // Статус проверяем только после успешного Verify: клиент доказал
         // владение аккаунтом, и ему полезно знать причину отказа (UX).
         if (user.Status == UserStatus.Blocked)
-            throw new DomainException("Пользователь заблокирован.");
+            throw new DomainException("Пользователь заблокирован.", DomainError.Forbidden);
 
         TokenResult token = tokens.GenerateToken(user);
         return new LoginResult(token.AccessToken, token.ExpiresAt);

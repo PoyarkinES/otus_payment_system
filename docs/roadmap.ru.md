@@ -414,6 +414,8 @@ gh project create --owner PoyarkinES --title "Otus Payment System — Roadmap"
 - Дашборд: [#70](https://github.com/PoyarkinES/otus_payment_system/issues/70)
 - Эпики: [#39](https://github.com/PoyarkinES/otus_payment_system/issues/39) M0 · [#40](https://github.com/PoyarkinES/otus_payment_system/issues/40) M1 · [#41](https://github.com/PoyarkinES/otus_payment_system/issues/41) M2 · [#42](https://github.com/PoyarkinES/otus_payment_system/issues/42) M3 · [#43](https://github.com/PoyarkinES/otus_payment_system/issues/43) M4 · [#44](https://github.com/PoyarkinES/otus_payment_system/issues/44) M5 · [#45](https://github.com/PoyarkinES/otus_payment_system/issues/45) M6 · [#73](https://github.com/PoyarkinES/otus_payment_system/issues/73) M7 · [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) M8
 - UI: [#80](https://github.com/PoyarkinES/otus_payment_system/issues/80) Web · [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) Mobile
+- [Контракты API: состояние и план](./api-contracts.ru.md)
+- [Единый формат ошибок](./api-errors.ru.md)
 - [ADR 0001 — API Gateway](./adr/0001-api-gateway.md)
 - [ADR 0002 — KYC storage](./adr/0002-kyc-storage.md)
 - [ADR 0003 — KYC gRPC](./adr/0003-kyc-grpc.md)

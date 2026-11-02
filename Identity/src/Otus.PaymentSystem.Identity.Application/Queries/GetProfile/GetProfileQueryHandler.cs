@@ -1,3 +1,4 @@
+using Otus.PaymentSystem.Identity.Domain.Errors;
 using MediatR;
 using Otus.PaymentSystem.Identity.Application.Interfaces;
 using Otus.PaymentSystem.Identity.Domain.Exceptions;
@@ -11,7 +12,7 @@ public class GetProfileQueryHandler(IUserRepository users)
     public async Task<GetProfileResult> Handle(GetProfileQuery request, CancellationToken cancellationToken)
     {
         var user = await users.GetByIdAsync(request.UserId, cancellationToken)
-            ?? throw new DomainException("Пользователь не найден.");
+            ?? throw new DomainException("Пользователь не найден.", DomainError.NotFound);
 
         return new GetProfileResult(user.Id, user.Email.Value, user.Status, user.CreatedAt);
     }

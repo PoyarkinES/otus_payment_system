@@ -1,3 +1,4 @@
+using Otus.PaymentSystem.Identity.Domain.Errors;
 using MediatR;
 using Otus.PaymentSystem.Identity.Application.Interfaces;
 using Otus.PaymentSystem.Identity.Domain.Exceptions;
@@ -15,14 +16,14 @@ public class UpdateProfileCommandHandler(IUserRepository users, IPasswordHasher 
     public async Task Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
     {
         var user = await users.GetByIdAsync(request.UserId, cancellationToken)
-            ?? throw new DomainException("Пользователь не найден.");
+            ?? throw new DomainException("Пользователь не найден.", DomainError.NotFound);
 
         if (request.NewEmail is not null)
         {
             var email = new Email(request.NewEmail);
             var existing = await users.GetByEmailAsync(email, cancellationToken);
             if (existing is not null && existing.Id != user.Id)
-                throw new DomainException("Email уже занят.");
+                throw new DomainException("Email уже занят.", DomainError.Conflict);
             user.ChangeEmail(email);
         }
 

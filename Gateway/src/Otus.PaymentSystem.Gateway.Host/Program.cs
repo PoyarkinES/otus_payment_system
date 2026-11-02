@@ -1,6 +1,8 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Otus.PaymentSystem.AspNetCore;
+using Otus.PaymentSystem.AspNetCore.Middleware;
 using Otus.PaymentSystem.Gateway.Host.Middleware;
 using Otus.PaymentSystem.Gateway.Host.Security;
 using Serilog;
@@ -19,6 +21,10 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Services(services)
     .Enrich.FromLogContext()
     .WriteTo.Console(new CompactJsonFormatter()));
+
+// Единый ProblemDetails: в Development detail содержит текст исключения.
+builder.Services.AddApiProblems(options =>
+    options.IncludeExceptionDetails = builder.Environment.IsDevelopment());
 
 JwtOptions jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
                                                ?? throw new InvalidOperationException("Секция Jwt не настроена.");
@@ -70,8 +76,11 @@ builder.Services.AddCors(options =>
 
 WebApplication app = builder.Build();
 
+// Порядок: correlation -> логи -> 500 -> пустые 4xx/5xx -> CORS -> auth -> X-User-Id -> authorization.
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseSerilogRequestLogging();
+app.UseMiddleware<UnhandledExceptionMiddleware>();
+app.UseMiddleware<EmptyResponseProblemMiddleware>();
 app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseMiddleware<UserIdHeaderMiddleware>();

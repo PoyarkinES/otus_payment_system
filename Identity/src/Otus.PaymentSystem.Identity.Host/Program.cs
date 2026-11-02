@@ -1,8 +1,8 @@
 using System.Text;
-using Serilog;
-using Serilog.Formatting.Compact;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Otus.PaymentSystem.AspNetCore;
+using Otus.PaymentSystem.AspNetCore.Middleware;
 using Otus.PaymentSystem.Identity.Application.Commands.Register;
 using Otus.PaymentSystem.Identity.Host.Contracts.Auth;
 using Otus.PaymentSystem.Identity.Host.Contracts.Users;
@@ -11,6 +11,8 @@ using Otus.PaymentSystem.Identity.Host.Middleware;
 using Otus.PaymentSystem.Identity.Host.Seeding;
 using Otus.PaymentSystem.Identity.Infrastructure;
 using Otus.PaymentSystem.Identity.Infrastructure.Security;
+using Serilog;
+using Serilog.Formatting.Compact;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +25,10 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 // Swagger / OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Единый ProblemDetails: в Development detail содержит текст исключения.
+builder.Services.AddApiProblems(options =>
+    options.IncludeExceptionDetails = builder.Environment.IsDevelopment());
 
 // MediatR: регистрируем все handlers из Application-сборки
 builder.Services.AddMediatR(cfg =>
@@ -64,8 +70,11 @@ builder.Services.AddSingleton<UpdateProfileRequestValidator>();
 
 var app = builder.Build();
 
+// Порядок: correlation -> логи -> 500 -> пустые 4xx/5xx -> доменные ошибки -> auth -> endpoints.
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseSerilogRequestLogging();
+app.UseMiddleware<UnhandledExceptionMiddleware>();
+app.UseMiddleware<EmptyResponseProblemMiddleware>();
 
 // Swagger UI в Development
 if (app.Environment.IsDevelopment())
@@ -74,7 +83,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// DomainException -> ProblemDetails (401/403/409/400)
+// DomainException -> ProblemDetails (400/401/403/404/409)
 app.UseMiddleware<DomainExceptionMiddleware>();
 
 app.UseAuthentication();
