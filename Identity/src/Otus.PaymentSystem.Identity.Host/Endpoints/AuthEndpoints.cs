@@ -1,12 +1,10 @@
-using Otus.PaymentSystem.AspNetCore.Problems;
-using FluentValidation;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Otus.PaymentSystem.Identity.Application.Commands.Login;
 using Otus.PaymentSystem.Identity.Application.Commands.Register;
 using Otus.PaymentSystem.Identity.Host.Contracts.Auth;
 using Otus.PaymentSystem.Identity.Host.Security;
 using Otus.PaymentSystem.Identity.Domain.Exceptions;
+using Otus.PaymentSystem.AspNetCore.Filters;
 
 namespace Otus.PaymentSystem.Identity.Host.Endpoints;
 
@@ -18,15 +16,17 @@ public static class AuthEndpoints
 {
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/auth").WithTags("Auth");
+        RouteGroupBuilder group = app.MapGroup("/auth").WithTags("Auth");
 
         group.MapPost("/register", RegisterAsync)
             .WithName("Register")
             .Produces<RegisterResult>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
+            .AddEndpointFilter<ValidationFilter<RegisterRequest>>()
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         group.MapPost("/login", LoginAsync)
+            .AddEndpointFilter<ValidationFilter<LoginRequest>>()
             .WithName("Login")
             .Produces<LoginResult>(StatusCodes.Status200OK)
             .ProducesValidationProblem()
@@ -45,7 +45,7 @@ public static class AuthEndpoints
     /// <summary>Данные текущего пользователя из claims (без похода в БД).</summary>
     private static IResult Me(System.Security.Claims.ClaimsPrincipal user)
     {
-        var userId = user.GetUserId();
+        Guid? userId = user.GetUserId();
         var email = user.GetEmail();
         if (userId is null || string.IsNullOrEmpty(email))
             return Results.Unauthorized();
@@ -55,36 +55,27 @@ public static class AuthEndpoints
 
     private static async Task<IResult> RegisterAsync(
         RegisterRequest request,
-        RegisterRequestValidator validator,
         IMediator mediator,
         ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
-        var logger = loggerFactory.CreateLogger("Auth");
-        var validation = await validator.ValidateAsync(request, ct);
-        if (!validation.IsValid)
-            return ApiProblems.ValidationResult(validation.ToDictionary());
-
-        var result = await mediator.Send(new RegisterCommand(request.Email, request.Password), ct);
+        ILogger logger = loggerFactory.CreateLogger("Auth");
+        RegisterResult result = await mediator.Send(new RegisterCommand(request.Email, request.Password), ct);
         logger.LogInformation("User registered {UserId}", result.UserId);
         return Results.Created($"/users/{result.UserId}", result);
     }
 
     private static async Task<IResult> LoginAsync(
         LoginRequest request,
-        LoginRequestValidator validator,
         IMediator mediator,
         ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
-        var logger = loggerFactory.CreateLogger("Auth");
-        var validation = await validator.ValidateAsync(request, ct);
-        if (!validation.IsValid)
-            return ApiProblems.ValidationResult(validation.ToDictionary());
+        ILogger logger = loggerFactory.CreateLogger("Auth");
 
         try
         {
-            var result = await mediator.Send(new LoginCommand(request.Email, request.Password), ct);
+            LoginResult result = await mediator.Send(new LoginCommand(request.Email, request.Password), ct);
             logger.LogInformation("User logged in");
             return Results.Ok(result);
         }

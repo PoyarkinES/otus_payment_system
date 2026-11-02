@@ -1,7 +1,5 @@
-using Otus.PaymentSystem.AspNetCore.Problems;
-using FluentValidation;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
+using Otus.PaymentSystem.AspNetCore.Filters;
 using Otus.PaymentSystem.Identity.Application.Commands.BlockUser;
 using Otus.PaymentSystem.Identity.Application.Commands.UnblockUser;
 using Otus.PaymentSystem.Identity.Application.Commands.UpdateProfile;
@@ -16,7 +14,7 @@ public static class UsersEndpoints
 {
     public static IEndpointRouteBuilder MapUsersEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/users").WithTags("Users").RequireAuthorization();
+        RouteGroupBuilder group = app.MapGroup("/users").WithTags("Users").RequireAuthorization();
 
         group.MapGet("/me", GetMe)
             .WithName("GetMyProfile")
@@ -28,6 +26,7 @@ public static class UsersEndpoints
             .WithName("UpdateMyProfile")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
+            .AddEndpointFilter<ValidationFilter<UpdateProfileRequest>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
@@ -55,26 +54,21 @@ public static class UsersEndpoints
 
     private static async Task<IResult> GetMe(System.Security.Claims.ClaimsPrincipal user, IMediator mediator, CancellationToken ct)
     {
-        var userId = user.GetUserId();
+        Guid? userId = user.GetUserId();
         if (userId is null) return Results.Unauthorized();
 
-        var result = await mediator.Send(new GetProfileQuery(userId.Value), ct);
+        GetProfileResult result = await mediator.Send(new GetProfileQuery(userId.Value), ct);
         return Results.Ok(result);
     }
 
     private static async Task<IResult> UpdateMe(
         UpdateProfileRequest request,
-        UpdateProfileRequestValidator validator,
         System.Security.Claims.ClaimsPrincipal user,
         IMediator mediator,
         CancellationToken ct)
     {
-        var userId = user.GetUserId();
+        Guid? userId = user.GetUserId();
         if (userId is null) return Results.Unauthorized();
-
-        var validation = await validator.ValidateAsync(request, ct);
-        if (!validation.IsValid)
-            return ApiProblems.ValidationResult(validation.ToDictionary());
 
         await mediator.Send(new UpdateProfileCommand(userId.Value, request.Email, request.Password), ct);
         return Results.NoContent();
@@ -86,9 +80,9 @@ public static class UsersEndpoints
         ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
-        var logger = loggerFactory.CreateLogger("Users");
+        ILogger logger = loggerFactory.CreateLogger("Users");
 
-        var adminId = user.GetUserId();
+        Guid? adminId = user.GetUserId();
         if (adminId is null) return Results.Unauthorized();
 
         await mediator.Send(new BlockUserCommand(id, adminId.Value), ct);
@@ -103,9 +97,9 @@ public static class UsersEndpoints
         ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
-        var logger = loggerFactory.CreateLogger("Users");
+        ILogger logger = loggerFactory.CreateLogger("Users");
 
-        var adminId = user.GetUserId();
+        Guid? adminId = user.GetUserId();
         if (adminId is null) return Results.Unauthorized();
 
         await mediator.Send(new UnblockUserCommand(id, adminId.Value), ct);

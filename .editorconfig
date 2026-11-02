@@ -36,6 +36,14 @@ dotnet_style_prefer_auto_properties = true:suggestion
 # Analyzer severity
 dotnet_analyzer_diagnostic.category-Style.severity = suggestion
 
+# CA1848 (LoggerMessage) — производительность логирования.
+# Для учебного проекта шум в сборке не нужен; в горячих путях (Fraud, Transfers)
+# будем использовать LoggerMessage точечно, а не по всему коду.
+dotnet_diagnostic.CA1848.severity = suggestion
+
+# CA1873: аргументы логов в M1 дешёвые (Guid, строки); вернуться в M5.
+dotnet_diagnostic.CA1873.severity = suggestion
+
 [*.{csproj,props,targets}]
 indent_size = 2
 

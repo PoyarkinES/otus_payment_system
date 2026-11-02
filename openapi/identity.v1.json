@@ -461,10 +461,12 @@
         "properties": {
           "email": {
             "type": "string",
+            "description": "Email, до 320 символов.",
             "nullable": true
           },
           "password": {
             "type": "string",
+            "description": "Пароль пользователя. Сложность здесь не проверяется.",
             "nullable": true
           }
         },
@@ -532,10 +534,12 @@
         "properties": {
           "email": {
             "type": "string",
+            "description": "Email, до 320 символов.",
             "nullable": true
           },
           "password": {
             "type": "string",
+            "description": "Пароль: 8–128 символов, минимум одна буква и одна цифра.",
             "nullable": true
           }
         },
@@ -561,10 +565,12 @@
         "properties": {
           "email": {
             "type": "string",
+            "description": "Новый email, до 320 символов. Если null — не меняется.",
             "nullable": true
           },
           "password": {
             "type": "string",
+            "description": "Новый пароль: 8–128 символов, буква и цифра. Если null — не меняется.",
             "nullable": true
           }
         },

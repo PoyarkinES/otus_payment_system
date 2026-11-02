@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -16,7 +17,7 @@ using Otus.PaymentSystem.Identity.Infrastructure.Security;
 using Serilog;
 using Serilog.Formatting.Compact;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
@@ -83,8 +84,8 @@ builder.Services.AddMediatR(cfg =>
 builder.Services.AddIdentityInfrastructure(builder.Configuration);
 
 // JWT bearer: валидация входящих токенов
-var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
-var jwt = jwtSection.Get<JwtOptions>() ?? new JwtOptions();
+IConfigurationSection jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
+JwtOptions jwt = jwtSection.Get<JwtOptions>() ?? new JwtOptions();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -109,11 +110,11 @@ builder.Services.AddAuthorization(options =>
 });
 
 // Валидаторы запросов (FluentValidation)
-builder.Services.AddSingleton<RegisterRequestValidator>();
-builder.Services.AddSingleton<LoginRequestValidator>();
-builder.Services.AddSingleton<UpdateProfileRequestValidator>();
+builder.Services.AddSingleton<IValidator<RegisterRequest>, RegisterRequestValidator>();
+builder.Services.AddSingleton<IValidator<LoginRequest>, LoginRequestValidator>();
+builder.Services.AddSingleton<IValidator<UpdateProfileRequest>, UpdateProfileRequestValidator>();
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
 // Порядок: correlation -> логи -> 500 -> пустые 4xx/5xx -> swagger -> доменные ошибки -> auth -> endpoints.
 app.UseMiddleware<CorrelationIdMiddleware>();
@@ -146,7 +147,7 @@ app.MapUsersEndpoints();
 // Seed dev-админа: в Development создаём/повышаем пользователя из конфига (Seed:Admin).
 if (app.Environment.IsDevelopment())
 {
-    using var scope = app.Services.CreateScope();
+    using IServiceScope scope = app.Services.CreateScope();
     await DevAdminSeeder.SeedAsync(scope.ServiceProvider, app.Configuration);
 }
 
