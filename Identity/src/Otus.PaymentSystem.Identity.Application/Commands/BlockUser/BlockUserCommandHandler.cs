@@ -1,3 +1,4 @@
+using Otus.PaymentSystem.Identity.Domain.Errors;
 using MediatR;
 using Otus.PaymentSystem.Identity.Application.Interfaces;
 using Otus.PaymentSystem.Identity.Domain.Exceptions;
@@ -11,7 +12,7 @@ public class BlockUserCommandHandler(IUserRepository users)
     public async Task Handle(BlockUserCommand request, CancellationToken cancellationToken)
     {
         var user = await users.GetByIdAsync(request.TargetUserId, cancellationToken)
-            ?? throw new DomainException("Пользователь не найден.");
+            ?? throw new DomainException("Пользователь не найден.", DomainError.NotFound);
 
         user.Block(request.BlockedBy);
         await users.SaveChangesAsync(cancellationToken);

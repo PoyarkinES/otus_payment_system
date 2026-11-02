@@ -16,11 +16,9 @@ public sealed class CorrelationIdMiddleware(
         var correlationId = GetOrCreate(context.Request.Headers[HeaderName].ToString());
 
         context.Request.Headers[HeaderName] = correlationId;
-        context.Response.OnStarting(() =>
-        {
-            context.Response.Headers[HeaderName] = correlationId;
-            return Task.CompletedTask;
-        });
+        // Ставим сразу, как в Identity: заголовок нужен и в ответах, которые
+        // пишут middleware ошибок до старта ответа (ProblemDetails.traceId).
+        context.Response.Headers[HeaderName] = correlationId;
         using (logger.BeginScope(new Dictionary<string, object?>
                {
                    ["CorrelationId"] = correlationId

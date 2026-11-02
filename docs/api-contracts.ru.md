@@ -1,12 +1,12 @@
 # Контракты API: что сделано и с чего начать
 
-> **Обновлено 02.11.2026.** Ветка `feature/m1-w3-problemdetails` (M1W3).
+> **Обновлено 02.11.2026.** Ветка `feature/m1-w3-problemdetails` (M1W3), коммит `5efd0a0`.
 > **Связанные:** [#22](https://github.com/PoyarkinES/otus_payment_system/issues/22) · [#21](https://github.com/PoyarkinES/otus_payment_system/issues/21) · [#48](https://github.com/PoyarkinES/otus_payment_system/issues/48) · [#49](https://github.com/PoyarkinES/otus_payment_system/issues/49) · [ADR 0001](./adr/0001-api-gateway.md) · [Единый формат ошибок](./api-errors.ru.md)
 
 ## 0. С чего начать
 
-1. **Закоммитить документацию** — [api-errors.ru.md](./api-errors.ru.md), правки [db-schema.ru.md](./db-schema.ru.md), этот файл. Пока контракт не в ветке, спека ссылается на документ, которого нет в `main`.
-2. **Закрыть #22** — привести ошибки Identity и Gateway к контракту. Если снять спеку раньше, она зафиксирует текущие неправильные 400 вместо 404.
+1. ~~Закоммитить документацию~~ — ✅ выполнено в `5efd0a0`: [api-errors.ru.md](./api-errors.ru.md), правки [db-schema.ru.md](./db-schema.ru.md), этот файл.
+2. ~~Закрыть #22~~ — ✅ выполнено: ошибки Identity и Gateway приведены к контракту (`Shared.AspNetCore`, `DomainError`, middleware), тесты зелёные.
 3. **Отдельная ветка `feature/openapi-artifact`** — довести метаданные Identity, сгенерировать `openapi/identity.v1.json`, добавить drift-check в CI. Это шаг, с которого начинается собственно «контракт как артефакт».
 4. Дальше — #21 (валидация), #48 (refresh/JWKS/rate limiting), #49 (BFF contract-first).
 
@@ -17,7 +17,7 @@
 | Что | Где | Статус |
 |---|---|---|
 | Структурное логирование, correlation ID, `X-Correlation-Id` на Gateway и Identity | #20, PR #97 | ✅ в `main` |
-| Единый контракт ошибок: поля, content-type, маппинг статусов, `traceId` | [api-errors.ru.md](./api-errors.ru.md) | ✅ задокументирован, код — в #22 |
+| Единый контракт ошибок: поля, content-type, маппинг статусов, `traceId` | [api-errors.ru.md](./api-errors.ru.md) | ✅ задокументирован и реализован (#22) |
 | Решение по хранению refresh-токена (SHA-256, не HMAC) | [db-schema.ru.md](./db-schema.ru.md):46, 332 | ✅ зафиксировано |
 | Целевые маршруты Gateway и BFF | [ADR 0001](./adr/0001-api-gateway.md):38–53 | ✅ есть, но неполные |
 | Матрица auth-политик по эндпоинтам | [auth-requirements.ru.md](./auth-requirements.ru.md):88–95 | ✅ нормативная |
@@ -53,13 +53,13 @@
 
 ## 4. План по шагам
 
-### Шаг 0. Коммит документации
+### Шаг 0. Коммит документации — ✅ `5efd0a0`
 
 Файлы: `docs/api-errors.ru.md`, `docs/db-schema.ru.md`, `docs/api-contracts.ru.md`, ссылка в `docs/roadmap.ru.md`.
 
-**DoD:** ветка чистая, в `main` есть контракт ошибок и решение по хэшу.
+**DoD:** ветка чистая, в `main` есть контракт ошибок и решение по хэшу. Выполнено; коммит не запушен.
 
-### Шаг 1. #22 — ошибки по контракту
+### Шаг 1. #22 — ошибки по контракту — ✅
 
 - `DomainError` вместо маппинга по тексту сообщения; «не найден» → 404.
 - `Shared/src/Otus.PaymentSystem.AspNetCore`: `ApiProblems`, `CorrelationIdHeader`, `UnhandledExceptionMiddleware`, `EmptyResponseProblemMiddleware`.

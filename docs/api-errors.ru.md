@@ -120,6 +120,13 @@
 
 **Почему не `SharedKernel`:** на `SharedKernel` ссылается каждый `*.Domain`, а библиотеке нужен `FrameworkReference Microsoft.AspNetCore.App`. Положив ProblemDetails в `SharedKernel`, мы протащили бы ASP.NET Core в Domain. Поэтому web-примитивы — отдельный проект, который ссылают только Host-проекты. Структуру `Shared/` в README обновляем, когда проект появится в коде, а не до этого.
 
+**Проверено 02.11.2026** (ветка `feature/m1-w3-problemdetails`, коммит `5efd0a0`):
+
+- явный `FrameworkReference Microsoft.AspNetCore.App` — только в двух тестовых проектах; Host-проекты используют `Microsoft.NET.Sdk.Web` и получают shared framework неявно;
+- все `*.Domain` ссылаются только на `SharedKernel`; `SharedKernel.csproj` пустой, без `FrameworkReference`;
+- `Identity.Infrastructure` получает `Microsoft.AspNetCore.App` транзитивно через пакет `Microsoft.AspNetCore.Authentication.JwtBearer` (`frameworkReferences` в `obj/project.assets.json`). Правило это не нарушает: Domain от Infrastructure не зависит. Кандидат в техдолг — вынести JWT из Infrastructure; отдельный issue, не #22;
+- `Identity.Domain`, `Identity.Application`, `SharedKernel` — в `project.assets.json` упоминаний `Microsoft.AspNetCore.App` нет.
+
 ## 6. Правила
 
 1. Формат один для Gateway и Identity: одинаковые поля, `type`, `title`, camelCase в `errors`.
@@ -131,14 +138,18 @@
 
 ## 7. Тесты (DoD #22)
 
-- [ ] 400: невалидный DTO → `errors` по полям в camelCase.
-- [ ] 401: нет токена / неверные креды.
-- [ ] 403: нет роли, заблокированный пользователь.
-- [ ] 404: неизвестный маршрут и «не найден» из домена.
-- [ ] 409: email занят, повторная блокировка.
-- [ ] 500: необработанное исключение, `detail` без stack trace.
-- [ ] `traceId` присутствует и совпадает с `X-Correlation-Id`.
-- [ ] Ответ через Gateway и напрямую из Identity совпадает по формату.
+**Статус на 02.11.2026:** автоматические тесты зелёные (Shared 14, Identity.Host 13, Gateway 8); smoke Gateway/Identity — 400/401/404 в одном формате.
+
+- [x] 400: невалидный DTO → `errors` по полям в camelCase.
+- [x] 401: нет токена / неверные креды.
+- [x] 403: нет роли, заблокированный пользователь.
+- [x] 404: неизвестный маршрут и «не найден» из домена.
+- [x] 409: email занят, повторная блокировка.
+- [x] 500: необработанное исключение, `detail` без stack trace.
+- [x] Shared: `errors` не теряются (сериализация по runtime-типу), `Response.HasStarted` → no-op.
+- [x] Identity: статус выбирается по `DomainError`, а не по тексту сообщения.
+- [x] `traceId` присутствует и совпадает с `X-Correlation-Id`.
+- [x] Ответ через Gateway и напрямую из Identity совпадает по формату.
 
 ## 8. Открытые вопросы
 

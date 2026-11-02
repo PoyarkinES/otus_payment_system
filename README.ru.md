@@ -39,6 +39,7 @@
 ├── Shared/
 │   ├── Otus.PaymentSystem.Shared.sln
 │   ├── src/Otus.PaymentSystem.SharedKernel/
+│   ├── src/Otus.PaymentSystem.AspNetCore/   # единый ProblemDetails для Host-проектов
 │   └── test/
 ├── Gateway/                     # API Gateway / BFF (edge, не bounded context; появится в M1)
 │   ├── Otus.PaymentSystem.Gateway.sln
@@ -55,6 +56,8 @@
 └── docs/
     ├── roadmap.ru.md
     ├── architecture.ru.md
+    ├── api-contracts.ru.md
+    ├── api-errors.ru.md
     ├── bounded-contexts.md
     └── adr/0001-api-gateway.md
 ```

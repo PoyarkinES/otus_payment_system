@@ -1,3 +1,4 @@
+using Otus.PaymentSystem.AspNetCore.Problems;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -62,7 +63,7 @@ public static class AuthEndpoints
         var logger = loggerFactory.CreateLogger("Auth");
         var validation = await validator.ValidateAsync(request, ct);
         if (!validation.IsValid)
-            return Results.ValidationProblem(validation.ToDictionary());
+            return ApiProblems.ValidationResult(validation.ToDictionary());
 
         var result = await mediator.Send(new RegisterCommand(request.Email, request.Password), ct);
         logger.LogInformation("User registered {UserId}", result.UserId);
@@ -79,7 +80,7 @@ public static class AuthEndpoints
         var logger = loggerFactory.CreateLogger("Auth");
         var validation = await validator.ValidateAsync(request, ct);
         if (!validation.IsValid)
-            return Results.ValidationProblem(validation.ToDictionary());
+            return ApiProblems.ValidationResult(validation.ToDictionary());
 
         try
         {

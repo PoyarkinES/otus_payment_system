@@ -39,6 +39,7 @@ The repository is organized as a set of independent microservice solutions. Each
 ├── Shared/
 │   ├── Otus.PaymentSystem.Shared.sln
 │   ├── src/Otus.PaymentSystem.SharedKernel/
+│   ├── src/Otus.PaymentSystem.AspNetCore/   # shared ProblemDetails for Host projects
 │   └── test/
 ├── Gateway/                     # API Gateway / BFF (edge, not a bounded context; created in M1)
 │   ├── Otus.PaymentSystem.Gateway.sln
@@ -55,6 +56,8 @@ The repository is organized as a set of independent microservice solutions. Each
 └── docs/
     ├── roadmap.md
     ├── architecture.md
+    ├── api-contracts.ru.md
+    ├── api-errors.ru.md
     ├── bounded-contexts.md
     └── adr/0001-api-gateway.md
 ```

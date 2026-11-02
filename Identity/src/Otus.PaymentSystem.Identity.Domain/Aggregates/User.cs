@@ -1,3 +1,4 @@
+using Otus.PaymentSystem.Identity.Domain.Errors;
 using Otus.PaymentSystem.Identity.Domain.Events;
 using Otus.PaymentSystem.Identity.Domain.Exceptions;
 using Otus.PaymentSystem.Identity.Domain.ValueObjects;
@@ -60,7 +61,7 @@ public class User
     public void Block(Guid blockedBy)
     {
         if (Status == UserStatus.Blocked)
-            throw new DomainException("Пользователь уже заблокирован.");
+            throw new DomainException("Пользователь уже заблокирован.", DomainError.Conflict);
 
         Status = UserStatus.Blocked;
         Touch();
@@ -71,7 +72,7 @@ public class User
     public void Unblock(Guid unblockedBy)
     {
         if (Status != UserStatus.Blocked)
-            throw new DomainException("Пользователь не заблокирован.");
+            throw new DomainException("Пользователь не заблокирован.", DomainError.Conflict);
 
         Status = UserStatus.Active;
         Touch();

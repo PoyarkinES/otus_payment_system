@@ -1,3 +1,4 @@
+using Otus.PaymentSystem.AspNetCore.Problems;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -69,7 +70,7 @@ public static class UsersEndpoints
 
         var validation = await validator.ValidateAsync(request, ct);
         if (!validation.IsValid)
-            return Results.ValidationProblem(validation.ToDictionary());
+            return ApiProblems.ValidationResult(validation.ToDictionary());
 
         await mediator.Send(new UpdateProfileCommand(userId.Value, request.Email, request.Password), ct);
         return Results.NoContent();
