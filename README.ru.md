@@ -112,10 +112,11 @@ Gateway → PostgreSQL → Wallets (+ holds) → Transfers (Redis, hold, Fraud s
 
 ## Статус
 
-- **Identity MVP** готов: регистрация, логин, JWT, роли, профиль, block/unblock, unit-тесты.
+- **Identity MVP** готов: регистрация, логин, JWT, роли, профиль, block/unblock, PostgreSQL + миграции, unit-тесты.
 - **Gateway** готов: YARP, JWT-валидация, `X-User-Id`, CORS, `/health`, 8 тестов, CI.
-- **M1 в работе:** следующие шаги — PostgreSQL для Identity, refresh/JWKS, Docker Compose.
-- **Не сделано:** PostgreSQL, миграции, refresh/logout, rate limiting, структурное логирование, тесты в CI.
+- **CI** собирает все решения, запускает тесты Shared/Gateway/Identity и проверяет контракт OpenAPI (`openapi-drift`).
+- **M1 в работе:** следующие шаги — refresh/JWKS, rate limiting, Docker Compose.
+- **Не сделано:** refresh/logout, JWKS, rate limiting, Docker Compose, BFF `/bff/me`.
 - Wallets/Transfers/Fraud/Notifications/Audit пока содержат только доменные события.
 - **Post-1.0:** KYC/Onboarding (MongoDB + MinIO + gRPC), не блокирует 1.0.
 

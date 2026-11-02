@@ -112,10 +112,11 @@ Gateway → PostgreSQL → Wallets (+ holds) → Transfers (Redis, hold, Fraud s
 
 ## Status
 
-- **Identity MVP** is done: registration, login, JWT, roles, profile, block/unblock, unit tests.
+- **Identity MVP** is done: registration, login, JWT, roles, profile, block/unblock, PostgreSQL + migrations, unit tests.
 - **Gateway** is done: YARP, JWT validation, `X-User-Id`, CORS, `/health`, 8 tests, CI.
-- **M1 in progress:** next are PostgreSQL for Identity, refresh/JWKS, Docker Compose.
-- **Missing:** PostgreSQL, migrations, refresh/logout, rate limiting, structured logging, tests in CI.
+- **CI** builds every solution, runs Shared/Gateway/Identity tests and checks the OpenAPI contract (`openapi-drift`).
+- **M1 in progress:** next are refresh/JWKS, rate limiting, Docker Compose.
+- **Missing:** refresh/logout, JWKS, rate limiting, Docker Compose, BFF `/bff/me`.
 - Wallets/Transfers/Fraud/Notifications/Audit currently contain domain events only.
 - **Post-1.0:** KYC/Onboarding (MongoDB + MinIO + gRPC), does not block 1.0.
 
