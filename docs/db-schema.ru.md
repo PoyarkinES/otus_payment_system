@@ -43,11 +43,13 @@
 
 Появится в M1W3 (#48). Поля — из [bounded-contexts.md](./bounded-contexts.md:116).
 
+`TokenHash` — SHA-256 от случайного 32-байтного токена (256 бит энтропии); plaintext токена в БД не хранится. HMAC с серверным ключом не нужен: токен уже высокоэнтропийный, а HMAC добавил бы управление ключом без выигрыша в стойкости.
+
 | Колонка | Тип | Ограничения |
 |---|---|---|
 | `Id` | `uuid` | PK |
 | `UserId` | `uuid` | FK → `Users.Id`, NOT NULL |
-| `TokenHash` | `text` | NOT NULL, UNIQUE; хранится только хэш |
+| `TokenHash` | `text` | NOT NULL, UNIQUE; SHA-256, plaintext не хранится |
 | `ExpiresAt` | `timestamptz` | NOT NULL |
 | `RevokedAt` | `timestamptz` | NULL |
 | `ReplacedByTokenId` | `uuid` | NULL, FK → `RefreshTokens.Id` |
@@ -61,6 +63,7 @@
 
 Правила:
 
+- в БД хранится только SHA-256-хэш токена, не сам токен;
 - refresh-токен ротируется: старый получает `RevokedAt` и `ReplacedByTokenId`;
 - повторное использование старого токена — отказ;
 - смена пароля отзывает все refresh пользователя.
@@ -326,7 +329,7 @@ erDiagram
 
 ## 10. Открытые вопросы
 
-1. `RefreshTokens`: SHA-256 от токена или HMAC с серверным ключом?
+1. ~~`RefreshTokens`: SHA-256 от токена или HMAC с серверным ключом?~~ **Решено (M1W3):** SHA-256; токен случайный, 32 байта.
 2. `Transfers`: отдельная `IdempotencyKeys` или `UNIQUE` в `Transfers`?
 3. `Wallets`: `UNIQUE (UserId, Currency)` или несколько кошельков на валюту?
 4. `Outbox`: точная схема и стратегия очистки.
