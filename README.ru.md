@@ -36,6 +36,7 @@
 .
 ├── Directory.Build.props        # общие настройки MSBuild (TFM, nullable, анализаторы)
 ├── global.json                  # зафиксированная версия .NET SDK
+├── openapi/                     # OpenAPI-контракт Identity (генерируется, не правится руками)
 ├── Shared/
 │   ├── Otus.PaymentSystem.Shared.sln
 │   ├── src/Otus.PaymentSystem.SharedKernel/

@@ -1,6 +1,8 @@
+using System.Reflection;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using Otus.PaymentSystem.AspNetCore;
 using Otus.PaymentSystem.AspNetCore.Middleware;
 using Otus.PaymentSystem.Identity.Application.Commands.Register;
@@ -22,9 +24,52 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
     .Enrich.FromLogContext()
     .WriteTo.Console(new CompactJsonFormatter()));
 
-// Swagger / OpenAPI
+// Swagger / OpenAPI: спецификация — контракт, поэтому её можно включить флагом
+// в любом окружении (CI экспортирует её в Production-режиме, без БД и сидера).
+var swaggerEnabled = builder.Configuration.GetValue("Swagger:Enabled", builder.Environment.IsDevelopment());
+
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Otus Payment System — Identity API",
+        Version = "v1",
+        Description = "Регистрация, вход, профиль и роли. Публичный вход — через Gateway по путям /api/identity/**."
+    });
+
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+        options.IncludeXmlComments(xmlPath);
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "JWT access token: Authorization: Bearer {token}"
+    });
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecurityScheme
+        {
+            Reference = new OpenApiReference
+            {
+                Type = ReferenceType.SecurityScheme,
+                Id = "Bearer"
+            }
+        }] = []
+    });
+
+    // Публичный адрес — Gateway, а не сам Identity: клиент не должен знать внутренние порты.
+    options.AddServer(new OpenApiServer
+    {
+        Url = "http://localhost:8080",
+        Description = "Gateway (edge)"
+    });
+});
 
 // Единый ProblemDetails: в Development detail содержит текст исключения.
 builder.Services.AddApiProblems(options =>
@@ -70,14 +115,13 @@ builder.Services.AddSingleton<UpdateProfileRequestValidator>();
 
 var app = builder.Build();
 
-// Порядок: correlation -> логи -> 500 -> пустые 4xx/5xx -> доменные ошибки -> auth -> endpoints.
+// Порядок: correlation -> логи -> 500 -> пустые 4xx/5xx -> swagger -> доменные ошибки -> auth -> endpoints.
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseSerilogRequestLogging();
 app.UseMiddleware<UnhandledExceptionMiddleware>();
 app.UseMiddleware<EmptyResponseProblemMiddleware>();
 
-// Swagger UI в Development
-if (app.Environment.IsDevelopment())
+if (swaggerEnabled)
 {
     app.UseSwagger();
     app.UseSwaggerUI();

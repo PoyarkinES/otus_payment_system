@@ -36,10 +36,9 @@
 
 **Чего нет:**
 
-1. Ни одного `openapi.json`/`yaml` в репозитории — спеку нельзя сравнить в диффе и отдать фронтенду.
-2. Спецификации Gateway/BFF — а именно он точка входа для UI.
-3. Описания DTO в доках — только в коде (`RegisterRequest`, `LoginResult`).
-4. Contract-тестов и drift-check: формат проверяется unit-тестами middleware, а не схемой.
+1. Спецификации Gateway/BFF — а именно он точка входа для UI. Для Identity артефакт уже есть: [openapi/identity.v1.json](../openapi/identity.v1.json), его проверяет job `openapi-drift`.
+2. Описания DTO в доках — только в коде и в сгенерированной спеке.
+3. Contract-тестов на поведение (не только drift): формат проверяется unit-тестами middleware, а не схемой.
 
 ## 3. Принятые решения
 
@@ -68,7 +67,7 @@
 
 **DoD:** прямой вызов Identity и вызов через Gateway дают одинаковый JSON.
 
-### Шаг 2. Артефакт OpenAPI (ветка `feature/openapi-artifact`)
+### Шаг 2. Артефакт OpenAPI — ✅ (`openapi/identity.v1.json`)
 
 1. `IncludeXmlComments` + `<GenerateDocumentationFile>` в Identity.Host.
 2. Стабильные `OperationId` (через `WithName`), полный набор `ProducesProblem`/`ProducesValidationProblem`, Bearer security scheme, `servers` = адрес Gateway.
@@ -96,7 +95,7 @@
 
 Спека `/bff/me`, `/bff/health` пишется до кода, фронтенд получает моки. Только здесь появляется спека Gateway.
 
-## 5. Первый шаг детально (шаг 2)
+## 5. Артефакт OpenAPI: как устроен
 
 **Файлы:** `Identity/src/Otus.PaymentSystem.Identity.Host/Program.cs`, `.../Endpoints/*.cs`, `.config/dotnet-tools.json`, `.github/workflows/ci.yml`, `openapi/identity.v1.json`.
 
