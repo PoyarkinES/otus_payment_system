@@ -112,3 +112,56 @@ jobs:
           done
           kill $server || true
           git diff --exit-code -- openapi
+
+  test:
+    name: Test (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Shared
+            solution: Shared/Otus.PaymentSystem.Shared.sln
+            filter: ""
+          - name: Gateway
+            solution: Gateway/Otus.PaymentSystem.Gateway.sln
+            filter: ""
+          - name: Identity
+            solution: Identity/Otus.PaymentSystem.Identity.sln
+            filter: "FullyQualifiedName!~Postgres"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Test (filtered)
+        if: matrix.filter != ''
+        run: >
+          dotnet test ${{ matrix.solution }}
+          --configuration Release
+          --filter "${{ matrix.filter }}"
+          --collect:"XPlat Code Coverage"
+          --results-directory TestResults
+
+      - name: Test
+        if: matrix.filter == ''
+        run: >
+          dotnet test ${{ matrix.solution }}
+          --configuration Release
+          --collect:"XPlat Code Coverage"
+          --results-directory TestResults
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.name }}
+          path: TestResults/**/coverage.cobertura.xml
+          if-no-files-found: warn
