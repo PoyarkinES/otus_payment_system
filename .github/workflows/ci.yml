@@ -178,8 +178,10 @@ jobs:
         include:
           - name: Identity
             dockerfile: Identity/Dockerfile
+            tag: otus-identity:ci
           - name: Gateway
             dockerfile: Gateway/Dockerfile
+            tag: otus-gateway:ci
 
     steps:
       - name: Checkout
@@ -187,5 +189,6 @@ jobs:
 
       # Публикации нет: образы нужны только как проверка, что Dockerfile
       # и контекст (Directory.Build.props + Shared) не разъехались с кодом.
+      # Тег строчными: Docker не принимает заглавные буквы в имени репозитория.
       - name: Build image
-        run: docker build -f ${{ matrix.dockerfile }} -t otus-${{ matrix.name }}:ci .
+        run: docker build -f ${{ matrix.dockerfile }} -t ${{ matrix.tag }} .
