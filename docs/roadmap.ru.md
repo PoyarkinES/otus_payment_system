@@ -141,6 +141,8 @@ Gateway → PostgreSQL → Wallets → Transfers → Outbox/RabbitMQ → Audit/N
 - [x] `GET /bff/me` отдаёт профиль и роли; `GET /users/{id}` доступен для ACL.
 - [x] CI запускает тесты, Docker Compose поднимает Gateway + Identity + PostgreSQL.
 
+**Ретро:** [retro-m1.ru.md](./retro-m1.ru.md) — факты, уроки и заведённые долги (#105–#109).
+
 **Что осознанно не делаем:** полный UI, RabbitMQ, merchant payments. Redis появится в M3 под кэш валидации получателя.
 
 ## 6. M2. Wallets (30 ноября — 27 декабря 2026)
