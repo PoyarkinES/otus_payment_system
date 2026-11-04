@@ -77,6 +77,9 @@ builder.Services.AddIdentityInfrastructure(builder.Configuration);
 // JWT bearer: валидация входящих токенов
 IConfigurationSection jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
 JwtOptions jwt = jwtSection.Get<JwtOptions>() ?? new JwtOptions();
+IdentitySigningKey signingKeys = new(jwt, builder.Environment.EnvironmentName);
+builder.Services.AddSingleton(signingKeys);
+
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -89,7 +92,7 @@ builder.Services
             ValidateAudience = true,
             ValidAudience = jwt.Audience,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Secret)),
+            IssuerSigningKey = signingKeys.PublicKey,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30)
         };
@@ -133,6 +136,12 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
 
 // /auth/register, /auth/login, /auth/me
 app.MapAuthEndpoints();
+
+// Публичный ключ подписи: Gateway проверяет токены по нему, секрет больше не передаётся
+app.MapGet("/.well-known/jwks.json", (IdentitySigningKey keys) => Results.Json(new { keys = new[] { keys.ToJwk() } }))
+    .WithName("Jwks")
+    .AllowAnonymous()
+    .Produces(StatusCodes.Status200OK);
 
 // /users/me, /users/{id}/block, /users/{id}/unblock
 app.MapUsersEndpoints();
