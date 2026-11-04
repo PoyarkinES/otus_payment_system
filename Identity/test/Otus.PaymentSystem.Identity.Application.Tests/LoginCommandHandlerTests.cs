@@ -20,7 +20,11 @@ public class LoginCommandHandlerTests
         var users = Substitute.For<IUserRepository>();
         var hasher = Substitute.For<IPasswordHasher>();
         var tokens = Substitute.For<ITokenService>();
-        return (new LoginCommandHandler(users, hasher, tokens), users, hasher, tokens);
+        var refreshTokens = Substitute.For<IRefreshTokenFactory>();
+        var refreshRepository = Substitute.For<IRefreshTokenRepository>();
+        refreshTokens.Issue().Returns(new IssuedRefreshToken("raw", "hash", DateTimeOffset.UtcNow.AddDays(30)));
+
+        return (new LoginCommandHandler(users, hasher, tokens, refreshTokens, refreshRepository), users, hasher, tokens);
     }
 
     private static User CreateActiveUser()
