@@ -53,6 +53,7 @@
 | `Test (Shared/Gateway/Identity)` | `dotnet test` + coverage | регрессии юнит- и host-тестов |
 | `identity-integration-tests` | тесты с реальным PostgreSQL | расхождения EF-маппинга и SQL |
 | `openapi-drift` | генерация спеки и `git diff` | контракт разошёлся с кодом |
+| `Docker build (Identity/Gateway)` | `docker build -f <Dockerfile> .` | Dockerfile и контекст сборки разъехались с кодом |
 
 ## Команды локально
 
@@ -71,10 +72,9 @@ Get-ChildItem -Recurse -Filter *.sln | ForEach-Object { dotnet build $_.FullName
 ## Пробелы (осознанные)
 
 1. **Нет интеграционных HTTP-тестов хоста** (`WebApplicationFactory`). Auth-политики, 401/403, маршрутизация проверяются смоуком руками. Кандидат на M2, когда появится второй сервис и смоук перестанет покрывать всё.
-2. **Docker-образы не собираются в CI.** `docker compose up` проверен только локально (2026-11-04), поэтому сломанный `Dockerfile` обнаружит не CI, а человек. Кандидат: job `docker build` без публикации.
-3. **Нет E2E через UI** — фронтенда пока нет.
-4. **Wallets/Payments/Fraud/Notifications/Audit** содержат только доменные заготовки; их тесты появятся вместе с кодом в M2–M3.
-5. **Нет тестов на rate limiting** кроме ручной проверки 429 — лимитер живёт в конфигурации Gateway, а не в коде.
+2. **Нет E2E через UI** — фронтенда пока нет.
+3. **Wallets/Payments/Fraud/Notifications/Audit** содержат только доменные заготовки; их тесты появятся вместе с кодом в M2–M3.
+4. **Нет тестов на rate limiting** кроме ручной проверки 429 — лимитер живёт в конфигурации Gateway, а не в коде.
 
 ## Definition of Done для теста
 
