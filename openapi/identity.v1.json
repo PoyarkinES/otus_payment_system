@@ -269,6 +269,19 @@
         }
       }
     },
+    "/.well-known/jwks.json": {
+      "get": {
+        "tags": [
+          "Otus.PaymentSystem.Identity.Host"
+        ],
+        "operationId": "Jwks",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/users/me": {
       "get": {
         "tags": [
