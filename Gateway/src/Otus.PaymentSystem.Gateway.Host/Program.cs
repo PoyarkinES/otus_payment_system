@@ -1,4 +1,3 @@
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Otus.PaymentSystem.AspNetCore;
@@ -7,6 +6,8 @@ using Otus.PaymentSystem.Gateway.Host.Middleware;
 using Otus.PaymentSystem.Gateway.Host.Security;
 using Serilog;
 using Serilog.Formatting.Compact;
+using System;
+using System.Text;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -29,11 +30,14 @@ builder.Services.AddApiProblems(options =>
 JwtOptions jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
                                                ?? throw new InvalidOperationException("Секция Jwt не настроена.");
 
-if (string.IsNullOrWhiteSpace(jwt.Secret) || jwt.Secret.Length < 32)
+if (string.IsNullOrWhiteSpace(jwt.JwksUri))
 {
     throw new InvalidOperationException(
-        "Jwt:Secret не настроен или короче 32 символов. Для локального запуска используйте appsettings.Development.json.");
+        "Jwt:JwksUri не настроен. Gateway проверяет подпись по публичному ключу Identity.");
 }
+
+JwksKeyStore keyStore = new(new HttpClient { Timeout = TimeSpan.FromSeconds(5) }, jwt.JwksUri);
+builder.Services.AddSingleton(keyStore);
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -48,10 +52,23 @@ builder.Services
             ValidateAudience = true,
             ValidAudience = jwt.Audience,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Secret)),
+            IssuerSigningKeyResolver = (_, _, kid, _) =>
+            {
+                IList<SecurityKey> keys = keyStore.Keys;
+
+                // Незнакомый kid = Identity перезапустился или ключ ротировали: обновляем кэш сразу,
+                // иначе новые токены будут получать 401 до истечения TTL.
+                if (kid is not null && keys.All(k => k.KeyId != kid))
+                {
+                    keyStore.RefreshAsync().GetAwaiter().GetResult();
+                    keys = keyStore.Keys;
+                }
+
+                return keys;
+            },
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30),
-            ValidAlgorithms = ["HS256"]
+            ValidAlgorithms = ["RS256"]
 
         };
     });
@@ -94,6 +111,9 @@ app.MapGet("/health", () => Results.Ok(new
 })).AllowAnonymous();
 
 app.MapReverseProxy();
+
+if (!await app.Services.GetRequiredService<JwksKeyStore>().RefreshAsync())
+    Log.Warning("JWKS недоступен при старте Gateway: {Uri}", jwt.JwksUri);
 
 try
 {
