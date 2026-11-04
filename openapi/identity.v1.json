@@ -634,7 +634,11 @@
             "nullable": true
           },
           "status": {
-            "$ref": "#/components/schemas/UserStatus"
+            "enum": [
+              "Active",
+              "Blocked"
+            ],
+            "type": "string"
           },
           "createdAt": {
             "type": "string",
@@ -810,14 +814,6 @@
         },
         "additionalProperties": false,
         "description": "Тело запроса PUT /users/me. Поля опциональны."
-      },
-      "UserStatus": {
-        "enum": [
-          0,
-          1
-        ],
-        "type": "integer",
-        "format": "int32"
       }
     },
     "securitySchemes": {

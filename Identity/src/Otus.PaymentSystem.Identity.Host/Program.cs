@@ -4,13 +4,16 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
 using Otus.PaymentSystem.AspNetCore;
 using Otus.PaymentSystem.AspNetCore.Middleware;
 using Otus.PaymentSystem.Identity.Application.Commands.Register;
+using Otus.PaymentSystem.Identity.Domain.Aggregates;
 using Otus.PaymentSystem.Identity.Host.Contracts.Auth;
 using Otus.PaymentSystem.Identity.Host.Contracts.Users;
 using Otus.PaymentSystem.Identity.Host.Endpoints;
+using Otus.PaymentSystem.Identity.Host.Json;
 using Otus.PaymentSystem.Identity.Host.Middleware;
 using Otus.PaymentSystem.Identity.Host.Seeding;
 using Otus.PaymentSystem.Identity.Host.Swagger;
@@ -57,6 +60,16 @@ builder.Services.AddSwaggerGen(options =>
     });
     options.OperationFilter<SecurityRequirementOperationFilter>();
 
+    // Swashbuckle 7.2 не читает JsonStringEnumConverter у minimal API и рисует enum
+    // числом, хотя рантайм отдаёт строку. Описываем явно, иначе спека врёт (#108).
+    options.MapType<UserStatus>(() => new OpenApiSchema
+    {
+        Type = "string",
+        Enum = Enum.GetNames<UserStatus>()
+            .Select(name => (IOpenApiAny)new OpenApiString(name))
+            .ToList()
+    });
+
     // Публичный адрес — Gateway, а не сам Identity: клиент не должен знать внутренние порты.
     options.AddServer(new OpenApiServer
     {
@@ -68,6 +81,10 @@ builder.Services.AddSwaggerGen(options =>
 // Единый ProblemDetails: в Development detail содержит текст исключения.
 builder.Services.AddApiProblems(options =>
     options.IncludeExceptionDetails = builder.Environment.IsDevelopment());
+
+// Enum'ы в ответах — строками: "Active" вместо 0 (#108).
+builder.Services.ConfigureHttpJsonOptions(options =>
+    IdentityJsonOptions.Apply(options.SerializerOptions));
 
 // MediatR: регистрируем все handlers из Application-сборки
 builder.Services.AddMediatR(cfg =>
