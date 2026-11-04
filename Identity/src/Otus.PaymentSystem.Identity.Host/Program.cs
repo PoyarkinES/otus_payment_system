@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Otus.PaymentSystem.AspNetCore;
@@ -14,6 +15,7 @@ using Otus.PaymentSystem.Identity.Host.Middleware;
 using Otus.PaymentSystem.Identity.Host.Seeding;
 using Otus.PaymentSystem.Identity.Host.Swagger;
 using Otus.PaymentSystem.Identity.Infrastructure;
+using Otus.PaymentSystem.Identity.Infrastructure.Persistence;
 using Otus.PaymentSystem.Identity.Infrastructure.Security;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -111,6 +113,17 @@ builder.Services.AddSingleton<IValidator<RefreshRequest>, RefreshRequestValidato
 builder.Services.AddSingleton<IValidator<LogoutRequest>, LogoutRequestValidator>();
 
 WebApplication app = builder.Build();
+
+// Миграции на старте — только по явному флагу (docker compose).
+// В обычном запуске схемой управляет `dotnet ef database update`:
+// иначе несколько реплик начнут применять миграции конкурентно.
+if (app.Configuration.GetValue("Database:AutoMigrate", false))
+{
+    using IServiceScope migrationScope = app.Services.CreateScope();
+    await migrationScope.ServiceProvider
+        .GetRequiredService<IdentityDbContext>()
+        .Database.MigrateAsync();
+}
 
 // Порядок: correlation -> логи -> 500 -> пустые 4xx/5xx -> swagger -> доменные ошибки -> auth -> endpoints.
 app.UseMiddleware<CorrelationIdMiddleware>();

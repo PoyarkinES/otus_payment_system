@@ -176,7 +176,7 @@ Issue считается завершенным, когда:
 - [x] Реализовать `POST /auth/login` (anonymous).
 - [x] Реализовать `POST /auth/refresh` (anonymous + валидация refresh token).
 - [x] Реализовать `POST /auth/logout` (authenticated + отзыв refresh token).
-- [ ] Добавить единообразные auth ошибки (`invalid credentials`, без чувствительных деталей).
+- [x] Добавить единообразные auth ошибки (`invalid credentials`, без чувствительных деталей) — единый ProblemDetails (#22).
 
 ### C. JWT и жизненный цикл refresh token (связи: 5.3, 7, 8, 9)
 - [x] Настроить выпуск JWT с claims: `sub`, `email`, `role`, `jti`, `exp`.
@@ -187,27 +187,28 @@ Issue считается завершенным, когда:
 - [x] Отзывать все активные refresh token после смены пароля.
 
 ### D. Авторизация и политики (связи: 6.1, 6.2, 6.3)
-- [ ] Настроить auth middleware и защитить все непубличные endpoint’ы по умолчанию.
-- [ ] Добавить role-based политики для admin-only операций.
-- [ ] Добавить ownership policy/handler для ресурсов wallet/payment/profile.
-- [ ] Убедиться, что ownership checks применяются в app/domain layer, а не только в контроллерах.
-- [ ] Проверить реализацию endpoint-policy matrix из раздела 6.3.
+- [x] Настроить auth middleware и защитить все непубличные endpoint’ы по умолчанию (Identity — `RequireAuthorization`, Gateway — политика `authenticated`).
+- [x] Добавить role-based политики для admin-only операций (`AdminOnly`: `GET /users/{id}`, block/unblock).
+- [ ] Добавить ownership policy/handler для ресурсов wallet/payment/profile (M2+).
+- [ ] Убедиться, что ownership checks применяются в app/domain layer, а не только в контроллерах (M2+).
+- [ ] Проверить реализацию endpoint-policy matrix из раздела 6.3 (полностью — когда появятся wallet/payment-ресурсы).
+- [x] BFF `/bff/me` отдаёт `sub`, `email`, `role` только из claims и не ходит в Identity.
 
 ### E. Усиление безопасности (связи: 7)
-- [ ] Перенести JWT secrets в безопасную конфигурацию (user-secrets/dev, vault/env для non-local).
-- [ ] Принудительно использовать HTTPS в non-local окружениях.
+- [x] Перенести JWT secrets в безопасную конфигурацию: user-secrets в Development, `Jwt__*`/`ConnectionStrings__*` через env в compose; vault — M6.
+- [ ] Принудительно использовать HTTPS в non-local окружениях (появится с ingress/reverse proxy; внутри сети compose — HTTP).
 - [x] Добавить защиту от brute-force login (rate limiting: 5 попыток/мин на IP, реализовано в Gateway).
-- [ ] Убедиться, что логи и ответы не раскрывают passwords/tokens/secrets.
+- [ ] Убедиться, что логи и ответы не раскрывают passwords/tokens/secrets (аудит логов — отдельная задача).
 
 ### F. Наблюдаемость и аудит (связи: 8, 10)
-- [ ] Добавить структурированные логи для registration, login success/failure, refresh, logout, role changes.
-- [ ] Добавить propagation Correlation ID для auth-запросов.
-- [ ] Добавить метрики для auth endpoint’ов (request count, latency, failure rate).
-- [ ] Убедиться, что `401` и `403` четко различимы в поведении API и логах.
+- [x] Добавить структурированные логи для registration, login success/failure, refresh, logout, role changes.
+- [x] Добавить propagation Correlation ID для auth-запросов (`X-Correlation-Id`, проброс в health-вызов BFF).
+- [ ] Добавить метрики для auth endpoint’ов (request count, latency, failure rate) — M4.
+- [x] Убедиться, что `401` и `403` четко различимы в поведении API и логах (проверено смоуком: `/bff/me` — 401, чужой профиль — 403).
 
 ### G. Тестирование и DoD (связи: 11, 12)
-- [ ] Unit tests для генерации/валидации токенов и policy handlers.
-- [ ] Integration tests для `register/login/refresh/logout` (happy-path и failure-path).
-- [ ] Integration tests для сценариев `401` (unauthenticated) и `403` (unauthorized).
-- [ ] Integration tests для границ владения ресурсами (own vs чужой resource access).
-- [ ] Сверить чеклист с критериями раздела 11 и отметить выполненные пункты.
+- [x] Unit tests для генерации/валидации токенов (RS256, `kid`, JWKS) и policy handlers (валидаторы, claims).
+- [ ] Integration tests для `register/login/refresh/logout` (happy-path и failure-path) — есть unit/host-тесты; сквозные HTTP-тесты в бэклоге.
+- [ ] Integration tests для сценариев `401` (unauthenticated) и `403` (unauthorized) — сейчас смоук в `docs/demo-m1.ru.md`.
+- [ ] Integration tests для границ владения ресурсами (own vs чужой resource access) — M2.
+- [x] Сверить чеклист с критериями раздела 11 и отметить выполненные пункты (сверено 04.11.2026).

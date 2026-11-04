@@ -1,6 +1,6 @@
 # Контракты API: что сделано и с чего начать
 
-> **Обновлено 02.11.2026.** Ветка `feature/m1-w3-problemdetails` (M1W3), коммит `5efd0a0`.
+> **Обновлено 04.11.2026.** Ветка `feat/m1-w4-bff` (M1W4): BFF и админский профиль готовы, `openapi/identity.v1.json` перегенерирован.
 > **Связанные:** [#22](https://github.com/PoyarkinES/otus_payment_system/issues/22) · [#21](https://github.com/PoyarkinES/otus_payment_system/issues/21) · [#48](https://github.com/PoyarkinES/otus_payment_system/issues/48) · [#49](https://github.com/PoyarkinES/otus_payment_system/issues/49) · [ADR 0001](./adr/0001-api-gateway.md) · [Единый формат ошибок](./api-errors.ru.md)
 
 ## 0. С чего начать
@@ -8,7 +8,7 @@
 1. ~~Закоммитить документацию~~ — ✅ выполнено в `5efd0a0`: [api-errors.ru.md](./api-errors.ru.md), правки [db-schema.ru.md](./db-schema.ru.md), этот файл.
 2. ~~Закрыть #22~~ — ✅ выполнено: ошибки Identity и Gateway приведены к контракту (`Shared.AspNetCore`, `DomainError`, middleware), тесты зелёные.
 3. **Отдельная ветка `feature/openapi-artifact`** — довести метаданные Identity, сгенерировать `openapi/identity.v1.json`, добавить drift-check в CI. Это шаг, с которого начинается собственно «контракт как артефакт».
-4. Дальше — #21 (валидация), #48 (refresh/JWKS/rate limiting), #49 (BFF contract-first).
+4. ~~Дальше — #21 (валидация), #48 (refresh/JWKS/rate limiting), #49 (BFF)~~ — ✅ выполнено в M1W3–W4.
 
 Шаг 3 — точка входа во всю работу по контрактам. Всё, что до него, — подготовка.
 
@@ -36,7 +36,7 @@
 
 **Чего нет:**
 
-1. Спецификации Gateway/BFF — а именно он точка входа для UI. Для Identity артефакт уже есть: [openapi/identity.v1.json](../openapi/identity.v1.json), его проверяет job `openapi-drift`.
+1. Спецификации Gateway/BFF. Для Identity артефакт есть: [openapi/identity.v1.json](../openapi/identity.v1.json), его проверяет job `openapi-drift`. BFF реализован в #49 code-first; решение по спеке Gateway — в §7.
 2. Описания DTO в доках — только в коде и в сгенерированной спеке.
 3. Contract-тестов на поведение (не только drift): формат проверяется unit-тестами middleware, а не схемой.
 
@@ -44,7 +44,7 @@
 
 | Вопрос | Решение | Почему |
 |---|---|---|
-| Contract-first или code-first | Code-first + закоммиченный артефакт для сервисов; contract-first для BFF (#49) | У Identity 7 эндпоинтов, писать YAML руками — дублирование. BFF нужен фронтенду для моков до готовности бэкенда |
+| Contract-first или code-first | Code-first + закоммиченный артефакт и для сервисов, и для BFF | Писать YAML руками — дублирование кода. Спека Gateway не блокирует старт фронтенда в M2: BFF зафиксирован тестами и демо-сценарием |
 | Генератор | Swashbuckle 7.2.0 (уже в Identity), второй не добавляем | Миграция на `Microsoft.AspNetCore.OpenApi` — отдельная задача, не совмещаем с #22 |
 | Где лежит артефакт | `openapi/{service}.v1.json`, генерируется, руками не правится | Дифф виден в PR, имя файла задаёт версию |
 | Как держим актуальность | CI: regenerate → `git diff --exit-code -- openapi` | Без проверки файл устаревает молча |
@@ -99,9 +99,11 @@
 
 Новые эндпоинты `POST /auth/refresh`, `POST /auth/logout` и 429 входят в спеку; после этого спека Identity считается полной на M1.
 
-### Шаг 5. #49 — BFF contract-first
+### Шаг 5. #49 — BFF — ✅
 
-Спека `/bff/me`, `/bff/health` пишется до кода, фронтенд получает моки. Только здесь появляется спека Gateway.
+`GET /bff/me` (claims `sub`, `email`, `role`, без вызова Identity) и `GET /bff/health` (агрегат Gateway + Identity, 503 при недоступности) реализованы в `Gateway.Host/Endpoints/BffEndpoints.cs` и покрыты 9 юнит-тестами.
+
+Отдельной спеки Gateway в M1 нет осознанно: фронтенд стартует в M2–M6, а контракт BFF зафиксирован тестами (имена полей JSON) и [demo-m1.ru.md](./demo-m1.ru.md). Спека Gateway появится в M2 вместе с первым агрегатом для кошелька — тогда у неё будет смысл и потребитель.
 
 ## 5. Артефакт OpenAPI: как устроен
 
@@ -127,11 +129,12 @@ dotnet run --project Identity/src/Otus.PaymentSystem.Identity.Host
 |---|---|
 | Спека устаревает | drift-check в CI, обязательный regenerate в PR с изменением DTO |
 | Расхождение формата ошибок между Gateway и Identity | общий `ApiProblems` + тест на одинаковый JSON |
-| Contract-first расползается на все сервисы | только BFF (#49); сервисы — code-first + артефакт |
+| Сервис без спеки расходится с ожиданиями клиента | BFF покрыт тестами на имена полей и демо-сценарием; спека Gateway — в бэклоге M2 |
 | Версионирование вводят слишком рано | до 1.0 версия только в имени файла, не в пути |
 
 ## 7. Открытые вопросы
 
-1. Версионирование API: версия в пути (`/api/v1/...`) или только в артефакте — решить до #49.
-2. Публиковать ли спеку через Gateway (`/openapi/identity.v1.json`) или отдавать файл из репозитория — решить в #49.
-3. Нужен ли `instance` в ProblemDetails — сейчас нет, `traceId` закрывает потребность поддержки (см. api-errors §8).
+1. Версионирование API: версия в пути (`/api/v1/...`) или только в артефакте — решить до первого публичного breaking change; в M1 версия только в имени файла.
+2. Публиковать ли спеку через Gateway (`/openapi/identity.v1.json`) или отдавать файл из репозитория — открыто; в M1 файл лежит в репозитории и проверяется job `openapi-drift`.
+3. Когда появляется спека Gateway/BFF — решено: не в M1, а в M2 вместе с `/bff/wallets`.
+4. Нужен ли `instance` в ProblemDetails — сейчас нет, `traceId` закрывает потребность поддержки (см. api-errors §8).

@@ -31,6 +31,16 @@ public static class UsersEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
+        // Админ видит чужой профиль. Сервисной аутентификации в MVP нет, поэтому
+        // единственный доступ к чужому Id — по роли из access-токена.
+        group.MapGet("/{id:guid}", GetById)
+            .WithName("GetUserById")
+            .RequireAuthorization("AdminOnly")
+            .Produces<GetProfileResult>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         group.MapPost("/{id:guid}/block", Block)
             .WithName("BlockUser")
             .RequireAuthorization("AdminOnly")
@@ -73,6 +83,13 @@ public static class UsersEndpoints
         await mediator.Send(new UpdateProfileCommand(userId.Value, request.Email, request.Password), ct);
         return Results.NoContent();
     }
+
+    private static async Task<IResult> GetById(Guid id, IMediator mediator, CancellationToken ct)
+    {
+        GetProfileResult result = await mediator.Send(new GetProfileQuery(id), ct);
+        return Results.Ok(result);
+    }
+
     private static async Task<IResult> Block(
         Guid id,
         System.Security.Claims.ClaimsPrincipal user,

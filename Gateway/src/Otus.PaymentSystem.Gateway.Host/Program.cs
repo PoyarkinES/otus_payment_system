@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Otus.PaymentSystem.AspNetCore;
 using Otus.PaymentSystem.AspNetCore.Middleware;
+using Otus.PaymentSystem.Gateway.Host.Endpoints;
 using Otus.PaymentSystem.Gateway.Host.Middleware;
 using Otus.PaymentSystem.Gateway.Host.Security;
 using Serilog;
@@ -130,6 +131,18 @@ builder.Services.AddCors(options =>
             .WithExposedHeaders(CorrelationIdMiddleware.HeaderName));
 });
 
+// BFF: единственное место, где Gateway сам ходит в сервисы, — health-агрегат.
+// Адрес Identity берём из кластера прокси, чтобы health не мог разойтись с маршрутизацией.
+string identityAddress = builder.Configuration["ReverseProxy:Clusters:identity:Destinations:primary:Address"]
+                         ?? "http://localhost:5100/";
+
+builder.Services.AddHttpClient(BffEndpoints.IdentityClientName, client =>
+{
+    client.BaseAddress = new Uri(identityAddress, UriKind.Absolute);
+    // Health не должен ждать: если Identity тормозит, ответ "degraded" полезнее, чем таймаут клиента.
+    client.Timeout = TimeSpan.FromSeconds(3);
+});
+
 WebApplication app = builder.Build();
 
 // Порядок: correlation -> логи -> 500 -> пустые 4xx/5xx -> CORS -> auth -> X-User-Id -> authorization.
@@ -142,12 +155,14 @@ app.UseAuthentication();
 app.UseMiddleware<UserIdHeaderMiddleware>();
 app.UseAuthorization();
 
-// Health-check самого Gateway. Агрегированный /bff/health появится в M1W4 (#49).
+// Health-check самого Gateway. Агрегированный health и /bff/me — в BffEndpoints (#49).
 app.MapGet("/health", () => Results.Ok(new
 {
     status = "ok",
     service = "gateway"
 })).AllowAnonymous();
+
+app.MapBffEndpoints();
 
 app.UseRateLimiter();
 app.MapReverseProxy();

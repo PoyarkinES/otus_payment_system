@@ -1,0 +1,74 @@
+# Полный стек M1: PostgreSQL + Identity + Gateway.
+# Наружу открыт только Gateway (8080) — единая точка входа, как в architecture.md.
+#
+# Запуск:      docker compose up --build
+# Демо:        http://localhost:8080/health, http://localhost:8080/bff/health
+# Локально с docker-compose.override.yml: docker compose -f docker-compose.yml up --build
+# (override публикует postgres на 5434 и конфликтует с dev-контейнером otus-postgres).
+
+name: otus-payment-system
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # Порт наружу не публикуем: БД нужна только сервисам внутри сети compose.
+    volumes:
+      - identity-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  identity:
+    build:
+      context: .
+      dockerfile: Identity/Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__IdentityDb: "Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      # Схему применяем на старте: в compose БД всегда чистая.
+      Database__AutoMigrate: "true"
+      # Без этих двух ключей DevAdminSeeder молча ничего не создаст.
+      Seed__Admin__Email: ${SEED_ADMIN_EMAIL:-admin@otus.local}
+      Seed__Admin__Password: ${SEED_ADMIN_PASSWORD:-AdminP@ssw0rd}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Gateway/Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      # Имя сервиса вместо localhost: адрес Identity нужен и прокси, и /bff/health.
+      ReverseProxy__Clusters__identity__Destinations__primary__Address: http://identity:8080/
+      Jwt__JwksUri: http://identity:8080/.well-known/jwks.json
+    ports:
+      - "8080:8080"
+    depends_on:
+      identity:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/bff/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  identity-db:
