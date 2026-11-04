@@ -8,6 +8,8 @@ using Serilog;
 using Serilog.Formatting.Compact;
 using System;
 using System.Text;
+using System.Threading.RateLimiting;
+using Otus.PaymentSystem.AspNetCore.Problems;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -78,8 +80,45 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("authenticated", policy => policy.RequireAuthenticatedUser());
 });
 
+// Rate limiting на краю: по ADR 0001 он живёт в Gateway, а не в сервисах.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Перебор паролей: 5 попыток в минуту с одного IP.
+    options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+
+    // Долбёжка refresh: 30 в минуту с одного IP.
+    options.AddPolicy("refresh", context => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 30,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+
+    options.OnRejected = async (context, ct) =>
+    {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan retryAfter))
+            context.HttpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
+
+        await ApiProblems.WriteAsync(
+            context.HttpContext,
+            StatusCodes.Status429TooManyRequests,
+            "Слишком много попыток. Повторите позже.");
+    };
+});
+
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                     ?? ["http://localhost:5173"];
+                         ?? ["http://localhost:5173"];
 
 builder.Services.AddCors(options =>
 {
@@ -110,6 +149,7 @@ app.MapGet("/health", () => Results.Ok(new
     service = "gateway"
 })).AllowAnonymous();
 
+app.UseRateLimiter();
 app.MapReverseProxy();
 
 if (!await app.Services.GetRequiredService<JwksKeyStore>().RefreshAsync())
