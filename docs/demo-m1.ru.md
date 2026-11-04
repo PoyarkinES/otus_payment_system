@@ -120,7 +120,27 @@ try {
 
 Политика `login` — 5 попыток в минуту с одного IP, ожидаем 429 на шестой.
 
-**5.4. Отказ зависимости — 503:**
+**5.4. Лимит на BFF — 429:**
+
+```powershell
+$codes = 1..65 | ForEach-Object {
+    try { (Invoke-WebRequest http://localhost:8080/bff/health -UseBasicParsing).StatusCode }
+    catch { [int]$_.Exception.Response.StatusCode }
+}
+$codes | Group-Object | Select-Object Name, Count
+```
+
+Политика `bff` — 60 запросов в минуту на IP общая для всей группы `/bff`. Ожидаем примерно `200 → 60`, `429 → 5`. Заголовок `Retry-After` у 429:
+
+```powershell
+try { Invoke-WebRequest http://localhost:8080/bff/health -UseBasicParsing } catch {
+    "status: $([int]$_.Exception.Response.StatusCode), Retry-After: $($_.Exception.Response.Headers['Retry-After'])"
+}
+```
+
+После этой проверки лимит израсходован — следующие шаги демо нужно делать через минуту или перезапустить Gateway (`docker compose -f docker-compose.yml restart gateway`).
+
+**5.5. Отказ зависимости — 503:**
 
 ```powershell
 docker compose -f docker-compose.yml stop identity
