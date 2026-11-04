@@ -15,4 +15,9 @@
     <ProjectReference Include="..\..\..\Shared\src\Otus.PaymentSystem.AspNetCore\Otus.PaymentSystem.AspNetCore.csproj" />
   </ItemGroup>
 
+  <!-- Хендлеры BFF internal: тесты проверяют их напрямую, без поднятия TestServer. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Otus.PaymentSystem.Gateway.Host.Tests" />
+  </ItemGroup>
+
 </Project>
