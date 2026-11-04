@@ -196,7 +196,7 @@ Issue считается завершенным, когда:
 ### E. Усиление безопасности (связи: 7)
 - [ ] Перенести JWT secrets в безопасную конфигурацию (user-secrets/dev, vault/env для non-local).
 - [ ] Принудительно использовать HTTPS в non-local окружениях.
-- [ ] Добавить защиту от brute-force login (rate limiting или lockout).
+- [x] Добавить защиту от brute-force login (rate limiting: 5 попыток/мин на IP, реализовано в Gateway).
 - [ ] Убедиться, что логи и ответы не раскрывают passwords/tokens/secrets.
 
 ### F. Наблюдаемость и аудит (связи: 8, 10)
