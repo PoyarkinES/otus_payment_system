@@ -52,7 +52,8 @@
 | `Build` (матрица 8 решений) | `dotnet build -c Release` | ошибки компиляции в любом контексте |
 | `Test (Shared/Gateway/Identity)` | `dotnet test` + coverage | регрессии юнит- и host-тестов |
 | `identity-integration-tests` | тесты с реальным PostgreSQL | расхождения EF-маппинга и SQL |
-| `openapi-drift` | генерация спеки и `git diff` | контракт разошёлся с кодом |
+| `openapi-drift` | генерация спеки Identity и `git diff` | контракт Identity разошёлся с кодом |
+| `openapi-gateway-drift` | генерация спеки Gateway и `git diff` | контракт BFF разошёлся с кодом |
 | `Docker build (Identity/Gateway)` | `docker build -f <Dockerfile> .` | Dockerfile и контекст сборки разъехались с кодом |
 
 ## Команды локально

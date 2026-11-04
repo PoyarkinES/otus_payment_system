@@ -114,6 +114,42 @@ jobs:
           kill $server || true
           git diff --exit-code -- openapi
 
+  openapi-gateway-drift:
+    name: OpenAPI gateway drift
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build Gateway Host
+        run: dotnet build Gateway/src/Otus.PaymentSystem.Gateway.Host/Otus.PaymentSystem.Gateway.Host.csproj --configuration Release
+
+      - name: Export and compare OpenAPI
+        env:
+          ASPNETCORE_ENVIRONMENT: Production
+          Swagger__Enabled: "true"
+        run: |
+          # Identity в джобе нет: Gateway стартует с предупреждением про недоступный JWKS,
+          # это ожидаемо и на генерацию спеки не влияет.
+          dotnet run --project Gateway/src/Otus.PaymentSystem.Gateway.Host --configuration Release --no-build --no-launch-profile --urls http://127.0.0.1:8080 &
+          server=$!
+          spec=$(mktemp)
+          for i in $(seq 1 90); do
+            if curl -sf http://127.0.0.1:8080/swagger/v1/swagger.json -o "$spec"; then
+              mv "$spec" openapi/gateway.v1.json
+              break
+            fi
+            sleep 1
+          done
+          kill $server || true
+          git diff --exit-code -- openapi
+
   test:
     name: Test (${{ matrix.name }})
     runs-on: ubuntu-latest
