@@ -169,20 +169,20 @@ Issue считается завершенным, когда:
 - [ ] Обеспечить уникальность email на уровне БД и приложения.
 - [ ] Добавить модель ролей (`User`, `Admin`, опционально `Support`) и базовый сидинг ролей.
 - [ ] Реализовать хэширование пароля через framework-approved hasher (без custom crypto).
-- [ ] Добавить миграции для таблиц identity и refresh tokens.
+- [x] Добавить миграции для таблиц identity и refresh tokens.
 
 ### B. API аутентификации (связи: 5.1, 5.2, 5.3, 6.3)
-- [ ] Реализовать `POST /auth/register` (anonymous).
-- [ ] Реализовать `POST /auth/login` (anonymous).
-- [ ] Реализовать `POST /auth/refresh` (anonymous + валидация refresh token).
-- [ ] Реализовать `POST /auth/logout` (authenticated + отзыв refresh token).
+- [x] Реализовать `POST /auth/register` (anonymous).
+- [x] Реализовать `POST /auth/login` (anonymous).
+- [x] Реализовать `POST /auth/refresh` (anonymous + валидация refresh token).
+- [x] Реализовать `POST /auth/logout` (authenticated + отзыв refresh token).
 - [ ] Добавить единообразные auth ошибки (`invalid credentials`, без чувствительных деталей).
 
 ### C. JWT и жизненный цикл refresh token (связи: 5.3, 7, 8, 9)
 - [ ] Настроить выпуск JWT с claims: `sub`, `email`, `role`, `jti`, `exp`.
-- [ ] Валидировать issuer, audience, signature и lifetime на каждом запросе.
-- [ ] Установить короткий TTL access token (ориентир: ~15 минут).
-- [ ] Реализовать ротацию refresh token и цепочку отзыва (`ReplacedByTokenId`).
+- [x] Валидировать issuer, audience, signature и lifetime на каждом запросе.
+- [x] Установить короткий TTL access token (ориентир: ~15 минут).
+- [x] Реализовать ротацию refresh token и цепочку отзыва (`ReplacedByTokenId`).
 - [ ] Отзывать все активные refresh token после смены пароля.
 
 ### D. Авторизация и политики (связи: 6.1, 6.2, 6.3)

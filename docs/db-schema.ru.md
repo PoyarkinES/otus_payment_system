@@ -39,9 +39,9 @@
 - `Version` задуман под optimistic concurrency, но в `UserConfiguration` **пока не помечен** как concurrency token;
 - `Roles` / `UserRoles` из старых доков **не созданы**: роль хранится enum’ом в `Users.Role`.
 
-### 1.2. `RefreshTokens` ⬜
+### 1.2. `RefreshTokens` ✅
 
-Появится в M1W3 (#48). Поля — из [bounded-contexts.md](./bounded-contexts.md:116).
+Создана в M1W3 (#48), миграция `20261103210320_AddRefreshTokens`. Срок жизни — 30 дней (`RefreshTokens:LifetimeDays`).
 
 `TokenHash` — SHA-256 от случайного 32-байтного токена (256 бит энтропии); plaintext токена в БД не хранится. HMAC с серверным ключом не нужен: токен уже высокоэнтропийный, а HMAC добавил бы управление ключом без выигрыша в стойкости.
 
@@ -59,18 +59,22 @@
 
 - `IX_RefreshTokens_TokenHash` UNIQUE;
 - `IX_RefreshTokens_UserId`;
-- `IX_RefreshTokens_ExpiresAt` — для фоновой очистки.
+- `IX_RefreshTokens_ExpiresAt` — для фоновой очистки;
+- `IX_RefreshTokens_ReplacedByTokenId` — под self-FK, создаётся EF автоматически.
 
 Правила:
 
 - в БД хранится только SHA-256-хэш токена, не сам токен;
 - refresh-токен ротируется: старый получает `RevokedAt` и `ReplacedByTokenId`;
-- повторное использование старого токена — отказ;
-- смена пароля отзывает все refresh пользователя.
+- повторное использование отозванного токена с преемником → `401` и отзыв всей цепочки по `ReplacedByTokenId`;
+- logout отзывает только предъявленный токен и идемпотентен: неизвестный или уже отозванный токен → `204` без изменений в БД;
+- смена пароля отзывает все refresh пользователя — **не реализовано** в M1W3, перенесено на W4.
+
+Известное ограничение: при reuse цепочка обходится по одному запросу на шаг (защитный предел — 100 шагов). Для M1 это приемлемо; при росте числа ротаций имеет смысл хранить `RootTokenId` и отзывать семейство одним `UPDATE`.
 
 ```mermaid
 erDiagram
-    Users ||--o{ RefreshTokens : "userId (план)"
+    Users ||--o{ RefreshTokens : "userId"
     Users {
         uuid Id PK
         varchar Email UK
