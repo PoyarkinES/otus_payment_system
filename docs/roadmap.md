@@ -1,6 +1,6 @@
 # Otus Payment System — Roadmap
 
-> **Current as of 2026-10-30.** The new baseline starts on Monday **2026-11-02**.
+> **Current as of 2026-11-04.** M1 is closed (epic [#40](https://github.com/PoyarkinES/otus_payment_system/issues/40)). The new baseline started on Monday **2026-11-02**.
 > October 2026 is recorded as **M0 (actuals)** and is not stretched into November.
 >
 > Related: [ADR 0001 — API Gateway](./adr/0001-api-gateway.md) · [Architecture](./architecture.md) · [Bounded contexts](./bounded-contexts.md) · [Auth requirements](./auth-requirements.en.md)
@@ -38,6 +38,20 @@ Gateway → PostgreSQL → Wallets → Transfers → Outbox/RabbitMQ → Audit/N
 | Wallets/Transfers/Fraud/Notifications/Audit | ⚪ Scaffold | Domain events only |
 
 **Conclusion:** Identity is done and partly ahead of the old plan, but PostgreSQL and the Gateway are missing. Wallets and the following phases therefore shift by a month: October becomes M0, and the six-month core plan starts in November.
+
+### 2.1. Actual state on 2026-11-04 (M1 closed)
+
+| Area | Status | Comment |
+|---|---|---|
+| API Gateway / BFF | ✅ Done | #46: YARP, JWKS validation, `X-User-Id`, CORS, rate limiting; #49: `/bff/me`, `/bff/health` |
+| PostgreSQL + migrations | ✅ Done | #47, #10: EF Core, migrations, integration tests against a real database |
+| Refresh/logout, RS256/JWKS | ✅ Done | #48: rotation, reuse detection, chain revocation on password change |
+| ProblemDetails, validation | ✅ Done | #22, #21 |
+| Logging, correlation ID | ✅ Done | #20 |
+| Tests in CI | ✅ Done | #19: 101 Identity, 17 Gateway, PostgreSQL as a separate job |
+| Full-stack Docker Compose | ✅ Done | #49: `docker compose up` → `localhost:8080`, healthchecks |
+| Gateway OpenAPI spec | ⚪ M2 backlog | BFF is code-first and covered by tests; the spec arrives with the first wallet aggregate |
+| Wallets/Transfers/Fraud/Notifications/Audit | ⚪ Scaffold | No business logic yet; starts in M2 |
 
 ## 3. Plan principles
 
@@ -102,6 +116,8 @@ With a dedicated frontend developer, UI cannot wait until after 1.0 — otherwis
 **Risks:** OpenAPI drift, BFF delay, CORS, mobile push backend. Mitigation: contract-first, mock server, E2E via Gateway.
 
 ## 5. Weeks
+
+> Weeks W1–W4 (M1) are complete as of 2026-11-04; the acceptance run is documented in [demo-m1.ru.md](./demo-m1.ru.md).
 
 | Week | Dates | Focus | Issue |
 |---|---|---|---|

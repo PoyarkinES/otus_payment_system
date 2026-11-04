@@ -1,6 +1,6 @@
 # Otus Payment System — Roadmap
 
-> **Актуально на 30.10.2026.** Базовая точка нового плана — понедельник **2 ноября 2026**.
+> **Актуально на 04.11.2026.** M1 закрыт (эпик [#40](https://github.com/PoyarkinES/otus_payment_system/issues/40)). Базовая точка нового плана — понедельник **2 ноября 2026**.
 > Октябрь 2026 зафиксирован как **M0 (факт)**, а не растягивается на ноябрь.
 >
 > Связанные документы: [ADR 0001 — API Gateway](./adr/0001-api-gateway.md) · [Архитектура](./architecture.ru.md) · [Bounded contexts](./bounded-contexts.md) · [Требования к auth](./auth-requirements.ru.md)
@@ -38,6 +38,22 @@ Gateway → PostgreSQL → Wallets → Transfers → Outbox/RabbitMQ → Audit/N
 | Wallets/Transfers/Fraud/Notifications/Audit | ⚪ Каркас | Только доменные события, бизнес-логики нет |
 
 **Вывод:** Identity готов и частично опережает старый план, но PostgreSQL и Gateway не сделаны. Поэтому Wallets и следующие этапы сдвигаются на месяц: октябрь закрывается как M0, а шесть месяцев core-разработки начинаются с ноября.
+
+### 2.1. Факт на 04.11.2026 (M1 закрыт)
+
+| Область | Статус | Комментарий |
+|---|---|---|
+| API Gateway / BFF | ✅ Готово | #46: YARP, JWT по JWKS, `X-User-Id`, CORS, rate limiting; #49: `/bff/me`, `/bff/health` |
+| PostgreSQL + миграции | ✅ Готово | #47, #10: EF Core, миграции, интеграционные тесты с реальной БД |
+| Refresh/logout, RS256/JWKS | ✅ Готово | #48: ротация, reuse-детект, отзыв цепочки при смене пароля |
+| Единый ProblemDetails, валидация | ✅ Готово | #22, #21 |
+| Логирование, correlation ID | ✅ Готово | #20 |
+| Тесты в CI | ✅ Готово | #19: 101 в Identity, 17 в Gateway, Postgres — отдельным job |
+| Docker Compose полного стека | ✅ Готово | #49: `docker compose up` → `localhost:8080`, healthchecks |
+| Спека Gateway/BFF | ⚪ Бэклог M2 | BFF реализован code-first и покрыт тестами; спека появится с первым агрегатом для кошелька |
+| Wallets/Transfers/Fraud/Notifications/Audit | ⚪ Каркас | Бизнес-логики нет, начинается в M2 |
+
+**Вывод:** exit criteria M1 выполнены все. Следующий шаг — M2 (Wallets), старт 30 ноября 2026.
 
 ## 3. Принципы нового плана
 
@@ -108,22 +124,22 @@ Gateway → PostgreSQL → Wallets → Transfers → Outbox/RabbitMQ → Audit/N
 
 **Почему Gateway здесь, а не в месяце 6:** Payment Gateway — это merchant acquiring (магазины, API keys, webhooks). API Gateway — это edge/BFF, без которого фронтенд вынужден знать все сервисы и дублировать auth/CORS. Это разные вещи; см. [ADR 0001](./adr/0001-api-gateway.md).
 
-| Неделя | Даты | Фокус | Issue |
-|---|---|---|---|
-| W1 | 2–8 ноября | Каркас Gateway, маршруты, JWT, `X-User-Id`, CORS | [#46](https://github.com/PoyarkinES/otus_payment_system/issues/46) |
-| W2 | 9–15 ноября | PostgreSQL для Identity, миграции, docker-compose, Testcontainers | [#47](https://github.com/PoyarkinES/otus_payment_system/issues/47), [#10](https://github.com/PoyarkinES/otus_payment_system/issues/10) |
-| W3 | 16–22 ноября | Refresh/logout, RSA/JWKS для Gateway, rate limiting, ProblemDetails, Serilog | [#48](https://github.com/PoyarkinES/otus_payment_system/issues/48), [#20](https://github.com/PoyarkinES/otus_payment_system/issues/20), [#21](https://github.com/PoyarkinES/otus_payment_system/issues/21), [#22](https://github.com/PoyarkinES/otus_payment_system/issues/22) |
-| W4 | 23–29 ноября | BFF `/bff/me`, `GET /users/{id}` для ACL, health, тесты в CI, Docker, ретро | [#49](https://github.com/PoyarkinES/otus_payment_system/issues/49), [#16](https://github.com/PoyarkinES/otus_payment_system/issues/16), [#19](https://github.com/PoyarkinES/otus_payment_system/issues/19) |
+| Неделя | Даты | Фокус | Issue | Статус |
+|---|---|---|---|---|
+| W1 | 2–8 ноября | Каркас Gateway, маршруты, JWT, `X-User-Id`, CORS | [#46](https://github.com/PoyarkinES/otus_payment_system/issues/46) | ✅ |
+| W2 | 9–15 ноября | PostgreSQL для Identity, миграции, docker-compose, Testcontainers | [#47](https://github.com/PoyarkinES/otus_payment_system/issues/47), [#10](https://github.com/PoyarkinES/otus_payment_system/issues/10) | ✅ |
+| W3 | 16–22 ноября | Refresh/logout, RSA/JWKS для Gateway, rate limiting, ProblemDetails, Serilog | [#48](https://github.com/PoyarkinES/otus_payment_system/issues/48), [#20](https://github.com/PoyarkinES/otus_payment_system/issues/20), [#21](https://github.com/PoyarkinES/otus_payment_system/issues/21), [#22](https://github.com/PoyarkinES/otus_payment_system/issues/22) | ✅ |
+| W4 | 23–29 ноября | BFF `/bff/me`, `GET /users/{id}` для ACL, health, тесты в CI, Docker, ретро | [#49](https://github.com/PoyarkinES/otus_payment_system/issues/49), [#16](https://github.com/PoyarkinES/otus_payment_system/issues/16), [#19](https://github.com/PoyarkinES/otus_payment_system/issues/19) | ✅ |
 
-**Exit criteria месяца**
+**Exit criteria месяца** — все выполнены 04.11.2026 (проверено на стеке в Docker, см. [demo-m1.ru.md](./demo-m1.ru.md)):
 
-- [ ] `Gateway.Host` собирается, `/health` → 200.
-- [ ] `POST /api/identity/auth/login` и `/api/identity/auth/me` работают через Gateway.
-- [ ] JWT валидируется на edge; без токена — 401, с токеном — 200; Gateway добавляет `X-User-Id`.
-- [ ] Identity работает на PostgreSQL; миграции применяются; данные переживают рестарт.
-- [ ] Refresh/logout/rotation; rate limiting login; единый ProblemDetails.
-- [ ] `GET /bff/me` отдаёт профиль и роли; `GET /users/{id}` доступен для ACL.
-- [ ] CI запускает тесты, Docker Compose поднимает Gateway + Identity + PostgreSQL.
+- [x] `Gateway.Host` собирается, `/health` → 200.
+- [x] `POST /api/identity/auth/login` и `/api/identity/auth/me` работают через Gateway.
+- [x] JWT валидируется на edge; без токена — 401, с токеном — 200; Gateway добавляет `X-User-Id`.
+- [x] Identity работает на PostgreSQL; миграции применяются; данные переживают рестарт.
+- [x] Refresh/logout/rotation; rate limiting login; единый ProblemDetails.
+- [x] `GET /bff/me` отдаёт профиль и роли; `GET /users/{id}` доступен для ACL.
+- [x] CI запускает тесты, Docker Compose поднимает Gateway + Identity + PostgreSQL.
 
 **Что осознанно не делаем:** полный UI, RabbitMQ, merchant payments. Redis появится в M3 под кэш валидации получателя.
 

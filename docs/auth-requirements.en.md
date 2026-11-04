@@ -165,46 +165,48 @@ Recommended next tasks:
 ### A. Identity Model and Storage (links: 4, 5.1, 5.4, 9)
 - [ ] Create `User` entity with fields from section 9 (id, email, password hash, roles, status, timestamps).
 - [ ] Enforce unique email at DB level and application level.
-- [ ] Add role model (`User`, `Admin`, optional `Support`) and seed baseline roles.
-- [ ] Implement password hashing via framework-approved hasher (no custom crypto).
-- [ ] Add migrations for identity and refresh-token tables.
+- [x] Add role model (`User`, `Admin`, optional `Support`) and seed baseline roles.
+- [x] Implement password hashing via framework-approved hasher (no custom crypto).
+- [x] Add migrations for identity and refresh-token tables.
 
 ### B. Authentication API (links: 5.1, 5.2, 5.3, 6.3)
-- [ ] Implement `POST /auth/register` (anonymous).
-- [ ] Implement `POST /auth/login` (anonymous).
-- [ ] Implement `POST /auth/refresh` (anonymous + refresh token validation).
-- [ ] Implement `POST /auth/logout` (authenticated + refresh token revocation).
-- [ ] Add consistent auth error responses (`invalid credentials`, no sensitive details).
+- [x] Implement `POST /auth/register` (anonymous).
+- [x] Implement `POST /auth/login` (anonymous).
+- [x] Implement `POST /auth/refresh` (anonymous + refresh token validation).
+- [x] Implement `POST /auth/logout` (authenticated + refresh token revocation).
+- [x] Add consistent auth error responses (`invalid credentials`, no sensitive details) — unified ProblemDetails (#22).
 
 ### C. JWT and Refresh Token Lifecycle (links: 5.3, 7, 8, 9)
-- [ ] Configure JWT issuance with required claims: `sub`, `email`, `role`, `jti`, `exp`.
-- [ ] Validate issuer, audience, signature, and lifetime on each request.
-- [ ] Set short access-token TTL (target: ~15 minutes).
-- [ ] Implement refresh-token rotation and revocation chain (`ReplacedByTokenId`).
-- [ ] Revoke all active refresh tokens on password change.
+- [x] Configure JWT issuance with required claims: `sub`, `email`, `role`, `jti`, `exp`.
+- [x] Validate issuer, audience, signature, and lifetime on each request.
+- [x] Set short access-token TTL (target: ~15 minutes).
+- [x] Sign access tokens with RS256 and publish JWKS (`/.well-known/jwks.json`); Gateway validates with the public key.
+- [x] Implement refresh-token rotation and revocation chain (`ReplacedByTokenId`).
+- [x] Revoke all active refresh tokens on password change.
 
 ### D. Authorization and Policies (links: 6.1, 6.2, 6.3)
-- [ ] Configure auth middleware and protect all non-public endpoints by default.
-- [ ] Add role-based policies for admin-only operations.
-- [ ] Add ownership policy/handler for wallet/payment/profile resources.
-- [ ] Ensure ownership checks are enforced in app/domain layer, not only controllers.
-- [ ] Verify endpoint-policy matrix from section 6.3 is implemented.
+- [x] Configure auth middleware and protect all non-public endpoints by default (Identity `RequireAuthorization`, Gateway `authenticated` policy).
+- [x] Add role-based policies for admin-only operations (`AdminOnly`: `GET /users/{id}`, block/unblock).
+- [ ] Add ownership policy/handler for wallet/payment/profile resources (M2+).
+- [ ] Ensure ownership checks are enforced in app/domain layer, not only controllers (M2+).
+- [ ] Verify endpoint-policy matrix from section 6.3 is implemented (fully — once wallet/payment resources exist).
+- [x] BFF `/bff/me` returns `sub`, `email`, `role` from claims only, without calling Identity.
 
 ### E. Security Hardening (links: 7)
-- [ ] Move JWT secrets to secure configuration (user-secrets/dev, vault/env for non-local).
-- [ ] Enforce HTTPS in non-local environments.
-- [ ] Add login brute-force mitigation (rate limiting or lockout).
-- [ ] Ensure logs and responses never expose passwords/tokens/secrets.
+- [x] Move JWT secrets to secure configuration: user-secrets in Development, `Jwt__*`/`ConnectionStrings__*` via env in compose; vault — M6.
+- [ ] Enforce HTTPS in non-local environments (arrives with an ingress/reverse proxy; HTTP inside the compose network).
+- [x] Add login brute-force mitigation (rate limiting: 5 attempts/min per IP in Gateway).
+- [ ] Ensure logs and responses never expose passwords/tokens/secrets (log audit is a separate task).
 
 ### F. Observability and Audit (links: 8, 10)
-- [ ] Add structured logs for registration, login success/failure, refresh, logout, role changes.
-- [ ] Add correlation ID propagation for auth requests.
-- [ ] Add metrics for auth endpoints (request count, latency, failure rate).
-- [ ] Ensure `401` and `403` are clearly distinguishable in API behavior and logs.
+- [x] Add structured logs for registration, login success/failure, refresh, logout, role changes.
+- [x] Add correlation ID propagation for auth requests (`X-Correlation-Id`, forwarded by the BFF health call).
+- [ ] Add metrics for auth endpoints (request count, latency, failure rate) — M4.
+- [x] Ensure `401` and `403` are clearly distinguishable in API behavior and logs (verified by smoke: `/bff/me` → 401, someone else's profile → 403).
 
 ### G. Testing and Definition of Done (links: 11, 12)
-- [ ] Unit tests for token generation/validation and policy handlers.
-- [ ] Integration tests for `register/login/refresh/logout` happy-path and failure-path.
-- [ ] Integration tests for `401` (unauthenticated) and `403` (unauthorized) scenarios.
-- [ ] Integration tests for ownership boundaries (own vs other users' resource access).
-- [ ] Review checklist against section 11 acceptance criteria and mark completed.
+- [x] Unit tests for token generation/validation (RS256, `kid`, JWKS) and policy handlers (validators, claims).
+- [ ] Integration tests for `register/login/refresh/logout` happy-path and failure-path — unit/host tests exist; end-to-end HTTP tests are on the backlog.
+- [ ] Integration tests for `401` (unauthenticated) and `403` (unauthorized) scenarios — currently smoke in `docs/demo-m1.ru.md`.
+- [ ] Integration tests for ownership boundaries (own vs other users' resource access) — M2.
+- [x] Review checklist against section 11 acceptance criteria and mark completed (reviewed 2026-11-04).

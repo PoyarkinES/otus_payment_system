@@ -36,17 +36,21 @@
 .
 ├── Directory.Build.props        # общие настройки MSBuild (TFM, nullable, анализаторы)
 ├── global.json                  # зафиксированная версия .NET SDK
+├── docker-compose.yml           # полный стек M1: postgres + identity + gateway
+├── .dockerignore
 ├── openapi/                     # OpenAPI-контракт Identity (генерируется, не правится руками)
 ├── Shared/
 │   ├── Otus.PaymentSystem.Shared.sln
 │   ├── src/Otus.PaymentSystem.SharedKernel/
 │   ├── src/Otus.PaymentSystem.AspNetCore/   # единый ProblemDetails для Host-проектов
 │   └── test/
-├── Gateway/                     # API Gateway / BFF (edge, не bounded context; появится в M1)
+├── Gateway/                     # API Gateway / BFF (edge, не bounded context)
 │   ├── Otus.PaymentSystem.Gateway.sln
+│   ├── Dockerfile
 │   └── src/Otus.PaymentSystem.Gateway.Host/
 ├── Identity/
 │   ├── Otus.PaymentSystem.Identity.sln
+│   ├── Dockerfile
 │   ├── src/Otus.PaymentSystem.Identity.{Domain,Application,Infrastructure,Host}/
 │   └── test/
 ├── Wallets/                     # такая же структура
@@ -60,6 +64,9 @@
     ├── api-contracts.ru.md
     ├── api-errors.ru.md
     ├── bounded-contexts.md
+    ├── db-schema.ru.md
+    ├── testing-strategy.ru.md
+    ├── demo-m1.ru.md
     └── adr/0001-api-gateway.md
 ```
 
@@ -89,12 +96,28 @@
 
 Подробнее: [ADR 0001](./docs/adr/0001-api-gateway.md).
 
+## Полный стек (Docker Compose)
+
+Один `docker compose up` поднимает PostgreSQL, Identity и Gateway. Наружу открыт только Gateway — Identity и БД доступны лишь внутри сети compose.
+
+```powershell
+docker compose up --build -d
+docker compose ps
+Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
+```
+
+- Вход: `http://localhost:8080`, демо-админ `admin@otus.local` / `AdminP@ssw0rd`.
+- Схема БД применяется на старте контейнера (`Database__AutoMigrate=true`); в обычном `dotnet run` миграции по-прежнему накатываются через `dotnet ef database update`.
+- Если в корне лежит локальный `docker-compose.override.yml`, запускай явно: `docker compose -f docker-compose.yml up --build`.
+
+Пошаговый сценарий с негативными проверками: [docs/demo-m1.ru.md](./docs/demo-m1.ru.md). Уровни тестов и что проверяет CI: [docs/testing-strategy.ru.md](./docs/testing-strategy.ru.md).
+
 ## План развития
 
 | Месяц | Цель |
 |---|---|
 | M0 (октябрь 2026) | Каркас, документация, Identity MVP — **факт** |
-| M1 (ноябрь 2026) | API Gateway/BFF, PostgreSQL, refresh/logout, CI-тесты, Docker |
+| M1 (ноябрь 2026) | API Gateway/BFF, PostgreSQL, refresh/logout, CI-тесты, Docker — **факт** |
 | M2 (декабрь 2026) | Wallets: `available`/`held`, пополнение/списание, holds, история, optimistic locking |
 | M3 (январь 2027) | Transfers: идемпотентность, Redis-кэш получателя, hold/confirm/release, аудит, outbox |
 | M4 (февраль 2027) | RabbitMQ, Audit Service, Notifications Service |
@@ -112,12 +135,13 @@ Gateway → PostgreSQL → Wallets (+ holds) → Transfers (Redis, hold, Fraud s
 
 ## Статус
 
-- **Identity MVP** готов: регистрация, логин, JWT, роли, профиль, block/unblock, PostgreSQL + миграции, unit-тесты.
-- **Gateway** готов: YARP, JWT-валидация, `X-User-Id`, CORS, `/health`, 8 тестов, CI.
-- **CI** собирает все решения, запускает тесты Shared/Gateway/Identity и проверяет контракт OpenAPI (`openapi-drift`).
-- **M1 в работе:** следующие шаги — refresh/JWKS, rate limiting, Docker Compose.
-- **Не сделано:** refresh/logout, JWKS, rate limiting, Docker Compose, BFF `/bff/me`.
-- Wallets/Transfers/Fraud/Notifications/Audit пока содержат только доменные события.
+- **M1 закрыт (эпик #40):**
+  - Identity: регистрация, логин, профиль, роли, block/unblock, refresh/logout с ротацией и reuse-детектом, RS256 + JWKS, PostgreSQL + миграции.
+  - Gateway: YARP, валидация JWT по JWKS, `X-User-Id`, CORS, rate limiting (429 + `Retry-After`), BFF `/bff/me` и `/bff/health`.
+  - Инфраструктура: Serilog + correlation ID, единый ProblemDetails, валидация DTO, Docker Compose полного стека.
+- **Тесты:** 101 в Identity, 17 в Gateway, отдельно `Shared`; тесты с PostgreSQL — отдельным job.
+- **CI** собирает 8 решений, запускает тесты Shared/Gateway/Identity, интеграцию с PostgreSQL и проверяет контракт OpenAPI (`openapi-drift`).
+- **Не сделано (M2+):** Wallets, Transfers, RabbitMQ, Redis, Fraud, Merchant Payments, frontend UI. Wallets/Payments/Fraud/Notifications/Audit пока содержат только доменные события.
 - **Post-1.0:** KYC/Onboarding (MongoDB + MinIO + gRPC), не блокирует 1.0.
 
 Актуальный статус и порядок задач — в pinned issue [#70](https://github.com/PoyarkinES/otus_payment_system/issues/70).

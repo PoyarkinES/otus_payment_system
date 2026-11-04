@@ -91,12 +91,12 @@
 
 | Шаг | Когда | Результат |
 |---|---|---|
-| ADR + каркас `Gateway.Host` | M1W1 (#46) | сервис собирается, `/health` 200 |
-| Маршруты Identity + JWT + CORS + `X-User-Id` | M1W1 (#46) | login/me через Gateway |
-| RSA/JWKS Identity, переключение Gateway | M1W3 (#48) | локальная валидация по публичному ключу |
-| BFF `/bff/me` + health-агрегация | M1W4 (#49) | фронтенд ходит в одну точку |
+| ADR + каркас `Gateway.Host` | M1W1 (#46) | ✅ сервис собирается, `/health` 200 |
+| Маршруты Identity + JWT + CORS + `X-User-Id` | M1W1 (#46) | ✅ login/me через Gateway |
+| RSA/JWKS Identity, переключение Gateway | M1W3 (#48) | ✅ локальная валидация по публичному ключу |
+| BFF `/bff/me` + health-агрегация | M1W4 (#49) | ✅ фронтенд ходит в одну точку |
 | Маршруты Wallets/Transfers | M2–M3 | новые сервисы без изменения фронтенда |
-| Rate limiting и наблюдаемость | M1W3 / M4W16 | защита edge и трассировка |
+| Rate limiting и наблюдаемость | M1W3 / M4W16 | ✅ rate limiting в M1W3; трейсы и метрики — M4 |
 
 ## Что этот ADR не решает
 
