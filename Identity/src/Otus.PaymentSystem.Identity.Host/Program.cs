@@ -12,6 +12,7 @@ using Otus.PaymentSystem.Identity.Host.Contracts.Users;
 using Otus.PaymentSystem.Identity.Host.Endpoints;
 using Otus.PaymentSystem.Identity.Host.Middleware;
 using Otus.PaymentSystem.Identity.Host.Seeding;
+using Otus.PaymentSystem.Identity.Host.Swagger;
 using Otus.PaymentSystem.Identity.Infrastructure;
 using Otus.PaymentSystem.Identity.Infrastructure.Security;
 using Serilog;
@@ -52,17 +53,7 @@ builder.Services.AddSwaggerGen(options =>
         In = ParameterLocation.Header,
         Description = "JWT access token: Authorization: Bearer {token}"
     });
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        [new OpenApiSecurityScheme
-        {
-            Reference = new OpenApiReference
-            {
-                Type = ReferenceType.SecurityScheme,
-                Id = "Bearer"
-            }
-        }] = []
-    });
+    options.OperationFilter<SecurityRequirementOperationFilter>();
 
     // Публичный адрес — Gateway, а не сам Identity: клиент не должен знать внутренние порты.
     options.AddServer(new OpenApiServer

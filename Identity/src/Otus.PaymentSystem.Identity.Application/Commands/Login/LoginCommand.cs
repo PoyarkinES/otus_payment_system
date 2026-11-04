@@ -1,4 +1,5 @@
 using MediatR;
+using Otus.PaymentSystem.Identity.Application.Commands.Auth;
 
 namespace Otus.PaymentSystem.Identity.Application.Commands.Login;
 
@@ -7,4 +8,4 @@ namespace Otus.PaymentSystem.Identity.Application.Commands.Login;
 /// </summary>
 /// <param name="Email">Email в свободной форме; нормализуется в VO Email.</param>
 /// <param name="Password">Пароль в открытом виде.</param>
-public record LoginCommand(string Email, string Password) : IRequest<LoginResult>;
+public record LoginCommand(string Email, string Password) : IRequest<AuthTokens>;

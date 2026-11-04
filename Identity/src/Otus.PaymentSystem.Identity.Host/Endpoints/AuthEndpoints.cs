@@ -5,6 +5,9 @@ using Otus.PaymentSystem.Identity.Host.Contracts.Auth;
 using Otus.PaymentSystem.Identity.Host.Security;
 using Otus.PaymentSystem.Identity.Domain.Exceptions;
 using Otus.PaymentSystem.AspNetCore.Filters;
+using Otus.PaymentSystem.Identity.Application.Commands.Auth;
+using Otus.PaymentSystem.Identity.Application.Commands.Logout;
+using Otus.PaymentSystem.Identity.Application.Commands.Refresh;
 
 namespace Otus.PaymentSystem.Identity.Host.Endpoints;
 
@@ -20,6 +23,7 @@ public static class AuthEndpoints
 
         group.MapPost("/register", RegisterAsync)
             .WithName("Register")
+            .AllowAnonymous()
             .Produces<RegisterResult>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .AddEndpointFilter<ValidationFilter<RegisterRequest>>()
@@ -28,7 +32,8 @@ public static class AuthEndpoints
         group.MapPost("/login", LoginAsync)
             .AddEndpointFilter<ValidationFilter<LoginRequest>>()
             .WithName("Login")
-            .Produces<LoginResult>(StatusCodes.Status200OK)
+            .AllowAnonymous()
+            .Produces<AuthTokens>(StatusCodes.Status200OK)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden);
@@ -37,6 +42,22 @@ public static class AuthEndpoints
             .WithName("Me")
             .RequireAuthorization()
             .Produces<MeResult>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+        group.MapPost("/logout", LogoutAsync)
+            .WithName("Logout")
+            .RequireAuthorization()
+            .AddEndpointFilter<ValidationFilter<LogoutRequest>>()
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+        group.MapPost("/refresh", RefreshAsync)
+            .WithName("Refresh")
+            .AllowAnonymous()
+            .AddEndpointFilter<ValidationFilter<RefreshRequest>>()
+            .Produces<AuthTokens>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         return app;
@@ -75,13 +96,52 @@ public static class AuthEndpoints
 
         try
         {
-            LoginResult result = await mediator.Send(new LoginCommand(request.Email, request.Password), ct);
+            AuthTokens result = await mediator.Send(new LoginCommand(request.Email, request.Password), ct);
             logger.LogInformation("User logged in");
             return Results.Ok(result);
         }
         catch (DomainException ex)
         {
             logger.LogWarning("Login failed: {Reason}", ex.Message);
+            throw;
+        }
+    }
+
+    private static async Task<IResult> LogoutAsync(
+        LogoutRequest request,
+        System.Security.Claims.ClaimsPrincipal user,
+        IMediator mediator,
+        ILoggerFactory loggerFactory,
+        CancellationToken ct)
+    {
+        Guid? userId = user.GetUserId();
+        if (userId is null)
+            return Results.Unauthorized();
+
+        ILogger logger = loggerFactory.CreateLogger("Auth");
+        await mediator.Send(new LogoutCommand(userId.Value, request.RefreshToken), ct);
+        logger.LogInformation("Session revoked {UserId}", userId.Value);
+
+        return Results.NoContent();
+    }
+
+    private static async Task<IResult> RefreshAsync(
+        RefreshRequest request,
+        IMediator mediator,
+        ILoggerFactory loggerFactory,
+        CancellationToken ct)
+    {
+        ILogger logger = loggerFactory.CreateLogger("Auth");
+
+        try
+        {
+            AuthTokens result = await mediator.Send(new RefreshCommand(request.RefreshToken), ct);
+            logger.LogInformation("Session refreshed");
+            return Results.Ok(result);
+        }
+        catch (DomainException ex)
+        {
+            logger.LogWarning("Refresh failed: {Reason}", ex.Message);
             throw;
         }
     }
