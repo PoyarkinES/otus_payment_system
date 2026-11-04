@@ -106,6 +106,17 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0
         }));
 
+    // BFF-группа: /bff/health анонимный и на каждый запрос ходит в Identity.
+    // 60 в минуту на IP: healthcheck контейнера — 6 в минуту, запас десятикратный.
+    options.AddPolicy("bff", context => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 60,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+
     options.OnRejected = async (context, ct) =>
     {
         if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan retryAfter))

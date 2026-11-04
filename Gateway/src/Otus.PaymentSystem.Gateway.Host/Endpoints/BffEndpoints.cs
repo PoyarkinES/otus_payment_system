@@ -31,7 +31,12 @@ public static class BffEndpoints
 
     public static IEndpointRouteBuilder MapBffEndpoints(this IEndpointRouteBuilder app)
     {
-        RouteGroupBuilder group = app.MapGroup("/bff").WithTags("BFF");
+        // Лимит на всю группу: анонимный /bff/health дёргает Identity и без лимита
+        // работает как усилитель нагрузки; отдельные лимиты по эндпоинтам обходились бы
+        // через соседний маршрут.
+        RouteGroupBuilder group = app.MapGroup("/bff")
+            .WithTags("BFF")
+            .RequireRateLimiting("bff");
 
         // /bff/me намеренно не ходит в Identity: sub, email и role уже есть в токене,
         // а лишний сетевой вызов на каждом запросе страницы — это latency и точка отказа.
@@ -39,15 +44,16 @@ public static class BffEndpoints
             .WithName("BffMe")
             .RequireAuthorization()
             .Produces<BffMeResult>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         // /bff/health — единственное место, где Gateway синхронно зовёт Identity.
-        // Rate limiting здесь появится вместе с общей политикой на /bff/* (M1W4+).
         group.MapGet("/health", GetHealthAsync)
             .WithName("BffHealth")
             .AllowAnonymous()
             .Produces<BffHealthResult>(StatusCodes.Status200OK)
-            .Produces<BffHealthResult>(StatusCodes.Status503ServiceUnavailable);
+            .Produces<BffHealthResult>(StatusCodes.Status503ServiceUnavailable)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         return app;
     }
