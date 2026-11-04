@@ -179,11 +179,12 @@ Issue считается завершенным, когда:
 - [ ] Добавить единообразные auth ошибки (`invalid credentials`, без чувствительных деталей).
 
 ### C. JWT и жизненный цикл refresh token (связи: 5.3, 7, 8, 9)
-- [ ] Настроить выпуск JWT с claims: `sub`, `email`, `role`, `jti`, `exp`.
+- [x] Настроить выпуск JWT с claims: `sub`, `email`, `role`, `jti`, `exp`.
 - [x] Валидировать issuer, audience, signature и lifetime на каждом запросе.
 - [x] Установить короткий TTL access token (ориентир: ~15 минут).
+- [x] Подписывать access-токены асимметричным ключом RS256 и публиковать JWKS (`/.well-known/jwks.json`); Gateway валидирует по публичному ключу.
 - [x] Реализовать ротацию refresh token и цепочку отзыва (`ReplacedByTokenId`).
-- [ ] Отзывать все активные refresh token после смены пароля.
+- [x] Отзывать все активные refresh token после смены пароля.
 
 ### D. Авторизация и политики (связи: 6.1, 6.2, 6.3)
 - [ ] Настроить auth middleware и защитить все непубличные endpoint’ы по умолчанию.

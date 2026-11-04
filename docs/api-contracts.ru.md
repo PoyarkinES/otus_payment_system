@@ -75,13 +75,15 @@
    ```powershell
    $env:ASPNETCORE_ENVIRONMENT='Production'
    $env:Swagger__Enabled='true'
-   $env:Jwt__Secret='dev-only-super-secret-key-change-me-32chars-min'
+   $env:Jwt__PrivateKeyPem='<PEM приватного ключа RS256>'   # в Production Identity без ключа не стартует
    $env:ConnectionStrings__IdentityDb='Host=localhost;Port=5433;Database=otus_identity;Username=otus;Password=otus'
 
    dotnet run --project Identity/src/Otus.PaymentSystem.Identity.Host --no-launch-profile --urls http://127.0.0.1:5100
 
    curl.exe -sS -f http://127.0.0.1:5100/swagger/v1/swagger.json -o openapi/identity.v1.json
    ```
+
+   С 2026-11-04 Identity подписывает токены RS256 и публикует `/.well-known/jwks.json`; симметричный `Jwt:Secret` удалён. Для самой спеки ключ не нужен, но Host в Production без `Jwt:PrivateKeyPem` не стартует. В CI ключ генерируется на время джоба (`openssl genpkey`), локально проще запускать в `Development` — там ключ создаётся эфемерно.
    Swashbuckle CLI (`dotnet swagger tofile`) не используется: установка инструмента требует nuget.org, недоступного в среде разработки.
 4. CI: job `openapi-drift` повторяет те же шаги и падает на `git diff --exit-code -- openapi`.
 
