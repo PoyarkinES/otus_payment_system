@@ -13,11 +13,12 @@
 | Host-уровень | `Identity/test/Otus.PaymentSystem.Identity.Host.Tests` | middleware (`CorrelationId`, `DomainException`), валидаторы контрактов, `ClaimsPrincipalExtensions` | `DefaultHttpContext` |
 | Инфраструктура | `Identity/test/Otus.PaymentSystem.Identity.Infrastructure.Tests` | EF-маппинг, репозитории, формат refresh-токена, `JwtTokenService` на RS256 | PostgreSQL для части тестов |
 | Edge / BFF | `Gateway/test/Otus.PaymentSystem.Gateway.Host.Tests` | `UserIdHeaderMiddleware`, `CorrelationIdMiddleware`, хендлеры `/bff/me` и `/bff/health` | подменённый `HttpMessageHandler` |
+| HTTP-конвейер хоста | `Gateway.Host.Tests`, `Identity.Host.Tests` (`WebApplicationFactory`) | 401/403/200 через реальные auth-политики, агрегат health, формат ProblemDetails | TestServer, тестовая auth-схема, фейковый репозиторий |
 | Общая библиотека | `Shared/test/Otus.PaymentSystem.AspNetCore.Tests` | `ApiProblems`, `ValidationFilter`, middleware ответов | нет |
-| Контракт | `openapi/identity.v1.json` + job `openapi-drift` | спека соответствует коду | запуск Identity |
+| Контракт | `openapi/*.v1.json` + jobs `openapi-drift`, `openapi-gateway-drift` | спеки соответствуют коду | запуск Host |
 | Смоук | [demo-m1.ru.md](./demo-m1.ru.md) | стек в Docker: логин, BFF, админский `GET /users/{id}` | docker compose |
 
-Проверенные числа на 2026-11-04: Identity — **101 тест** (без Postgres-тестов), Gateway — **17 тестов**.
+Проверенные числа на 2026-11-04: Identity — **106 тестов** (без Postgres-тестов), Gateway — **20 тестов**.
 
 ## Правила размещения новых тестов
 
@@ -72,10 +73,10 @@ Get-ChildItem -Recurse -Filter *.sln | ForEach-Object { dotnet build $_.FullName
 
 ## Пробелы (осознанные)
 
-1. **Нет интеграционных HTTP-тестов хоста** (`WebApplicationFactory`). Auth-политики, 401/403, маршрутизация проверяются смоуком руками. Кандидат на M2, когда появится второй сервис и смоук перестанет покрывать всё.
-2. **Нет E2E через UI** — фронтенда пока нет.
-3. **Wallets/Payments/Fraud/Notifications/Audit** содержат только доменные заготовки; их тесты появятся вместе с кодом в M2–M3.
-4. **Нет тестов на rate limiting** кроме ручной проверки 429 — лимитер живёт в конфигурации Gateway, а не в коде.
+1. **Нет E2E через UI** — фронтенда пока нет.
+2. **Wallets/Payments/Fraud/Notifications/Audit** содержат только доменные заготовки; их тесты появятся вместе с кодом в M2–M3.
+3. **Нет тестов на rate limiting** кроме ручной проверки 429 — лимитер живёт в конфигурации Gateway, а не в коде.
+4. **HTTP-тесты Identity используют фейковый репозиторий**, а не реальную БД: EF-путь проверяется отдельно в `Infrastructure.Tests` (Postgres).
 
 ## Definition of Done для теста
 
