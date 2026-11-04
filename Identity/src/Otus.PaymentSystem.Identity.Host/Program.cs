@@ -191,3 +191,8 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+/// <summary>Нужен для HTTP-тестов через WebApplicationFactory.</summary>
+public partial class Program
+{
+}
