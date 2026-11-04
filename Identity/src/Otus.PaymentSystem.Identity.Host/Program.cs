@@ -104,6 +104,8 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddSingleton<IValidator<RegisterRequest>, RegisterRequestValidator>();
 builder.Services.AddSingleton<IValidator<LoginRequest>, LoginRequestValidator>();
 builder.Services.AddSingleton<IValidator<UpdateProfileRequest>, UpdateProfileRequestValidator>();
+builder.Services.AddSingleton<IValidator<RefreshRequest>, RefreshRequestValidator>();
+builder.Services.AddSingleton<IValidator<LogoutRequest>, LogoutRequestValidator>();
 
 WebApplication app = builder.Build();
 
