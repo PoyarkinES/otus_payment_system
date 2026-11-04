@@ -12,6 +12,7 @@ using Otus.PaymentSystem.Identity.Host.Contracts.Users;
 using Otus.PaymentSystem.Identity.Host.Endpoints;
 using Otus.PaymentSystem.Identity.Host.Middleware;
 using Otus.PaymentSystem.Identity.Host.Seeding;
+using Otus.PaymentSystem.Identity.Host.Swagger;
 using Otus.PaymentSystem.Identity.Infrastructure;
 using Otus.PaymentSystem.Identity.Infrastructure.Security;
 using Serilog;
@@ -52,17 +53,7 @@ builder.Services.AddSwaggerGen(options =>
         In = ParameterLocation.Header,
         Description = "JWT access token: Authorization: Bearer {token}"
     });
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        [new OpenApiSecurityScheme
-        {
-            Reference = new OpenApiReference
-            {
-                Type = ReferenceType.SecurityScheme,
-                Id = "Bearer"
-            }
-        }] = []
-    });
+    options.OperationFilter<SecurityRequirementOperationFilter>();
 
     // Публичный адрес — Gateway, а не сам Identity: клиент не должен знать внутренние порты.
     options.AddServer(new OpenApiServer
@@ -86,6 +77,9 @@ builder.Services.AddIdentityInfrastructure(builder.Configuration);
 // JWT bearer: валидация входящих токенов
 IConfigurationSection jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
 JwtOptions jwt = jwtSection.Get<JwtOptions>() ?? new JwtOptions();
+IdentitySigningKey signingKeys = new(jwt, builder.Environment.EnvironmentName);
+builder.Services.AddSingleton(signingKeys);
+
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -98,7 +92,7 @@ builder.Services
             ValidateAudience = true,
             ValidAudience = jwt.Audience,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Secret)),
+            IssuerSigningKey = signingKeys.PublicKey,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30)
         };
@@ -113,6 +107,8 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddSingleton<IValidator<RegisterRequest>, RegisterRequestValidator>();
 builder.Services.AddSingleton<IValidator<LoginRequest>, LoginRequestValidator>();
 builder.Services.AddSingleton<IValidator<UpdateProfileRequest>, UpdateProfileRequestValidator>();
+builder.Services.AddSingleton<IValidator<RefreshRequest>, RefreshRequestValidator>();
+builder.Services.AddSingleton<IValidator<LogoutRequest>, LogoutRequestValidator>();
 
 WebApplication app = builder.Build();
 
@@ -140,6 +136,12 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
 
 // /auth/register, /auth/login, /auth/me
 app.MapAuthEndpoints();
+
+// Публичный ключ подписи: Gateway проверяет токены по нему, секрет больше не передаётся
+app.MapGet("/.well-known/jwks.json", (IdentitySigningKey keys) => Results.Json(new { keys = new[] { keys.ToJwk() } }))
+    .WithName("Jwks")
+    .AllowAnonymous()
+    .Produces(StatusCodes.Status200OK);
 
 // /users/me, /users/{id}/block, /users/{id}/unblock
 app.MapUsersEndpoints();

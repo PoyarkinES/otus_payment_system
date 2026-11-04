@@ -1,6 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Otus.PaymentSystem.Identity.Application.Interfaces;
@@ -9,28 +8,25 @@ using Otus.PaymentSystem.Identity.Domain.Aggregates;
 namespace Otus.PaymentSystem.Identity.Infrastructure.Security;
 
 /// <summary>
-/// Реализация <see cref="ITokenService"/> на базе JWT (HMAC-SHA256).
-/// Claims: sub, email, jti, exp. Роль добавится в 12.8.
+/// Реализация <see cref="ITokenService"/>: JWT с подписью RS256.
+/// Claims: sub, email, jti, role, exp. Ключ — <see cref="IdentitySigningKey"/>.
 /// </summary>
-public class JwtTokenService(IOptions<JwtOptions> options) : ITokenService
+public class JwtTokenService(IOptions<JwtOptions> options, IdentitySigningKey signingKey) : ITokenService
 {
     private readonly JwtOptions _options = options.Value;
 
     public TokenResult GenerateToken(User user)
     {
-        var now = DateTimeOffset.UtcNow;
-        var expiresAt = now.AddMinutes(_options.LifetimeMinutes);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        DateTimeOffset expiresAt = now.AddMinutes(_options.LifetimeMinutes);
 
         var claims = new List<Claim>
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email.Value),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new Claim("role", user.Role.ToString())
+            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new(JwtRegisteredClaimNames.Email, user.Email.Value),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new("role", user.Role.ToString())
         };
-
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Secret));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
             issuer: _options.Issuer,
@@ -38,9 +34,8 @@ public class JwtTokenService(IOptions<JwtOptions> options) : ITokenService
             claims: claims,
             notBefore: now.UtcDateTime,
             expires: expiresAt.UtcDateTime,
-            signingCredentials: creds);
+            signingCredentials: new SigningCredentials(signingKey.PrivateKey, SecurityAlgorithms.RsaSha256));
 
-        var encoded = new JwtSecurityTokenHandler().WriteToken(token);
-        return new TokenResult(encoded, expiresAt);
+        return new TokenResult(new JwtSecurityTokenHandler().WriteToken(token), expiresAt);
     }
 }

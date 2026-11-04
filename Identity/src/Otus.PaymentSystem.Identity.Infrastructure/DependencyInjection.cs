@@ -24,6 +24,7 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString));
 
         services.AddScoped<IUserRepository, EfUserRepository>();
+        services.AddScoped<IRefreshTokenRepository, EfRefreshTokenRepository>();
 
         services.AddSingleton<PasswordHasher<object>>();
         services.AddScoped<IPasswordHasher, AspNetPasswordHasher>();
@@ -31,6 +32,9 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.AddScoped<ITokenService, JwtTokenService>();
 
+        services.Configure<RefreshTokenOptions>(configuration.GetSection(RefreshTokenOptions.SectionName));
+        services.AddScoped<IRefreshTokenFactory, RefreshTokenFactory>();
+        
         return services;
     }
 }

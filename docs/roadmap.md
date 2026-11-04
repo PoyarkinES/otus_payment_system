@@ -32,7 +32,7 @@ Gateway → PostgreSQL → Wallets → Transfers → Outbox/RabbitMQ → Audit/N
 | Identity unit tests | ✅ Present | Domain/Application/Infrastructure/Host |
 | CI | 🟡 Partial | Builds solutions, **does not run tests** |
 | PostgreSQL + migrations | ❌ Missing | Identity uses EF InMemory, #10 |
-| Refresh/logout, rate limiting | ❌ Missing | Requirements exist, implementation does not |
+| Refresh/logout, rate limiting | 🟡 Partial | Refresh/logout — ✅ (#48); rate limiting — ❌ |
 | API Gateway / BFF | ❌ Missing | Was not in the old plan |
 | Docker Compose | ❌ Missing | No PostgreSQL, RabbitMQ, or full stack |
 | Wallets/Transfers/Fraud/Notifications/Audit | ⚪ Scaffold | Domain events only |

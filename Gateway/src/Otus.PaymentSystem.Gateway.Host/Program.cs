@@ -1,4 +1,3 @@
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Otus.PaymentSystem.AspNetCore;
@@ -7,6 +6,10 @@ using Otus.PaymentSystem.Gateway.Host.Middleware;
 using Otus.PaymentSystem.Gateway.Host.Security;
 using Serilog;
 using Serilog.Formatting.Compact;
+using System;
+using System.Text;
+using System.Threading.RateLimiting;
+using Otus.PaymentSystem.AspNetCore.Problems;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -29,11 +32,14 @@ builder.Services.AddApiProblems(options =>
 JwtOptions jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
                                                ?? throw new InvalidOperationException("Секция Jwt не настроена.");
 
-if (string.IsNullOrWhiteSpace(jwt.Secret) || jwt.Secret.Length < 32)
+if (string.IsNullOrWhiteSpace(jwt.JwksUri))
 {
     throw new InvalidOperationException(
-        "Jwt:Secret не настроен или короче 32 символов. Для локального запуска используйте appsettings.Development.json.");
+        "Jwt:JwksUri не настроен. Gateway проверяет подпись по публичному ключу Identity.");
 }
+
+JwksKeyStore keyStore = new(new HttpClient { Timeout = TimeSpan.FromSeconds(5) }, jwt.JwksUri);
+builder.Services.AddSingleton(keyStore);
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -48,10 +54,23 @@ builder.Services
             ValidateAudience = true,
             ValidAudience = jwt.Audience,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Secret)),
+            IssuerSigningKeyResolver = (_, _, kid, _) =>
+            {
+                IList<SecurityKey> keys = keyStore.Keys;
+
+                // Незнакомый kid = Identity перезапустился или ключ ротировали: обновляем кэш сразу,
+                // иначе новые токены будут получать 401 до истечения TTL.
+                if (kid is not null && keys.All(k => k.KeyId != kid))
+                {
+                    keyStore.RefreshAsync().GetAwaiter().GetResult();
+                    keys = keyStore.Keys;
+                }
+
+                return keys;
+            },
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30),
-            ValidAlgorithms = ["HS256"]
+            ValidAlgorithms = ["RS256"]
 
         };
     });
@@ -61,8 +80,45 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("authenticated", policy => policy.RequireAuthenticatedUser());
 });
 
+// Rate limiting на краю: по ADR 0001 он живёт в Gateway, а не в сервисах.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Перебор паролей: 5 попыток в минуту с одного IP.
+    options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+
+    // Долбёжка refresh: 30 в минуту с одного IP.
+    options.AddPolicy("refresh", context => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 30,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+
+    options.OnRejected = async (context, ct) =>
+    {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan retryAfter))
+            context.HttpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
+
+        await ApiProblems.WriteAsync(
+            context.HttpContext,
+            StatusCodes.Status429TooManyRequests,
+            "Слишком много попыток. Повторите позже.");
+    };
+});
+
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                     ?? ["http://localhost:5173"];
+                         ?? ["http://localhost:5173"];
 
 builder.Services.AddCors(options =>
 {
@@ -93,7 +149,11 @@ app.MapGet("/health", () => Results.Ok(new
     service = "gateway"
 })).AllowAnonymous();
 
+app.UseRateLimiter();
 app.MapReverseProxy();
+
+if (!await app.Services.GetRequiredService<JwksKeyStore>().RefreshAsync())
+    Log.Warning("JWKS недоступен при старте Gateway: {Uri}", jwt.JwksUri);
 
 try
 {

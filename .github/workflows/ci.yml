@@ -97,9 +97,10 @@ jobs:
         env:
           ASPNETCORE_ENVIRONMENT: Production
           Swagger__Enabled: "true"
-          Jwt__Secret: "ci-only-super-secret-key-change-me-32chars"
           ConnectionStrings__IdentityDb: "Host=localhost;Database=otus_identity;Username=otus;Password=otus"
         run: |
+          # Ключ подписи живёт только на время джоба: в Production Identity без него не стартует.
+          export Jwt__PrivateKeyPem="$(openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 2>/dev/null)"
           dotnet run --project Identity/src/Otus.PaymentSystem.Identity.Host --configuration Release --no-build --no-launch-profile --urls http://127.0.0.1:5100 &
           server=$!
           spec=$(mktemp)

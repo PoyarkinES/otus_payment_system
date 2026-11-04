@@ -9,4 +9,6 @@ public class JwtOptions
     public string Issuer { get; init; } = string.Empty;
     public string Audience { get; init; } = string.Empty;
     public int LifetimeMinutes { get; init; } = 60;
+    /// <summary>Приватный RSA-ключ в PEM. Пусто — в Development генерируется эфемерный.</summary>
+    public string PrivateKeyPem { get; init; } = string.Empty;
 }

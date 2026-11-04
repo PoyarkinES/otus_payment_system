@@ -97,7 +97,7 @@
 | Неизвестный маршрут | 404 | Gateway, Identity |
 | Конфликт: email занят, повторная блокировка (`DomainError.Conflict`) | 409 | Identity |
 | Необработанное исключение | 500 | Gateway, Identity |
-| Rate limit login (#48) | 429 + `Retry-After` | Gateway/Identity |
+| Rate limit login и refresh (#48) | 429 + `Retry-After` | Gateway (политики `login` — 5/мин, `refresh` — 30/мин, по IP) |
 | Identity недоступен через YARP | 502/504 | Gateway |
 
 Правило: `401` — «кто ты», `403` — «я тебя знаю, но нельзя», `400` — «данные неверны», `409` — «состояние не позволяет».

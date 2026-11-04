@@ -32,7 +32,7 @@ Gateway → PostgreSQL → Wallets → Transfers → Outbox/RabbitMQ → Audit/N
 | Unit-тесты Identity | ✅ Есть | Domain/Application/Infrastructure/Host |
 | CI | 🟡 Частично | Собирает решения, но **не запускает тесты** |
 | PostgreSQL + миграции | ❌ Нет | Identity на EF InMemory, #10 |
-| Refresh/logout, rate limiting | ❌ Нет | Требования в auth-requirements, реализации нет |
+| Refresh/logout, rate limiting | ✅ Готово | #48: refresh/logout с ротацией и reuse-детектом, RS256/JWKS, rate limiting на Gateway |
 | API Gateway / BFF | ❌ Нет | В старом плане отсутствовал |
 | Docker Compose | ❌ Нет | Нет ни PG, ни RabbitMQ, ни общего стека |
 | Wallets/Transfers/Fraud/Notifications/Audit | ⚪ Каркас | Только доменные события, бизнес-логики нет |
