@@ -38,7 +38,7 @@
 ├── global.json                  # зафиксированная версия .NET SDK
 ├── docker-compose.yml           # полный стек M1: postgres + identity + gateway
 ├── .dockerignore
-├── openapi/                     # OpenAPI-контракт Identity (генерируется, не правится руками)
+├── openapi/                     # OpenAPI-контракты Identity и Gateway (генерируются, не правятся руками)
 ├── Shared/
 │   ├── Otus.PaymentSystem.Shared.sln
 │   ├── src/Otus.PaymentSystem.SharedKernel/

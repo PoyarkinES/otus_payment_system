@@ -36,7 +36,7 @@
 
 **Чего нет:**
 
-1. Спецификации Gateway/BFF. Для Identity артефакт есть: [openapi/identity.v1.json](../openapi/identity.v1.json), его проверяет job `openapi-drift`. BFF реализован в #49 code-first; решение по спеке Gateway — в §7.
+1. ~~Спецификации Gateway/BFF~~ — ✅ появилась в M1.1 (#107): `openapi/gateway.v1.json`, job `openapi-gateway-drift`. Для Identity — [openapi/identity.v1.json](../openapi/identity.v1.json), job `openapi-drift`.
 2. Описания DTO в доках — только в коде и в сгенерированной спеке.
 3. Contract-тестов на поведение (не только drift): формат проверяется unit-тестами middleware, а не схемой.
 
@@ -103,7 +103,7 @@
 
 `GET /bff/me` (claims `sub`, `email`, `role`, без вызова Identity) и `GET /bff/health` (агрегат Gateway + Identity, 503 при недоступности) реализованы в `Gateway.Host/Endpoints/BffEndpoints.cs` и покрыты 9 юнит-тестами.
 
-Отдельной спеки Gateway в M1 нет осознанно: фронтенд стартует в M2–M6, а контракт BFF зафиксирован тестами (имена полей JSON) и [demo-m1.ru.md](./demo-m1.ru.md). Спека Gateway появится в M2 вместе с первым агрегатом для кошелька — тогда у неё будет смысл и потребитель.
+Отдельной спеки Gateway в M1 не было осознанно: фронтенд стартует в M2–M6, а контракт BFF был зафиксирован тестами (имена полей JSON) и [demo-m1.ru.md](./demo-m1.ru.md). **Обновлено в M1.1 (#107):** спека появилась раньше — `openapi/gateway.v1.json` и job `openapi-gateway-drift`.
 
 ## 5. Артефакт OpenAPI: как устроен
 
@@ -136,5 +136,5 @@ dotnet run --project Identity/src/Otus.PaymentSystem.Identity.Host
 
 1. Версионирование API: версия в пути (`/api/v1/...`) или только в артефакте — решить до первого публичного breaking change; в M1 версия только в имени файла.
 2. Публиковать ли спеку через Gateway (`/openapi/identity.v1.json`) или отдавать файл из репозитория — открыто; в M1 файл лежит в репозитории и проверяется job `openapi-drift`.
-3. Когда появляется спека Gateway/BFF — решено: не в M1, а в M2 вместе с `/bff/wallets`.
+3. Спека Gateway/BFF — сделана в M1.1 (#107): `openapi/gateway.v1.json`, drift-check в CI.
 4. Нужен ли `instance` в ProblemDetails — сейчас нет, `traceId` закрывает потребность поддержки (см. api-errors §8).

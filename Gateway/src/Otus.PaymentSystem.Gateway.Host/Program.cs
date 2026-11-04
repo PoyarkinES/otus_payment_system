@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using Otus.PaymentSystem.AspNetCore;
 using Otus.PaymentSystem.AspNetCore.Middleware;
 using Otus.PaymentSystem.Gateway.Host.Endpoints;
 using Otus.PaymentSystem.Gateway.Host.Middleware;
 using Otus.PaymentSystem.Gateway.Host.Security;
+using Otus.PaymentSystem.Gateway.Host.Swagger;
 using Serilog;
 using Serilog.Formatting.Compact;
 using System;
@@ -29,6 +31,38 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 // Единый ProblemDetails: в Development detail содержит текст исключения.
 builder.Services.AddApiProblems(options =>
     options.IncludeExceptionDetails = builder.Environment.IsDevelopment());
+
+// Swagger/OpenAPI: контракт BFF как артефакт (openapi/gateway.v1.json).
+// Флаг — как у Identity: CI экспортирует спеку в Production.
+var swaggerEnabled = builder.Configuration.GetValue("Swagger:Enabled", builder.Environment.IsDevelopment());
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Otus Payment System — Gateway/BFF API",
+        Version = "v1",
+        Description = "Единая точка входа для клиента: BFF-агрегаты /bff/* и проксирование /api/identity/**."
+    });
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "JWT access token: Authorization: Bearer {token}"
+    });
+    options.OperationFilter<SecurityRequirementOperationFilter>();
+
+    // Публичный адрес — сам Gateway: клиент не должен знать внутренние порты сервисов.
+    options.AddServer(new OpenApiServer
+    {
+        Url = "http://localhost:8080",
+        Description = "Gateway (edge)"
+    });
+});
 
 JwtOptions jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
                                                ?? throw new InvalidOperationException("Секция Jwt не настроена.");
@@ -162,6 +196,13 @@ app.UseSerilogRequestLogging();
 app.UseMiddleware<UnhandledExceptionMiddleware>();
 app.UseMiddleware<EmptyResponseProblemMiddleware>();
 app.UseCors("Frontend");
+
+if (swaggerEnabled)
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
 app.UseAuthentication();
 app.UseMiddleware<UserIdHeaderMiddleware>();
 app.UseAuthorization();
