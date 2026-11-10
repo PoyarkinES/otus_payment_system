@@ -11,6 +11,13 @@
  * Tailwind — раскладка и отступы.
  */
 @theme inline {
+    /* Сбрасываем палитру, шрифты, шкалу текста и брейкпоинты Tailwind по умолчанию:
+       без этого bg-red-500 или text-sm работали бы в обход темы MUI. */
+    --color-*: initial;
+    --font-*: initial;
+    --text-*: initial;
+    --breakpoint-*: initial;
+
     --breakpoint-sm: 37.5rem; /* 600px, как в MUI */
     --breakpoint-md: 56.25rem; /* 900px */
     --breakpoint-lg: 75rem; /* 1200px */

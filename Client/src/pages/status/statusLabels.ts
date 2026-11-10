@@ -3,8 +3,11 @@ export type StatusLabel = {
     color: 'success' | 'error' | 'default';
 };
 
-/** Статус сервиса из /bff/health → подпись и цвет. Незнакомое значение показываем как есть. */
-export function statusLabel(value: string | null | undefined): StatusLabel {
+/**
+ * Статус сервиса из /bff/health → подпись и цвет. Незнакомое значение показываем как есть —
+ * даже не строку: бэк может поменять формат раньше, чем перегенерируют клиент.
+ */
+export function statusLabel(value: unknown): StatusLabel {
     switch (value) {
         case 'ok':
             return { text: 'Работает', color: 'success' };
@@ -15,7 +18,10 @@ export function statusLabel(value: string | null | undefined): StatusLabel {
         case '':
             return { text: 'Нет данных', color: 'default' };
         default:
-            return { text: value, color: 'default' };
+            return {
+                text: typeof value === 'string' ? value : JSON.stringify(value),
+                color: 'default',
+            };
     }
 }
 

@@ -1,6 +1,7 @@
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
 
 import { describeError } from '@/shared/api/describeError';
 
@@ -25,9 +26,11 @@ export function ErrorState({ error, onRetry }: ErrorStateProps) {
             }
         >
             <AlertTitle>{title}</AlertTitle>
-            {detail && <div>{detail}</div>}
+            {detail && <Typography variant="body2">{detail}</Typography>}
             {correlationId && (
-                <div className="mt-2 text-sm opacity-80">Код для поддержки: {correlationId}</div>
+                <Typography variant="caption" component="div" className="mt-2">
+                    Код для поддержки: {correlationId}
+                </Typography>
             )}
         </Alert>
     );

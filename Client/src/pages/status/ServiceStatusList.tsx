@@ -13,7 +13,7 @@ type ServiceStatusListProps = {
 
 /** Сервисы берутся из ответа как есть: новый сервис в спеке появится здесь без правок кода. */
 export function ServiceStatusList({ services }: ServiceStatusListProps) {
-    const entries = Object.entries(services ?? {}) as [string, string | null | undefined][];
+    const entries: [string, unknown][] = Object.entries(services ?? {});
 
     return (
         <Paper variant="outlined">

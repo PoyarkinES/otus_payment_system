@@ -4,11 +4,11 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { App } from '@/app/App';
-import { env } from '@/shared/config/env';
 
 async function enableMocks(): Promise<void> {
-    if (!env.apiMocks) return;
-    // Динамический импорт: без флага MSW не попадает в бандл.
+    // Именно import.meta.env, а не shared/config: Vite подставляет значение при сборке и
+    // выкидывает эту ветку — без флага MSW и faker не попадают в сборку вовсе.
+    if (import.meta.env.VITE_API_MOCKS !== 'true') return;
     const { worker } = await import('@/shared/testing/browser');
     await worker.start({ onUnhandledFrame: 'bypass' });
 }

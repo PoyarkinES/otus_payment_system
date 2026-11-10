@@ -108,6 +108,20 @@ describe('StatusPage', () => {
         expect(screen.queryByRole('listitem', { name: 'Gateway' })).not.toBeInTheDocument();
     });
 
+    it('renders non-string service status without crashing', async () => {
+        health({
+            status: 'ok',
+            services: { gateway: 'ok', identity: { status: 'ok', latencyMs: 5 } },
+        });
+
+        renderRoute('/');
+
+        expect(await screen.findByText('Все сервисы работают')).toBeInTheDocument();
+        expect(
+            within(serviceRow('Identity')).getByText('{"status":"ok","latencyMs":5}'),
+        ).toBeInTheDocument();
+    });
+
     it('renders unknown service status neutrally', async () => {
         health({ status: 'ok', services: { gateway: 'ok', identity: 'starting', wallets: 'ok' } });
 

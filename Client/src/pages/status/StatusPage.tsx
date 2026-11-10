@@ -12,7 +12,9 @@ import { LoadingState } from '@/shared/ui/LoadingState';
  * и сообщает, какой сервис недоступен, поэтому это состояние «работает с ограничениями».
  */
 export function StatusPage() {
-    const { data, error, isPending, isFetching, refetch } = useBffHealth();
+    const { data, error, isPending, isFetching, refetch } = useBffHealth({
+        request: { acceptStatus: [503] },
+    });
     // После неудачного обновления Query хранит прошлый ответ; показывать его рядом с ошибкой
     // нельзя — пользователь увидит «Работает» у сервиса, до которого уже не достучаться.
     const health =

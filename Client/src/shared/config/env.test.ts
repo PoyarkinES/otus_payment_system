@@ -12,10 +12,4 @@ describe('readEnv', () => {
             'http://localhost:8080',
         );
     });
-
-    it('enables mocks only for the literal true', () => {
-        expect(readEnv({ VITE_API_MOCKS: 'true' }).apiMocks).toBe(true);
-        expect(readEnv({ VITE_API_MOCKS: '1' }).apiMocks).toBe(false);
-        expect(readEnv({}).apiMocks).toBe(false);
-    });
 });

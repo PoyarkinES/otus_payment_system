@@ -54,10 +54,54 @@ describe('apiFetch', () => {
         const body = { status: 'degraded', services: { gateway: 'ok', identity: 'unavailable' } };
         server.use(http.get(URL, () => HttpResponse.json(body, { status: 503 })));
 
-        const result = await apiFetch<Result<typeof body>>('/bff/health');
+        const result = await apiFetch<Result<typeof body>>('/bff/health', { acceptStatus: [503] });
 
         expect(result.status).toBe(503);
         expect(result.data.status).toBe('degraded');
+    });
+
+    it('throws ApiProblem for non-ok json response that is not accepted', async () => {
+        server.use(http.get(URL, () => HttpResponse.json({ message: 'oops' }, { status: 500 })));
+
+        const error = await catchError(apiFetch('/bff/health'));
+
+        expect(error).toBeInstanceOf(ApiProblem);
+        expect((error as ApiProblem).status).toBe(500);
+    });
+
+    it('does not pass acceptStatus to fetch as a header or option', async () => {
+        let headerNames: string[] = [];
+        server.use(
+            http.get(URL, ({ request }) => {
+                headerNames = [...request.headers.keys()];
+                return HttpResponse.json({ status: 'ok' });
+            }),
+        );
+
+        await apiFetch('/bff/health', { acceptStatus: [503] });
+
+        expect(headerNames).not.toContain('acceptstatus');
+    });
+
+    it('sends correlation id when crypto.randomUUID is unavailable', async () => {
+        // Вне secure context (http не на localhost) randomUUID отсутствует.
+        const original = crypto.randomUUID;
+        Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true });
+        let sent: string | null = null;
+        server.use(
+            http.get(URL, ({ request }) => {
+                sent = request.headers.get(CORRELATION_HEADER);
+                return HttpResponse.json({ status: 'ok' });
+            }),
+        );
+
+        try {
+            await apiFetch('/bff/health');
+        } finally {
+            Object.defineProperty(crypto, 'randomUUID', { value: original, configurable: true });
+        }
+
+        expect(sent).toMatch(UUID);
     });
 
     it('throws ApiProblem from problem+json', async () => {

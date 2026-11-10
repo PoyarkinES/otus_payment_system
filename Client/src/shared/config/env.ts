@@ -1,13 +1,10 @@
 export type Env = {
     /** Адрес Gateway без слэша на конце. Единственный адрес бэка, который знает фронт. */
     apiBaseUrl: string;
-    /** Отвечать на запросы моками MSW вместо настоящего бэка. */
-    apiMocks: boolean;
 };
 
 type RawEnv = {
     VITE_API_BASE_URL?: string;
-    VITE_API_MOCKS?: string;
 };
 
 const DEFAULT_API_BASE_URL = 'http://localhost:8080';
@@ -17,7 +14,6 @@ export function readEnv(raw: RawEnv): Env {
 
     return {
         apiBaseUrl: baseUrl.replace(/\/+$/, ''),
-        apiMocks: raw.VITE_API_MOCKS === 'true',
     };
 }
 
