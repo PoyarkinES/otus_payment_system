@@ -1,5 +1,7 @@
 dist
 coverage
 node_modules
+package.json
 package-lock.json
 src/shared/api/generated
+public/mockServiceWorker.js
