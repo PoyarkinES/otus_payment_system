@@ -26,7 +26,7 @@ Build a realistic payment platform that demonstrates skills in:
 
 This is a learning and portfolio project. It grows step by step without trying to implement everything at once.
 
-**Current plan:** 6 months of core development (November 2026 — April 2027). A full frontend UI is a separate post-1.0 track so that backend goals are not derailed.
+**Current plan:** 6 months of core development (November 2026 — April 2027). The web UI runs in parallel with M2–M6 and is part of release 1.0; the mobile app is a separate post-1.0 track.
 
 ## Repository structure
 
@@ -37,6 +37,7 @@ The repository is organized as a set of independent microservice solutions. Each
 ├── Directory.Build.props        # shared MSBuild settings (TFM, nullable, analyzers)
 ├── global.json                  # pinned .NET SDK version
 ├── openapi/                     # Identity OpenAPI contract (generated, do not edit)
+├── Client/                      # web client: React SPA, talks only to the Gateway (see Client/README.md)
 ├── Shared/
 │   ├── Otus.PaymentSystem.Shared.sln
 │   ├── src/Otus.PaymentSystem.SharedKernel/
@@ -89,6 +90,23 @@ Do not confuse:
 
 See [ADR 0001](./docs/adr/0001-api-gateway.md).
 
+## Web client
+
+`Client/` is a React + TypeScript SPA built with MUI components. It talks only to the Gateway,
+and its API client is generated from `openapi/gateway.v1.json`. It currently has the app
+scaffold and a "System status" page (`/bff/health`); sign-in, profile and wallets follow in
+epic #80.
+
+```bash
+cd Client
+npm ci
+npm run dev          # http://localhost:5173, needs docker compose running
+npm run dev:mocks    # same, without the backend, on mocks
+```
+
+Folder map, commands and what to do after an API change: [Client/README.md](./Client/README.md)
+(in Russian).
+
 ## Development roadmap
 
 | Month | Goal |
@@ -117,6 +135,7 @@ Gateway → PostgreSQL → Wallets (+ holds) → Transfers (Redis, hold, Fraud s
 - **CI** builds every solution, runs Shared/Gateway/Identity tests and checks the OpenAPI contract (`openapi-drift`).
 - **M1 in progress:** next are refresh/JWKS, rate limiting, Docker Compose.
 - **Missing:** refresh/logout, JWKS, rate limiting, Docker Compose, BFF `/bff/me`.
+- **Web client (#82):** React + MUI scaffold, API client generated from the Gateway OpenAPI, system status page, `client` CI job.
 - Wallets/Transfers/Fraud/Notifications/Audit currently contain domain events only.
 - **Post-1.0:** KYC/Onboarding (MongoDB + MinIO + gRPC), does not block 1.0.
 
@@ -134,6 +153,7 @@ Current status and task order: pinned issue [#70](https://github.com/PoyarkinES/
 - MediatR
 - Docker
 - GitHub Actions
+- React + TypeScript, MUI (web client)
 - **Post-1.0:** MongoDB, MinIO/S3, gRPC (KYC)
 
 ## License

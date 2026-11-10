@@ -26,7 +26,7 @@
 
 Это учебный и портфолио-проект. Его цель — развиваться поэтапно, без попытки реализовать всё сразу.
 
-**Текущий план:** 6 месяцев core-разработки (ноябрь 2026 — апрель 2027). Полный frontend UI — отдельный post-1.0 трек, чтобы не сорвать backend-цели.
+**Текущий план:** 6 месяцев core-разработки (ноябрь 2026 — апрель 2027). Web UI идёт параллельно M2–M6 и входит в релиз 1.0; мобильное приложение — отдельный post-1.0 трек.
 
 ## Структура репозитория
 
@@ -39,6 +39,7 @@
 ├── docker-compose.yml           # полный стек M1: postgres + identity + gateway
 ├── .dockerignore
 ├── openapi/                     # OpenAPI-контракты Identity и Gateway (генерируются, не правятся руками)
+├── Client/                      # веб-клиент: React SPA, ходит только через Gateway (см. Client/README.md)
 ├── Shared/
 │   ├── Otus.PaymentSystem.Shared.sln
 │   ├── src/Otus.PaymentSystem.SharedKernel/
@@ -113,6 +114,21 @@ Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 
 Пошаговый сценарий с негативными проверками: [docs/demo-m1.ru.md](./docs/demo-m1.ru.md). Уровни тестов и что проверяет CI: [docs/testing-strategy.ru.md](./docs/testing-strategy.ru.md).
 
+## Веб-клиент
+
+`Client/` — SPA на React + TypeScript с компонентами MUI. Ходит только через Gateway, клиент API
+генерируется из `openapi/gateway.v1.json`. Сейчас есть каркас и страница «Статус системы»
+(`/bff/health`); вход, профиль и кошельки — дальше по эпику #80.
+
+```bash
+cd Client
+npm ci
+npm run dev          # http://localhost:5173, нужен запущенный docker compose
+npm run dev:mocks    # то же без бэка, на моках
+```
+
+Карта папок, команды и что делать после изменения API — в [Client/README.md](./Client/README.md).
+
 ## План развития
 
 | Месяц | Цель |
@@ -142,7 +158,8 @@ Gateway → PostgreSQL → Wallets (+ holds) → Transfers (Redis, hold, Fraud s
   - Инфраструктура: Serilog + correlation ID, единый ProblemDetails, валидация DTO, Docker Compose полного стека.
 - **Тесты:** 101 в Identity, 17 в Gateway, отдельно `Shared`; тесты с PostgreSQL — отдельным job.
 - **CI** собирает 8 решений, запускает тесты Shared/Gateway/Identity, интеграцию с PostgreSQL и проверяет контракт OpenAPI (`openapi-drift`).
-- **Не сделано (M2+):** Wallets, Transfers, RabbitMQ, Redis, Fraud, Merchant Payments, frontend UI. Wallets/Payments/Fraud/Notifications/Audit пока содержат только доменные события.
+- **Веб-клиент (#82):** каркас на React + MUI, клиент из OpenAPI Gateway, страница статуса системы, job `client` в CI.
+- **Не сделано (M2+):** Wallets, Transfers, RabbitMQ, Redis, Fraud, Merchant Payments, экраны веб-клиента. Wallets/Payments/Fraud/Notifications/Audit пока содержат только доменные события.
 - **Post-1.0:** KYC/Onboarding (MongoDB + MinIO + gRPC), не блокирует 1.0.
 
 Актуальный статус и порядок задач — в pinned issue [#70](https://github.com/PoyarkinES/otus_payment_system/issues/70).
@@ -159,6 +176,7 @@ Gateway → PostgreSQL → Wallets (+ holds) → Transfers (Redis, hold, Fraud s
 - MediatR
 - Docker
 - GitHub Actions
+- React + TypeScript, MUI (веб-клиент)
 - **Post-1.0:** MongoDB, MinIO/S3, gRPC (KYC)
 
 ## Лицензия

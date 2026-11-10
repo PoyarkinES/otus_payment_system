@@ -1,32 +1,183 @@
-# React + TypeScript + Vite
+# Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Веб-клиент Otus Payment System: одностраничное приложение (SPA) на React. Ходит **только через
+Gateway** — прямых адресов Identity, Wallets и других сервисов в коде нет и быть не должно.
+Эпик [#80](https://github.com/PoyarkinES/otus_payment_system/issues/80), каркас —
+[#82](https://github.com/PoyarkinES/otus_payment_system/issues/82). Сейчас в клиенте одна
+настоящая страница — «Статус системы» по `GET /bff/health`; на ней проверена вся цепочка
+от браузера до сервисов.
 
-Currently, two official plugins are available:
+## Карта папок
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```
+Client/
+├── src/
+│   ├── main.tsx                  точка входа (≈ Program.cs): стили, моки по флагу, рендер <App />
+│   │
+│   ├── app/                      сборка приложения — сюда заходят редко
+│   │   ├── App.tsx               провайдеры + роутер
+│   │   ├── providers.tsx         тема MUI, TanStack Query, слои CSS (≈ регистрация сервисов в DI)
+│   │   ├── queryClient.ts        правила запросов: что повторять, что нет
+│   │   ├── router.tsx            ★ таблица маршрутов: URL → страница (≈ MapGet в Program.cs)
+│   │   ├── RouteError.tsx        экран «что-то пошло не так», если страница упала при рендере
+│   │   └── styles.css            Tailwind + цвета и брейкпоинты из темы MUI
+│   │
+│   ├── pages/                    ★ экраны: одна папка — одна страница со всем своим
+│   │   ├── status/               «Статус системы» (/)
+│   │   │   ├── StatusPage.tsx        сама страница
+│   │   │   ├── StatusPage.test.tsx   её тесты — лежат рядом с кодом
+│   │   │   ├── ServiceStatusList.tsx список сервисов — нужен только этой странице
+│   │   │   └── statusLabels.ts       "ok" → «Работает», "unavailable" → «Недоступен»
+│   │   └── not-found/            404 для неизвестных адресов
+│   │
+│   └── shared/                   общее для всех страниц
+│       ├── api/                  ★ всё про HTTP
+│       │   ├── generated/        клиент из OpenAPI (≈ клиент из Swagger) — руками НЕ править
+│       │   ├── http.ts           apiFetch: адрес Gateway, X-Correlation-Id, разбор ошибок
+│       │   ├── problem.ts        ApiProblem (ProblemDetails) и ApiNetworkError
+│       │   └── describeError.ts  ошибка → текст для пользователя
+│       ├── config/env.ts         настройки из .env (≈ appsettings.json)
+│       ├── theme/theme.ts        тема MUI — единственный источник цветов и шрифтов
+│       ├── ui/                   общие компоненты: AppLayout, LoadingState, ErrorState
+│       └── testing/              тестовая инфраструктура и моки (MSW ≈ WireMock)
+│
+├── public/                       статика как есть; mockServiceWorker.js — служебный файл MSW
+├── orval.config.ts               откуда и как генерировать shared/api/generated
+├── vite.config.ts                сборка, dev-сервер (порт 5173) и настройки тестов
+├── .env.example                  какие настройки бывают (копировать в .env.local)
+├── .env.mocks                    режим без бэка для npm run dev:mocks
+└── package.json                  зависимости и команды (≈ .csproj)
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Правило одно: **страницы не импортируют друг друга.** Если код понадобился второй странице,
+он переезжает в `shared/`. Файлы `*.test.ts(x)` — тесты (Vitest ≈ xUnit), лежат рядом с тем,
+что проверяют. Импорт `@/…` означает «от папки `src/`».
+
+## Запуск за минуту
+
+Нужен Node.js 22 LTS (точная версия — в `.nvmrc`). Все команды — из папки `Client/`.
+
+```bash
+npm ci              # поставить зависимости строго по package-lock.json
+npm run dev         # открыть http://localhost:5173
+```
+
+Есть два режима:
+
+- **С настоящим бэком.** В корне репо `docker compose up --build -d`, затем `npm run dev`.
+  Фронт пойдёт в Gateway на `http://localhost:8080`.
+- **Без бэка.** `npm run dev:mocks` — на запросы отвечают моки, Docker не нужен. Удобно, когда
+  бэк ещё не готов или не хочется его поднимать.
+
+Все команды:
+
+```bash
+npm ci                  # ≈ dotnet restore (строго по lock-файлу)
+npm run dev             # ≈ dotnet watch run — dev-сервер с горячей перезагрузкой
+npm run dev:mocks       # то же, но без бэка, на моках
+npm test                # ≈ dotnet test
+npm run test:watch      # тесты перезапускаются при сохранении файла
+npm run lint            # ≈ анализаторы Roslyn (ESLint)
+npm run format          # поправить форматирование (Prettier); format:check — только проверить
+npm run typecheck       # проверка типов TypeScript без сборки
+npm run build           # ≈ dotnet publish — готовая статика в dist/
+npm run api:generate    # перегенерировать клиент API из openapi/gateway.v1.json
+```
+
+## Как фронт связан с бэком
+
+```
+браузер (localhost:5173)
+   │  fetch + X-Correlation-Id
+   ▼
+Gateway (localhost:8080)        единственный адрес, который знает фронт
+   │  /bff/*            — агрегаты для фронта (BFF)
+   │  /api/identity/**  — прокси в Identity
+   ▼
+Identity, Wallets, …            из браузера напрямую недоступны
+```
+
+- **Адрес Gateway** задаётся в `VITE_API_BASE_URL`, по умолчанию `http://localhost:8080`.
+  Поменять у себя — скопировать `.env.example` в `.env.local` (он не попадает в git).
+- **CORS.** Gateway пускает только origin из `Cors:AllowedOrigins` в
+  `Gateway/src/Otus.PaymentSystem.Gateway.Host/appsettings.json` — сейчас это
+  `http://localhost:5173`. Поэтому dev-сервер закреплён на порту 5173 и не перескакивает
+  на соседний, если тот занят: ошибка порта понятнее, чем CORS-ошибка в браузере.
+- **Correlation ID.** Каждый запрос фронта получает новый `X-Correlation-Id`. Gateway пишет его
+  в логи Serilog, передаёт в Identity и возвращает в ответе; в ProblemDetails он же лежит
+  в `traceId`. Пользователь видит его в ошибке как «Код для поддержки» — по этому коду запрос
+  находится в логах всех сервисов.
+
+## Я поменял API — что делать
+
+Фронт не пишет DTO руками: типы, функции запросов и React-хуки генерирует
+[orval](https://orval.dev) из `openapi/gateway.v1.json`. Поэтому после изменения контракта
+Gateway:
+
+1. Поменяли эндпоинт или DTO в Gateway.
+2. Обновили `openapi/gateway.v1.json` — бэковый CI (`openapi-gateway-drift`) всё равно этого
+   потребует.
+3. `cd Client && npm run api:generate` — перегенерировали `src/shared/api/generated/`.
+4. `npm run typecheck` — TypeScript покажет каждое место во фронте, которое сломалось
+   от изменения контракта. Если ничего не красное — фронт совместим.
+5. Закоммитили `openapi/gateway.v1.json` вместе с `Client/src/shared/api/generated/`.
+
+Если шаг 3 забыть, в CI упадёт job **Client (lint, test, build)** на шаге
+«Generated API client is up to date» с подсказкой, какие файлы устарели. Починка — те же
+шаги 3–5.
+
+Пока генерируется только спека Gateway. Эндпоинты Identity (`/api/identity/**`) подключим
+в задаче про вход ([#83](https://github.com/PoyarkinES/otus_payment_system/issues/83)).
+
+## Стек
+
+Собирает приложение Vite, код — React 19 на TypeScript, маршруты — React Router. Данные
+с сервера загружает и кэширует TanStack Query: он же отвечает за состояния «загрузка» и
+«ошибка» и за повтор запроса. Компоненты интерфейса — MUI; Tailwind CSS используется только
+для раскладки и отступов, а цвета, шрифты и брейкпоинты берёт из темы MUI, чтобы у
+приложения был один источник оформления.
+
+Клиент API генерирует orval из OpenAPI-спеки — он же создаёт моки MSW для тестов и режима
+без бэка. Тесты — Vitest и Testing Library: страница рендерится в jsdom, а сеть подменяет
+MSW, так что проверяется настоящий путь запроса через `apiFetch`. Код проверяют ESLint и
+Prettier. TypeScript сейчас 6.0: версия 7 уже вышла, но typescript-eslint пока поддерживает
+TypeScript только ниже 6.1.
+
+## Ошибки
+
+Все сервисы отвечают на ошибки в формате ProblemDetails
+([docs/api-errors.ru.md](../docs/api-errors.ru.md)). `apiFetch` превращает такой ответ в
+`ApiProblem` (статус, `detail`, `traceId`, ошибки полей у 400), а недоступность сервера — в
+`ApiNetworkError`. Компонент `ErrorState` показывает пользователю:
+
+```
+сервер недоступен     «Сервер недоступен» — проверьте, что Gateway запущен
+400                   «Проверьте введённые данные»
+401                   «Нужно войти заново»
+403                   «Недостаточно прав»
+404                   «Не найдено»
+409                   «Конфликт данных»
+429                   «Слишком много запросов» — подождите и повторите
+502, 503, 504         «Сервис временно недоступен»
+другие 5xx            «Ошибка на сервере»
+```
+
+Под заголовком — `detail` от сервера, если он есть, и «Код для поддержки» (correlation ID).
+Ошибки 4xx не повторяются автоматически, сбой сервера или сети — повторяется один раз.
+
+Исключение — `/bff/health`: его ответ 503 не ошибка. Gateway отвечает тем же телом, что и при
+200, и сообщает, какой сервис недоступен, поэтому страница показывает «Система работает с
+ограничениями» и список сервисов.
+
+## Как добавить страницу
+
+1. Создать папку `src/pages/<имя>/` и в ней компонент `<Имя>Page.tsx`.
+2. Добавить маршрут в `src/app/router.tsx`, в `children`: `{ path: 'wallets', element: <WalletsPage /> }`.
+3. Если нужного эндпоинта нет в `src/shared/api/generated/` — сначала раздел
+   «Я поменял API».
+4. Данные брать сгенерированным хуком (`useBffHealth()` и т.п.) и показывать состояния через
+   `LoadingState` и `ErrorState` из `src/shared/ui/` — как в `pages/status/StatusPage.tsx`.
+5. Рядом положить `<Имя>Page.test.tsx`: `renderRoute('/<путь>')` открывает приложение на
+   нужном адресе, `server.use(http.get(...))` задаёт ответ сервера
+   (пример — `pages/status/StatusPage.test.tsx`).
+6. Проверить: `npm run lint && npm run typecheck && npm test`.
