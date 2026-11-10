@@ -11,7 +11,8 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc -b",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "api:generate": "orval --config orval.config.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@faker-js/faker": "^10.6.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -41,6 +43,7 @@
     "globals": "^17.14.0",
     "jsdom": "^29.1.1",
     "msw": "^3.0.4",
+    "orval": "^8.47.0",
     "prettier": "^3.9.10",
     "typescript": "~6.0",
     "typescript-eslint": "^8.72.2",

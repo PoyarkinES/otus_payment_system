@@ -7,7 +7,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig([
-    globalIgnores(['dist', 'coverage']),
+    globalIgnores(['dist', 'coverage', 'src/shared/api/generated']),
     {
         files: ['**/*.{ts,tsx}'],
         extends: [
@@ -19,6 +19,13 @@ export default defineConfig([
         languageOptions: {
             ecmaVersion: 2023,
             globals: globals.browser,
+        },
+        rules: {
+            // Имена с `_` в начале — намеренно неиспользуемые (например, параметр типа по контракту orval).
+            '@typescript-eslint/no-unused-vars': [
+                'error',
+                { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+            ],
         },
     },
     prettier,

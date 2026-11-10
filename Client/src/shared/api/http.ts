@@ -1,6 +1,12 @@
 import { env } from '@/shared/config/env';
 import { ApiNetworkError, ApiProblem } from '@/shared/api/problem';
 
+/**
+ * Тип ошибки для сгенерированных хуков: orval подставляет его вместо типов ошибок из спеки,
+ * потому что apiFetch бросает только эти два класса (ответы 4xx/5xx с телом из спеки — это `ApiProblem`).
+ */
+export type ErrorType<_SpecError> = ApiProblem | ApiNetworkError;
+
 /** Заголовок, по которому один запрос прослеживается от браузера до логов всех сервисов. */
 export const CORRELATION_HEADER = 'X-Correlation-Id';
 
