@@ -1,0 +1,45 @@
+/*
+ * Порядок слоёв: стили MUI лежат в слое `mui`, утилиты Tailwind — после него,
+ * поэтому класс Tailwind перебивает стиль компонента MUI без !important.
+ */
+@layer theme, base, mui, components, utilities;
+@import 'tailwindcss';
+
+/*
+ * Tailwind не заводит своих цветов, шрифтов и брейкпоинтов — берёт их из темы MUI
+ * (CSS-переменные --mui-*, см. shared/theme/theme.ts). Правило: компоненты — MUI,
+ * Tailwind — раскладка и отступы.
+ */
+@theme inline {
+    /* Сбрасываем палитру, шрифты, шкалу текста и брейкпоинты Tailwind по умолчанию:
+       без этого bg-red-500 или text-sm работали бы в обход темы MUI. */
+    --color-*: initial;
+    --font-*: initial;
+    --text-*: initial;
+    --breakpoint-*: initial;
+
+    --breakpoint-sm: 37.5rem; /* 600px, как в MUI */
+    --breakpoint-md: 56.25rem; /* 900px */
+    --breakpoint-lg: 75rem; /* 1200px */
+    --breakpoint-xl: 96rem; /* 1536px */
+
+    --color-primary: var(--mui-palette-primary-main);
+    --color-primary-light: var(--mui-palette-primary-light);
+    --color-primary-dark: var(--mui-palette-primary-dark);
+    --color-primary-contrast: var(--mui-palette-primary-contrastText);
+
+    --color-secondary: var(--mui-palette-secondary-main);
+
+    --color-error: var(--mui-palette-error-main);
+    --color-warning: var(--mui-palette-warning-main);
+    --color-info: var(--mui-palette-info-main);
+    --color-success: var(--mui-palette-success-main);
+
+    --color-text-primary: var(--mui-palette-text-primary);
+    --color-text-secondary: var(--mui-palette-text-secondary);
+    --color-text-disabled: var(--mui-palette-text-disabled);
+
+    --color-background-default: var(--mui-palette-background-default);
+    --color-background-paper: var(--mui-palette-background-paper);
+    --color-divider: var(--mui-palette-divider);
+}

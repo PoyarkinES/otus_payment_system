@@ -228,3 +228,51 @@ jobs:
       # Тег строчными: Docker не принимает заглавные буквы в имени репозитория.
       - name: Build image
         run: docker build -f ${{ matrix.dockerfile }} -t ${{ matrix.tag }} .
+
+  client:
+    name: Client (lint, test, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: Client
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: Client/.nvmrc
+          cache: npm
+          cache-dependency-path: Client/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Generated API client is up to date
+        run: |
+          npm run api:generate
+          # status, а не diff: новый тег в спеке — это новый, ещё не отслеживаемый файл.
+          if [ -n "$(git status --porcelain -- src/shared/api/generated)" ]; then
+            git status --short -- src/shared/api/generated
+            echo "::error::Клиент API устарел: запустите npm run api:generate в Client/ и закоммитьте результат."
+            exit 1
+          fi
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
