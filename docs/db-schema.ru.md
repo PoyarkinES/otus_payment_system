@@ -116,7 +116,9 @@ erDiagram
 | `CreatedAt` | `timestamptz` | NOT NULL |
 | `UpdatedAt` | `timestamptz` | NOT NULL |
 
-Открытый вопрос: нужен ли `UNIQUE (UserId, Currency)` в MVP (сейчас один RUB-кошелёк на пользователя).
+`UNIQUE (UserId, Currency)` — **решено (#17, M2W5):** да, один кошелёк на валюту. Уникальный индекс `IX_Wallets_UserId_Currency`.
+
+`Status` хранится числом, наружу отдаётся строкой (как `UserStatus`, #108). `Version` — concurrency token: EF обновляет строку с `WHERE Version = @old`.
 
 ### 2.2. `Holds` ⬜
 
@@ -132,6 +134,8 @@ erDiagram
 | `UpdatedAt` | `timestamptz` | NOT NULL |
 
 `UNIQUE (TransferId)` — ключевое ограничение: повторный `hold` с тем же `transferId` возвращает существующий hold.
+
+Валюта холда отдельно не хранится: она равна валюте кошелька.
 
 ### 2.3. `WalletTransactions` ⬜
 
@@ -149,6 +153,10 @@ erDiagram
 | `CreatedAt` | `timestamptz` | NOT NULL |
 
 Инвариант: `BalanceAfter = BalanceBefore ± Amount`.
+
+`BalanceBefore`/`BalanceAfter` — **полный баланс** (`Available + Held`), а не только доступный: иначе на `ConfirmHold` вышло бы `4000 → 4000` при `Amount = 1000`, и инвариант нарушился бы. Записи создаются на `TopUp`, `Withdrawal`, `TransferIn`, `TransferOut`; `hold`/`release` ledger не пишут — полный баланс не меняется. `Amount` всегда положительный, знак задаёт `Type`.
+
+Индекс: `IX_WalletTransactions_WalletId_CreatedAt`.
 
 ### 2.4. `Outbox` ⬜
 
@@ -326,7 +334,7 @@ erDiagram
 - Время — `timestamptz` (`DateTimeOffset`).
 - Деньги — `numeric(18,4)`, не `float`/`double`.
 - Имена таблиц/колонок в текущей Identity — PascalCase в кавычках (`"Users"`, `"Email"`); в новых сервисах можно перейти на snake_case, но **внутри одного сервиса — единообразно**.
-- Optimistic concurrency — колонка `Version` + `IsConcurrencyToken()`; в текущем `UserConfiguration` это ещё не включено.
+- Optimistic concurrency — колонка `Version` + `IsConcurrencyToken()`; в текущем `UserConfiguration` это ещё не включено. В `Wallets` concurrency-token включается миграцией #17.
 - Межсервисных FK нет: сервисы ссылаются по `UserId`/`WalletId` без внешних ключей.
 
 ---
@@ -335,7 +343,7 @@ erDiagram
 
 1. ~~`RefreshTokens`: SHA-256 от токена или HMAC с серверным ключом?~~ **Решено (M1W3):** SHA-256; токен случайный, 32 байта.
 2. `Transfers`: отдельная `IdempotencyKeys` или `UNIQUE` в `Transfers`?
-3. `Wallets`: `UNIQUE (UserId, Currency)` или несколько кошельков на валюту?
+3. ~~`Wallets`: `UNIQUE (UserId, Currency)` или несколько кошельков на валюту?~~ **Решено (M2W5, #17):** `UNIQUE (UserId, Currency)`.
 4. `Outbox`: точная схема и стратегия очистки.
 5. `Roles`/`UserRoles`: оставляем enum или переходим на таблицы при появлении RBAC?
 6. `Version` в `Users`: включать concurrency token сейчас или при появлении конкурентных обновлений профиля?
