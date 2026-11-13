@@ -1,0 +1,25 @@
+using Otus.PaymentSystem.Wallets.Domain.Errors;
+
+namespace Otus.PaymentSystem.Wallets.Domain.Exceptions;
+
+/// <summary>
+/// Базовое доменное исключение контекста Wallets.
+/// Означает нарушение бизнес-правила (инварианта), а не техническую ошибку.
+/// <see cref="Error"/> задаёт HTTP-статус в ProblemDetails.
+/// </summary>
+public class DomainException : Exception
+{
+    public DomainException(string message, DomainError error = DomainError.Validation) : base(message)
+    {
+        Error = error;
+    }
+
+    public DomainException(string message, Exception innerException, DomainError error = DomainError.Validation)
+        : base(message, innerException)
+    {
+        Error = error;
+    }
+
+    /// <summary>Код ошибки для маппинга на HTTP-статус.</summary>
+    public DomainError Error { get; }
+}

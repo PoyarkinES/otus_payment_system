@@ -73,10 +73,12 @@ Get-ChildItem -Recurse -Filter *.sln | ForEach-Object { dotnet build $_.FullName
 
 ## Пробелы (осознанные)
 
-1. **Нет E2E через UI** — фронтенда пока нет.
-2. **Wallets/Payments/Fraud/Notifications/Audit** содержат только доменные заготовки; их тесты появятся вместе с кодом в M2–M3.
-3. **Нет тестов на rate limiting** кроме ручной проверки 429 — лимитер живёт в конфигурации Gateway, а не в коде.
-4. **HTTP-тесты Identity используют фейковый репозиторий**, а не реальную БД: EF-путь проверяется отдельно в `Infrastructure.Tests` (Postgres).
+1. **Wallets: Host HTTP-тесты и Gateway E2E** — 5 тестов `WebApplicationFactory` (Host) + 5 E2E через Gateway (in-process YARP + `WebApplicationFactory<Wallets.Host>`). HTTP-тесты остальных сервисов — нет.
+2. **Нет E2E через UI** — фронтенда пока нет.
+3. **Wallets** — домен, Host, 36 тестов; **Payments/Fraud/Notifications/Audit** пока каркас, их тесты появятся в M3–M5.
+4. **Нет тестов на rate limiting** кроме ручной проверки 429 — лимитер живёт в конфигурации Gateway, а не в коде.
+5. **Wallets: тестовые БД разведены** — `otus_wallets_api_test` (Host.IntegrationTests + Gateway E2E) и `otus_wallets_repo_test` (Infrastructure.Tests).
+6. **HTTP-тесты Identity используют фейковый репозиторий**, а не реальную БД: EF-путь проверяется отдельно в `Infrastructure.Tests` (Postgres).
 
 ## Definition of Done для теста
 

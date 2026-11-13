@@ -18,6 +18,8 @@
 
 ## 1. Identity
 
+> Взаимодействие сущностей, инициализация и вызовы: [identity-entity-interactions.ru.md](./identity-entity-interactions.ru.md).
+
 ### 1.1. `Users` ✅
 
 Создана миграцией `20261030205450_InitialIdentity`.
@@ -100,9 +102,13 @@ erDiagram
 
 ## 2. Wallets
 
-План M2. Целевые таблицы — [architecture.ru.md](./architecture.ru.md:225) и [bounded-contexts.md](./bounded-contexts.md:150).
+> Взаимодействие сущностей, инициализация и вызовы: [wallets-entity-interactions.ru.md](./wallets-entity-interactions.ru.md).
+>
+> **Подключение:** `ConnectionStrings:WalletsDb` (`ConnectionStrings__WalletsDb` в compose/окружении). В `appsettings.Development.json` уже есть; сервис Wallets в `docker-compose.yml` пока не добавлен, поэтому compose-ключ появится вместе с Host.
 
-### 2.1. `Wallets` ⬜
+Схема создана миграцией `20261113133347_InitialWallets` и применена к `otus_wallets`. Целевые таблицы — [architecture.ru.md](./architecture.ru.md:225) и [bounded-contexts.md](./bounded-contexts.md:150).
+
+### 2.1. `Wallets` ✅
 
 | Колонка | Тип | Ограничения |
 |---|---|---|
@@ -116,9 +122,13 @@ erDiagram
 | `CreatedAt` | `timestamptz` | NOT NULL |
 | `UpdatedAt` | `timestamptz` | NOT NULL |
 
-Открытый вопрос: нужен ли `UNIQUE (UserId, Currency)` в MVP (сейчас один RUB-кошелёк на пользователя).
+`UNIQUE (UserId, Currency)` — **решено (#17, M2W5):** да, один кошелёк на валюту. Уникальный индекс `IX_Wallets_UserId_Currency`.
 
-### 2.2. `Holds` ⬜
+`Status` хранится числом, наружу отдаётся строкой (как `UserStatus`, #108). `Version` — concurrency token: EF обновляет строку с `WHERE Version = @old`.
+
+`CHECK (Available >= 0)` и `CHECK (Held >= 0)` в БД пока **не созданы** — инвариант держится на доменных проверках (`Wallet.Withdraw/PlaceHold`). Добавить отдельной миграцией, если нужен DB-level guard.
+
+### 2.2. `Holds` ✅
 
 | Колонка | Тип | Ограничения |
 |---|---|---|
@@ -133,7 +143,9 @@ erDiagram
 
 `UNIQUE (TransferId)` — ключевое ограничение: повторный `hold` с тем же `transferId` возвращает существующий hold.
 
-### 2.3. `WalletTransactions` ⬜
+Валюта холда отдельно не хранится: она равна валюте кошелька.
+
+### 2.3. `WalletTransactions` ✅
 
 | Колонка | Тип | Ограничения |
 |---|---|---|
@@ -150,9 +162,13 @@ erDiagram
 
 Инвариант: `BalanceAfter = BalanceBefore ± Amount`.
 
-### 2.4. `Outbox` ⬜
+`BalanceBefore`/`BalanceAfter` — **полный баланс** (`Available + Held`), а не только доступный: иначе на `ConfirmHold` вышло бы `4000 → 4000` при `Amount = 1000`, и инвариант нарушился бы. Записи создаются на `TopUp`, `Withdrawal`, `TransferIn`, `TransferOut`; `hold`/`release` ledger не пишут — полный баланс не меняется. `Amount` всегда положительный, знак задаёт `Type`.
 
-Точная схема появится в M4. Минимум:
+Индекс: `IX_WalletTransactions_WalletId_CreatedAt`.
+
+### 2.4. `Outbox` ✅
+
+Таблица создана миграцией; фабрика/писатель и сериализация `Payload` — M4. Минимум:
 
 | Колонка | Тип |
 |---|---|
@@ -326,7 +342,7 @@ erDiagram
 - Время — `timestamptz` (`DateTimeOffset`).
 - Деньги — `numeric(18,4)`, не `float`/`double`.
 - Имена таблиц/колонок в текущей Identity — PascalCase в кавычках (`"Users"`, `"Email"`); в новых сервисах можно перейти на snake_case, но **внутри одного сервиса — единообразно**.
-- Optimistic concurrency — колонка `Version` + `IsConcurrencyToken()`; в текущем `UserConfiguration` это ещё не включено.
+- Optimistic concurrency — колонка `Version` + `IsConcurrencyToken()`; в текущем `UserConfiguration` это ещё не включено. В `Wallets` concurrency-token включается миграцией #17.
 - Межсервисных FK нет: сервисы ссылаются по `UserId`/`WalletId` без внешних ключей.
 
 ---
@@ -335,7 +351,7 @@ erDiagram
 
 1. ~~`RefreshTokens`: SHA-256 от токена или HMAC с серверным ключом?~~ **Решено (M1W3):** SHA-256; токен случайный, 32 байта.
 2. `Transfers`: отдельная `IdempotencyKeys` или `UNIQUE` в `Transfers`?
-3. `Wallets`: `UNIQUE (UserId, Currency)` или несколько кошельков на валюту?
+3. ~~`Wallets`: `UNIQUE (UserId, Currency)` или несколько кошельков на валюту?~~ **Решено (M2W5, #17):** `UNIQUE (UserId, Currency)`.
 4. `Outbox`: точная схема и стратегия очистки.
 5. `Roles`/`UserRoles`: оставляем enum или переходим на таблицы при появлении RBAC?
 6. `Version` в `Users`: включать concurrency token сейчас или при появлении конкурентных обновлений профиля?
