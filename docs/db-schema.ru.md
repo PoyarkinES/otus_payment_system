@@ -18,6 +18,8 @@
 
 ## 1. Identity
 
+> Взаимодействие сущностей, инициализация и вызовы: [identity-entity-interactions.ru.md](./identity-entity-interactions.ru.md).
+
 ### 1.1. `Users` ✅
 
 Создана миграцией `20261030205450_InitialIdentity`.
@@ -100,9 +102,13 @@ erDiagram
 
 ## 2. Wallets
 
-План M2. Целевые таблицы — [architecture.ru.md](./architecture.ru.md:225) и [bounded-contexts.md](./bounded-contexts.md:150).
+> Взаимодействие сущностей, инициализация и вызовы: [wallets-entity-interactions.ru.md](./wallets-entity-interactions.ru.md).
+>
+> **Подключение:** `ConnectionStrings:WalletsDb` (`ConnectionStrings__WalletsDb` в compose/окружении). В `appsettings.Development.json` уже есть; сервис Wallets в `docker-compose.yml` пока не добавлен, поэтому compose-ключ появится вместе с Host.
 
-### 2.1. `Wallets` ⬜
+Схема создана миграцией `20261113133347_InitialWallets` и применена к `otus_wallets`. Целевые таблицы — [architecture.ru.md](./architecture.ru.md:225) и [bounded-contexts.md](./bounded-contexts.md:150).
+
+### 2.1. `Wallets` ✅
 
 | Колонка | Тип | Ограничения |
 |---|---|---|
@@ -120,7 +126,9 @@ erDiagram
 
 `Status` хранится числом, наружу отдаётся строкой (как `UserStatus`, #108). `Version` — concurrency token: EF обновляет строку с `WHERE Version = @old`.
 
-### 2.2. `Holds` ⬜
+`CHECK (Available >= 0)` и `CHECK (Held >= 0)` в БД пока **не созданы** — инвариант держится на доменных проверках (`Wallet.Withdraw/PlaceHold`). Добавить отдельной миграцией, если нужен DB-level guard.
+
+### 2.2. `Holds` ✅
 
 | Колонка | Тип | Ограничения |
 |---|---|---|
@@ -137,7 +145,7 @@ erDiagram
 
 Валюта холда отдельно не хранится: она равна валюте кошелька.
 
-### 2.3. `WalletTransactions` ⬜
+### 2.3. `WalletTransactions` ✅
 
 | Колонка | Тип | Ограничения |
 |---|---|---|
@@ -158,9 +166,9 @@ erDiagram
 
 Индекс: `IX_WalletTransactions_WalletId_CreatedAt`.
 
-### 2.4. `Outbox` ⬜
+### 2.4. `Outbox` ✅
 
-Точная схема появится в M4. Минимум:
+Таблица создана миграцией; фабрика/писатель и сериализация `Payload` — M4. Минимум:
 
 | Колонка | Тип |
 |---|---|

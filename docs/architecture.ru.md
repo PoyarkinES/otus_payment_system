@@ -222,9 +222,15 @@ Fraud применяет правила и возвращает `Approve` или
 > Подробная схема с колонками, индексами и статусами реализации: [db-schema.ru.md](./db-schema.ru.md).
 
 ### Identity DB
+
+> Взаимодействие сущностей, инициализация и вызовы: [identity-entity-interactions.ru.md](./identity-entity-interactions.ru.md).
+
 `Users` (UserId, email, пароль, статус), `Roles`, `UserRoles`.
 
 ### Wallets DB
+
+> Взаимодействие сущностей, инициализация и вызовы: [wallets-entity-interactions.ru.md](./wallets-entity-interactions.ru.md).
+
 `Wallets` (UserId, available, held, version), `Holds` (holdId, transferId UNIQUE, status), `WalletTransactions`, `Outbox`.
 
 ### Payments DB
@@ -384,10 +390,14 @@ flowchart LR
 
 ## 13. Ссылки
 
+- [Путеводитель по проекту](./project-guide.ru.md)
 - [Bounded Contexts](./bounded-contexts.md)
 - [Roadmap RU](./roadmap.ru.md) · [Roadmap EN](./roadmap.md)
 - [ADR 0001 — API Gateway](./adr/0001-api-gateway.md)
 - [ADR 0002 — KYC storage](./adr/0002-kyc-storage.md)
 - [ADR 0003 — KYC gRPC](./adr/0003-kyc-grpc.md)
+- [ADR 0004 — Shared как NuGet](./adr/0004-shared-nuget.md)
+- [ADR 0005 — JWT-валидация в сервисах](./adr/0005-jwt-validation-in-services.md)
+- [Shared как NuGet-пакеты](./shared-nuget.ru.md)
 - UI: [#80](https://github.com/PoyarkinES/otus_payment_system/issues/80) Web · [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) Mobile
 - [README RU](../README.ru.md) · [README EN](../README.md)

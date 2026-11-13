@@ -4,6 +4,8 @@
 
 Fintech portfolio project for a .NET developer.
 
+> **Developer guide (RU):** [docs/project-guide.ru.md](./docs/project-guide.ru.md) — setup, configuration, entities, interactions, and the issue workflow.
+
 ## Project goal
 
 Build a realistic payment platform that demonstrates skills in:

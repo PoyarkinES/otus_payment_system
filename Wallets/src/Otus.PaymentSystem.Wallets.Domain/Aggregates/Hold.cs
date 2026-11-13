@@ -38,7 +38,7 @@ namespace Otus.PaymentSystem.Wallets.Domain.Aggregates
             TransferId = transferId;
             UserId = userId;
             Amount = amount;
-            Status = 0; // Assuming 0 is the initial status
+            Status = HoldStatus.Active;
             CreatedAt = DateTimeOffset.UtcNow;
             UpdatedAt = DateTimeOffset.UtcNow;
         }
