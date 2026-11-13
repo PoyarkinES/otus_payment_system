@@ -13,7 +13,7 @@
     <PackageReference Include="Serilog.Formatting.Compact" Version="3.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
     <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
-    <ProjectReference Include="..\..\..\Shared\src\Otus.PaymentSystem.AspNetCore\Otus.PaymentSystem.AspNetCore.csproj" />
+    <PackageReference Include="Otus.PaymentSystem.AspNetCore" Version="1.0.0" />
   </ItemGroup>
 
   <!-- Хендлеры BFF internal: тесты проверяют их напрямую, без поднятия TestServer. -->

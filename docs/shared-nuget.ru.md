@@ -1,6 +1,6 @@
 # Shared как NuGet-пакеты
 
-> **Статус:** решение принято (ADR 0004), миграция не начата. Сейчас сервисы используют `ProjectReference`; целевое состояние — `PackageReference` на внутренние NuGet-пакеты.
+> **Статус:** реализовано в #118 (P0). `SharedKernel` и `AspNetCore` упакованы, все сервисы переведены на `PackageReference`, локальный feed и CI `pack-shared` работают.
 >
 > Связанные: [project-guide.ru.md](./project-guide.ru.md) · [ADR 0004](./adr/0004-shared-nuget.md)
 
@@ -19,12 +19,12 @@
 
 Тестовые проекты не пакуются: `IsPackable=false`.
 
-Текущее состояние:
+Текущее состояние (после #118):
 
-- `AspNetCore.csproj`: `IsPackable=false` — при миграции поставить `true`.
-- `SharedKernel.csproj`: метаданных пакета пока нет.
-- `NuGet.config`, локального feed и pack-скрипта нет.
-- Identity, Gateway и Wallets пока на `ProjectReference`.
+- `AspNetCore.csproj`: `IsPackable=true`, `PackageId=Otus.PaymentSystem.AspNetCore`.
+- `SharedKernel.csproj`: `PackageId=Otus.PaymentSystem.SharedKernel`; версия — `Shared/Directory.Build.props`.
+- Есть `NuGet.config`, `scripts/pack-shared.ps1` и локальный `artifacts/packages`.
+- Identity, Gateway, Wallets, Payments, Fraud, Notifications, Audit используют `PackageReference` 1.0.0.
 
 ## 3. Метаданные
 
@@ -65,8 +65,10 @@ SemVer:
 Собрать пакеты:
 
 ```powershell
-dotnet pack Shared/Otus.PaymentSystem.Shared.sln -c Release -o artifacts/packages
+.\scripts\pack-shared.ps1
 ```
+
+`dotnet pack` запускается по двум проектам, а не по `Shared.sln`: у решения есть конфигурации x64/x86, и pack solution падает с ошибкой платформы.
 
 Локальный feed — `NuGet.config` в корне:
 
@@ -127,12 +129,11 @@ NuGet кэширует пакеты по версии: при той же вер
 
 ## 7. CI
 
-Целевая схема:
+Фактическая схема:
 
-1. Job `pack-shared`: тесты Shared, `dotnet pack`, публикация пакетов.
-2. Job'ы сервисов: restore из feed/артефакта, build/test.
-
-Пакеты можно передавать через `actions/upload-artifact` / `download-artifact` или публиковать в GitHub Packages / Azure Artifacts.
+1. Job `pack-shared`: `dotnet pack` двух проектов и `upload-artifact` `shared-packages`.
+2. Job'ы build/test/integration/openapi: `needs: pack-shared`, composite action `shared-packages` скачивает артефакт в `artifacts/packages`; `NuGet.config` указывает на этот feed.
+3. Docker: `Identity/Dockerfile` и `Gateway/Dockerfile` пакуют Shared внутри build-стадии, поэтому не зависят от локального feed.
 
 Важно:
 
@@ -143,15 +144,15 @@ NuGet кэширует пакеты по версии: при той же вер
 
 ## 8. План миграции
 
-| Фаза | Что сделать | Проверка |
+| Фаза | Что сделано | Проверка |
 |---|---|---|
 | 0 | ADR + этот документ | решение зафиксировано |
 | 1 | Метаданные, `IsPackable`, `NuGet.config` | `dotnet pack` создаёт `.nupkg` |
-| 2 | Identity → `PackageReference` | собирается без `ProjectReference` |
-| 3 | Gateway → `PackageReference` | собирается из пакета |
-| 4 | Wallets → `PackageReference` | собирается из пакета |
-| 5 | Payments/Fraud/Notifications/Audit | нет `ProjectReference` на Shared |
-| 6 | CI: `pack-shared` + feed/artifact | матрица зелёная |
+| 2 | Identity → `PackageReference` | ✅ собирается без `ProjectReference` |
+| 3 | Gateway → `PackageReference` | ✅ собирается из пакета |
+| 4 | Wallets → `PackageReference` | ✅ собирается из пакета |
+| 5 | Payments/Fraud/Notifications/Audit | ✅ нет `ProjectReference` на Shared |
+| 6 | CI: `pack-shared` + feed/artifact | ✅ матрица зелёная |
 
 Правила:
 
@@ -177,7 +178,7 @@ NuGet кэширует пакеты по версии: при той же вер
 Нет. Это internal packages: пакеты собираются из того же репозитория.
 
 **`.sln` можно упаковать?**
-Нет, упаковываются проекты. `Shared.sln` — удобная точка входа для `dotnet pack`.
+Нет, упаковываются проекты. `Shared.sln` — точка входа для build/test; для pack используйте `scripts/pack-shared.ps1` или отдельные csproj (у solution есть x64/x86, pack падает).
 
 **Можно одновременно `ProjectReference` и `PackageReference`?**
 На один проект — нет. Разные сервисы могут временно использовать разные способы.

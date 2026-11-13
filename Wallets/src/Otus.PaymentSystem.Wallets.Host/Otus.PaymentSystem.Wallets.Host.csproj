@@ -11,7 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Otus.PaymentSystem.Wallets.Application\Otus.PaymentSystem.Wallets.Application.csproj" />
     <ProjectReference Include="..\Otus.PaymentSystem.Wallets.Infrastructure\Otus.PaymentSystem.Wallets.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\..\Shared\src\Otus.PaymentSystem.AspNetCore\Otus.PaymentSystem.AspNetCore.csproj" />
+    <PackageReference Include="Otus.PaymentSystem.AspNetCore" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup>

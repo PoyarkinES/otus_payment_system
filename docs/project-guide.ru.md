@@ -104,9 +104,9 @@
 | Общий ProblemDetails/фильтр | `Shared/src/Otus.PaymentSystem.AspNetCore` |
 | Документация и ADR | `docs/` |
 
-> **Правило решения:** в `<Service>.sln` входят только проекты этого сервиса. Общие библиотеки `Shared/*` **не** добавляются в `.sln`. Сейчас они подключаются через `ProjectReference`, целевое — `PackageReference` на NuGet-пакеты: [shared-nuget.ru.md](./shared-nuget.ru.md).
+> **Правило решения:** в `<Service>.sln` входят только проекты этого сервиса. Общие библиотеки `Shared/*` **не** добавляются в `.sln`; сервисы подключают их через `PackageReference` на NuGet-пакеты: [shared-nuget.ru.md](./shared-nuget.ru.md).
 
-> **Что это значит на практике:** `.sln` — это список проектов для IDE и `dotnet build`, а не механизм зависимостей. `ProjectReference` в `.csproj` — локальная ссылка на исходники `Shared`; MSBuild соберёт Shared как зависимость, даже если его нет в `.sln`. Поэтому per-context `.sln` — организационное правило, а не физическая изоляция: при выносе сервиса в отдельный репозиторий `ProjectReference` на `Shared` всё равно сломается, если не перейти на NuGet. Решение о NuGet принято ([ADR 0004](./adr/0004-shared-nuget.md)); миграция ещё не выполнена. `Shared.sln` остаётся источником пакетов и тестов.
+> **Что это значит на практике:** `.sln` — список проектов для IDE и `dotnet build`, а не механизм зависимостей. Сервис собирается из NuGet-пакетов, а не из исходников `Shared`; перед локальной сборкой выполните `scripts/pack-shared.ps1`. Решение о NuGet реализовано ([ADR 0004](./adr/0004-shared-nuget.md), issue #118). `Shared.sln` остаётся источником пакетов и тестов.
 
 ## 3. Запуск и конфигурация
 
@@ -136,11 +136,14 @@ docker compose -f docker-compose.dev.yml up -d
 Сборка и тесты:
 
 ```powershell
+.\scripts\pack-shared.ps1
 dotnet build Shared/Otus.PaymentSystem.Shared.sln
 dotnet build Gateway/Otus.PaymentSystem.Gateway.sln
 dotnet build Identity/Otus.PaymentSystem.Identity.sln
 dotnet test Identity/Otus.PaymentSystem.Identity.sln --filter "FullyQualifiedName!~Postgres"
 ```
+
+`pack-shared.ps1` создаёт `artifacts/packages`; без него сервисы не восстановят `Otus.PaymentSystem.*` из локального feed.
 
 ### 3.3. Порты
 
@@ -420,7 +423,7 @@ Postgres-тесты запускаются с `IDENTITY_TEST_DB` (см. [testing
 | EF read-only nav | Для read-only коллекций — явный `UsePropertyAccessMode(Field)` + runtime-тест с `Include`. |
 | Миграции | Если Host готов — Host как startup-project; если нет — `IDesignTimeDbContextFactory<T>` в `Infrastructure/Persistence`, строка из env/secrets. |
 | Эндпоинты | Extension-метод `Map<Service>Endpoints()`, группа внутри сервиса (например, `/wallets`), `Program.cs` только вызывает его и `/health`. |
-| `.sln` | Только проекты сервиса; `Shared` не добавляется, подключается через `ProjectReference` (сейчас) или `PackageReference` (целевое). |
+| `.sln` | Только проекты сервиса; `Shared` не добавляется, подключается через `PackageReference` на локальный feed. |
 | Конфигурация | Строки подключения — `ConnectionStrings:<Service>Db`; секреты — env/user-secrets, не код. |
 
 ## 7. Как делать issue

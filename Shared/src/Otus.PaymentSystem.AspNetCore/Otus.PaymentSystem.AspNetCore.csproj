@@ -4,14 +4,10 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <IsPackable>false</IsPackable>
+    <PackageId>Otus.PaymentSystem.AspNetCore</PackageId>
+    <Description>Web-примитивы Host-проектов Otus Payment System: ProblemDetails, JWT/JWKS.</Description>
   </PropertyGroup>
 
-  <!--
-    Web-примитивы для Host-проектов: единый ProblemDetails.
-    Не кладём в SharedKernel: на него ссылается каждый Domain,
-    а FrameworkReference протащил бы ASP.NET Core в Domain.
-  -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="FluentValidation" Version="11.11.0" />
@@ -21,5 +17,5 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.14.0" />
   </ItemGroup>
-  
+
 </Project>
