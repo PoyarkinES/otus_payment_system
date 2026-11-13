@@ -13,7 +13,7 @@
     <ProjectReference Include="..\Otus.PaymentSystem.Identity.Domain\Otus.PaymentSystem.Identity.Domain.csproj" />
     <ProjectReference Include="..\Otus.PaymentSystem.Identity.Application\Otus.PaymentSystem.Identity.Application.csproj" />
     <ProjectReference Include="..\Otus.PaymentSystem.Identity.Infrastructure\Otus.PaymentSystem.Identity.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\..\Shared\src\Otus.PaymentSystem.AspNetCore\Otus.PaymentSystem.AspNetCore.csproj" />
+    <PackageReference Include="Otus.PaymentSystem.AspNetCore" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -28,7 +28,6 @@
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <ProjectReference Include="..\..\..\Shared\src\Otus.PaymentSystem.AspNetCore\Otus.PaymentSystem.AspNetCore.csproj" />
   </ItemGroup>
 
 </Project>

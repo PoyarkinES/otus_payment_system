@@ -1,2 +1,6 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Otus.PaymentSystem.SharedKernel</PackageId>
+    <Description>Общие примитивы домена Otus Payment System.</Description>
+  </PropertyGroup>
 </Project>

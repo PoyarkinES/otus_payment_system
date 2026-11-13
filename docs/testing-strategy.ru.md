@@ -50,6 +50,7 @@
 
 | Job | Что делает | Что ловит |
 |---|---|---|
+| `pack-shared` | `dotnet pack` двух Shared-проектов + artifact | версии/состав NuGet-пакетов |
 | `Build` (матрица 8 решений) | `dotnet build -c Release` | ошибки компиляции в любом контексте |
 | `Test (Shared/Gateway/Identity)` | `dotnet test` + coverage | регрессии юнит- и host-тестов |
 | `identity-integration-tests` | тесты с реальным PostgreSQL | расхождения EF-маппинга и SQL |
@@ -60,10 +61,13 @@
 ## Команды локально
 
 ```powershell
+.\scripts\pack-shared.ps1
 dotnet test Shared\Otus.PaymentSystem.Shared.sln
 dotnet test Gateway\Otus.PaymentSystem.Gateway.sln
 dotnet test Identity\Otus.PaymentSystem.Identity.sln --filter "FullyQualifiedName!~Postgres"
 ```
+
+Перед сборкой сервисов выполните `scripts/pack-shared.ps1`; CI делает это в job `pack-shared` и раздаёт artifact.
 
 Сборка всех решений — то же, что делает `Build`:
 

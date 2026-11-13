@@ -1,5 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Shared\src\Otus.PaymentSystem.SharedKernel\Otus.PaymentSystem.SharedKernel.csproj" />
+    <PackageReference Include="Otus.PaymentSystem.SharedKernel" Version="1.0.0" />
   </ItemGroup>
 </Project>

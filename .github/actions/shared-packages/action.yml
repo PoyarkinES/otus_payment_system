@@ -1,0 +1,11 @@
+name: Shared NuGet packages
+description: Download Shared NuGet packages built by pack-shared and make them available to NuGet.
+
+runs:
+  using: composite
+  steps:
+    - name: Download Shared packages
+      uses: actions/download-artifact@v4
+      with:
+        name: shared-packages
+        path: artifacts/packages

@@ -1,6 +1,6 @@
 # ADR 0004. Shared-библиотеки как NuGet-пакеты
 
-- **Статус:** Accepted
+- **Статус:** Accepted, реализовано в #118
 - **Дата:** 2026-11-13
 - **Контекст:** монорепо, per-context решения, M2W5 и подготовка к независимой сборке сервисов
 - **Связанные документы:** [shared-nuget.ru.md](../shared-nuget.ru.md), [project-guide.ru.md](../project-guide.ru.md)
@@ -23,7 +23,7 @@
 3. `Shared.sln` остаётся в монорепо как источник пакетов и тестов; он не добавляется в `.sln` сервисов.
 4. Версионирование — SemVer; общая версия на оба пакета на старте.
 5. Локально — `artifacts/packages` + `NuGet.config`; в CI — artifact или GitHub Packages/Azure Artifacts.
-6. Миграция поэтапная: Identity → Gateway → Wallets → остальные сервисы.
+6. Миграция выполнена: Identity → Gateway → Wallets → остальные сервисы.
 
 ## Рассмотренные альтернативы
 
@@ -64,12 +64,12 @@
 | Фаза | Результат |
 |---|---|
 | 0 | ADR + `shared-nuget.ru.md` |
-| 1 | Метаданные пакетов, `IsPackable`, `NuGet.config`, локальный `pack` |
-| 2 | Identity на `PackageReference` |
-| 3 | Gateway на `PackageReference` |
-| 4 | Wallets на `PackageReference` |
-| 5 | Payments/Fraud/Notifications/Audit по мере появления Host |
-| 6 | CI `pack-shared` + feed/artifact; удаление оставшихся `ProjectReference` |
+| 1 | Метаданные пакетов, `IsPackable`, `NuGet.config`, локальный `pack` — ✅ |
+| 2 | Identity на `PackageReference` — ✅ |
+| 3 | Gateway на `PackageReference` — ✅ |
+| 4 | Wallets на `PackageReference` — ✅ |
+| 5 | Payments/Fraud/Notifications/Audit — ✅ |
+| 6 | CI `pack-shared` + feed/artifact; `ProjectReference` на Shared удалены — ✅ |
 
 ## Что этот ADR не решает
 
