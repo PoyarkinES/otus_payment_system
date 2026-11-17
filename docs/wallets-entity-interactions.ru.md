@@ -373,3 +373,16 @@ services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<CreateWall
 - [x] Миграция создаёт `Wallets`, `Holds`, `WalletTransactions`, `Outbox` и индексы.
 - [x] Тесты домена и API покрывают создание, чтение, ownership и hold-сценарии.
 - [x] E2E через Gateway: 5 тестов (`Gateway.Host.IntegrationTests`).
+
+## 12. Операции deposit/withdraw (#51)
+
+Денежные операции меняют баланс только через агрегат `Wallet`:
+
+- `POST /wallets/{walletId}/deposit` — `Available` растёт, пишется `WalletTransactionType.TopUp`;
+- `POST /wallets/{walletId}/withdraw` — `Available` уменьшается, пишется `WalletTransactionType.Withdrawal`;
+- `GET /wallets/{walletId}` возвращает актуальные `Available`, `Held`, `Total`, `Version`.
+
+Обязательный заголовок `Idempotency-Key` (UUID в MVP) хранится в `WalletTransaction.ReferenceId`; filtered unique index `(WalletId, ReferenceId)` не даёт создать вторую операцию. Повтор с тем же ключом возвращает текущий результат, с другой суммой/типом — 409. `Version` защищает от потерянных обновлений; `DbUpdateConcurrencyException` маппится в 409.
+
+Полное решение и таблица ошибок — [ADR 0006](./adr/0006-wallet-operations-idempotency.md).
+
