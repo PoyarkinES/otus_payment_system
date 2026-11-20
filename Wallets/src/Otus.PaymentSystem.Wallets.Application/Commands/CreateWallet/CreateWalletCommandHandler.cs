@@ -25,16 +25,6 @@ public sealed class CreateWalletCommandHandler : IRequestHandler<CreateWalletCom
         await _wallets.AddAsync(wallet, cancellationToken);
         await _wallets.SaveChangesAsync(cancellationToken);
 
-        return new WalletResult(
-            wallet.Id,
-            wallet.UserId,
-            wallet.Currency.Value,
-            wallet.Available,
-            wallet.Held,
-            wallet.Total,
-            wallet.Status.ToString(),
-            wallet.Version,
-            wallet.CreatedAt,
-            wallet.UpdatedAt);
+        return WalletResult.From(wallet);
     }
 }

@@ -156,7 +156,7 @@ erDiagram
 | `Currency` | `varchar(3)` | NOT NULL |
 | `BalanceBefore` | `numeric(18,4)` | NOT NULL |
 | `BalanceAfter` | `numeric(18,4)` | NOT NULL |
-| `ReferenceId` | `uuid` | NULL, TransferId или внешняя ссылка |
+| `ReferenceId` | `uuid` | NULL: TransferId, Idempotency-Key (UUID) или внешняя ссылка |
 | `Description` | `text` | NULL |
 | `CreatedAt` | `timestamptz` | NOT NULL |
 
@@ -164,7 +164,10 @@ erDiagram
 
 `BalanceBefore`/`BalanceAfter` — **полный баланс** (`Available + Held`), а не только доступный: иначе на `ConfirmHold` вышло бы `4000 → 4000` при `Amount = 1000`, и инвариант нарушился бы. Записи создаются на `TopUp`, `Withdrawal`, `TransferIn`, `TransferOut`; `hold`/`release` ledger не пишут — полный баланс не меняется. `Amount` всегда положительный, знак задаёт `Type`.
 
-Индекс: `IX_WalletTransactions_WalletId_CreatedAt`.
+Индексы:
+
+- `IX_WalletTransactions_WalletId_CreatedAt` — история;
+- filtered unique `UX_WalletTransactions_WalletId_ReferenceId` по `(WalletId, ReferenceId) WHERE ReferenceId IS NOT NULL` — идемпотентность deposit/withdraw.
 
 ### 2.4. `Outbox` ✅
 
