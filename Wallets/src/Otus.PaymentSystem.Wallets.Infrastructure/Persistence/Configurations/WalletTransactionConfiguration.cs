@@ -56,5 +56,10 @@ public sealed class WalletTransactionConfiguration : IEntityTypeConfiguration<Wa
 
         builder.HasIndex(t => new { t.WalletId, t.CreatedAt })
             .HasDatabaseName("IX_WalletTransactions_WalletId_CreatedAt");
+
+        builder.HasIndex(t => new { t.WalletId, t.ReferenceId })
+            .IsUnique()
+            .HasFilter("\"ReferenceId\" IS NOT NULL")
+            .HasDatabaseName("UX_WalletTransactions_WalletId_ReferenceId");
     }
 }

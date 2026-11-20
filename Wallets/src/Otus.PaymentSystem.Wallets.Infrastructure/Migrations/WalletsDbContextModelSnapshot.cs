@@ -163,6 +163,11 @@ namespace Otus.PaymentSystem.Wallets.Infrastructure.Migrations
                     b.HasIndex("WalletId", "CreatedAt")
                         .HasDatabaseName("IX_WalletTransactions_WalletId_CreatedAt");
 
+                    b.HasIndex("WalletId", "ReferenceId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_WalletTransactions_WalletId_ReferenceId")
+                        .HasFilter("\"ReferenceId\" IS NOT NULL");
+
                     b.ToTable("WalletTransactions", (string)null);
                 });
 

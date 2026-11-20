@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Otus.PaymentSystem.Wallets.Application.Exceptions;
 using Otus.PaymentSystem.Wallets.Application.Interfaces;
 using Otus.PaymentSystem.Wallets.Domain.Aggregates;
 using Otus.PaymentSystem.Wallets.Domain.Errors;
@@ -36,6 +37,24 @@ public sealed class EfWalletRepository : IWalletRepository
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            _db.ChangeTracker.Clear();
+
+            throw new DomainException(
+                "Кошелёк был изменён другим запросом. Повторите операцию.",
+                DomainError.Conflict);
+        }
+        catch (DbUpdateException ex)
+            when (ex.InnerException is Npgsql.PostgresException
+            {
+                SqlState: "23505",
+                ConstraintName: "UX_WalletTransactions_WalletId_ReferenceId"
+            })
+        {
+            _db.ChangeTracker.Clear();
+            throw new DuplicateWalletOperationException();
         }
         catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
         {

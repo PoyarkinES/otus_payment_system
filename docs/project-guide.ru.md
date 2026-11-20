@@ -496,9 +496,9 @@ Postgres-тесты запускаются с `IDENTITY_TEST_DB` (см. [testing
 | Направление | Статус | Следующий шаг |
 |---|---|---|
 | Identity | ✅ M1 | поддержка, события — M4 |
-| Gateway/BFF | ✅ M1 | маршрут Wallets и 5 E2E добавлены; зелёный CI — при PR в main |
+| Gateway/BFF | ✅ M1 | маршрут Wallets и 8 E2E добавлены; зелёный CI — при PR в main |
 | PostgreSQL + миграции | ✅ Identity + Wallets | миграция Wallets применена; CHECK-ограничения — позже |
-| Wallets | 🟡 домен + Host + Gateway + 36 тестов | зелёный CI (PR в main), CHECK, техдолг |
+| Wallets | 🟡 домен + Host + Gateway + 47 тестов | зелёный CI (PR в main), CHECK, техдолг |
 | Payments | ⚪ каркас | M3 |
 | Fraud | ⚪ каркас | M5 |
 | Notifications/Audit | ⚪ каркас | M4 |

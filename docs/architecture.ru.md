@@ -398,6 +398,7 @@ flowchart LR
 - [ADR 0003 — KYC gRPC](./adr/0003-kyc-grpc.md)
 - [ADR 0004 — Shared как NuGet](./adr/0004-shared-nuget.md)
 - [ADR 0005 — JWT-валидация в сервисах](./adr/0005-jwt-validation-in-services.md)
+- [ADR 0006 — Deposit/withdraw: idempotency и concurrency](./adr/0006-wallet-operations-idempotency.md)
 - [Shared как NuGet-пакеты](./shared-nuget.ru.md)
 - UI: [#80](https://github.com/PoyarkinES/otus_payment_system/issues/80) Web · [#81](https://github.com/PoyarkinES/otus_payment_system/issues/81) Mobile
 - [README RU](../README.ru.md) · [README EN](../README.md)

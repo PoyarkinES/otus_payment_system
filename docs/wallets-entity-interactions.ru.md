@@ -1,6 +1,6 @@
 # Wallets: взаимодействие сущностей, инициализация и вызовы
 
-> **Статус:** M2W5 (#50), реализация в ветке `feature/m2w5-wallets`. Domain, Application, Infrastructure, Host, Gateway-маршрут, 5 Host HTTP-тестов и 5 Gateway E2E готовы; остались зелёный прогон CI и техдолг.
+> **Статус:** M2W5–W6 (#50, #51), ветка `feature/51-wallet-deposit-withdraw`. Domain, Application, Infrastructure, Host, Gateway-маршрут, deposit/withdraw, 13 Host HTTP-тестов и 8 Gateway E2E готовы; остались зелёный прогон CI и техдолг.
 >
 > **Связанные документы:** [architecture.ru.md](./architecture.ru.md) · [db-schema.ru.md](./db-schema.ru.md) · [bounded-contexts.md](./bounded-contexts.md)
 
@@ -243,7 +243,7 @@ sequenceDiagram
 |---|---|---|
 | `Wallet` | `Wallets` | `Currency` → `varchar(3)`; `Available/Held` → `numeric(18,4)`; `Status` → `int`; `Version` — concurrency token; `UNIQUE(UserId, Currency)` |
 | `Hold` | `Holds` | `TransferId` — `UNIQUE`; `Status` → `int`; FK `WalletId` |
-| `WalletTransaction` | `WalletTransactions` | `Type` → `int`; `Currency` → `varchar(3)`; индекс `(WalletId, CreatedAt)` |
+| `WalletTransaction` | `WalletTransactions` | `Type` → `int`; `Currency` → `varchar(3)`; индекс `(WalletId, CreatedAt)`; filtered unique `(WalletId, ReferenceId)` для idempotency |
 | `Outbox` | `Outbox` | `Payload` → `jsonb`; `PublishedAt` nullable |
 
 ### 6.2. Кто и как материализует агрегат
@@ -343,10 +343,10 @@ services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<CreateWall
 |---|---|
 | Domain | `Wallet`, `Hold`, `WalletTransaction`, `Money`, `Currency`, события, ошибки — готовы |
 | Infrastructure | `WalletsDbContext` + 4 конфигурации + `AddWalletsInfrastructure` + `EfWalletRepository` + миграция `InitialWallets` |
-| Application | `CreateWallet`/`GetWallet` handlers, `IWalletRepository`, `WalletResult` |
-| Host | `Program.cs`, `WalletsEndpoints`, middleware, JWT; API-тесты в `Host.IntegrationTests` |
-| Gateway | маршрут `/api/wallets/**` → `http://localhost:5200/` добавлен |
-| Tests | `Domain.Tests` 13 + `Host.Tests` 9 + `Infrastructure.Tests` 4 + `Host.IntegrationTests` 5 + `Gateway.Host.IntegrationTests` 5 = **36** |
+| Application | `CreateWallet`/`GetWallet`, `DepositWallet`/`WithdrawWallet`, `WalletOperationGuard`, `IWalletRepository`, `WalletResult` |
+| Host | `Program.cs`, `WalletsEndpoints`, deposit/withdraw, middleware, JWT; API-тесты в `Host.IntegrationTests` |
+| Gateway | маршрут `/api/wallets/**` → `http://localhost:5200/`; deposit/withdraw E2E |
+| Tests | `Domain.Tests` 13 + `Host.Tests` 9 + `Infrastructure.Tests` 4 + `Host.IntegrationTests` 13 + `Gateway.Host.IntegrationTests` 8 = **47** |
 
 Открытые вопросы после миграции:
 
@@ -356,9 +356,8 @@ services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<CreateWall
 4. `TimeProvider`: сейчас `DateTimeOffset.UtcNow`, тесты зависят от часов.
 5. `Outbox`: фабрика/писатель и сериализация `Payload` появятся в M4.
 6. `Freeze/Unfreeze/Close` не реализованы.
-7. `DbUpdateConcurrencyException` (409/retry) не обработан; `DbUpdateException` по unique-индексу маппится в `DomainException(Conflict)`.
-8. `JwtOptions` в Host не используется: `AddJwtBearerFromJwks` читает `IConfiguration` напрямую.
-9. `CreateWalletRequest` не проходит через `ValidationFilter<T>`; невалидная валюта ловится доменом (400).
+7. `JwtOptions` в Host не используется: `AddJwtBearerFromJwks` читает `IConfiguration` напрямую.
+8. `CreateWalletRequest` не проходит через `ValidationFilter<T>`; невалидная валюта ловится доменом (400).
 
 ## 11. Чек-лист для ревью M2W5
 
@@ -373,3 +372,16 @@ services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<CreateWall
 - [x] Миграция создаёт `Wallets`, `Holds`, `WalletTransactions`, `Outbox` и индексы.
 - [x] Тесты домена и API покрывают создание, чтение, ownership и hold-сценарии.
 - [x] E2E через Gateway: 5 тестов (`Gateway.Host.IntegrationTests`).
+
+## 12. Операции deposit/withdraw (#51)
+
+Денежные операции меняют баланс только через агрегат `Wallet`:
+
+- `POST /wallets/{walletId}/deposit` — `Available` растёт, пишется `WalletTransactionType.TopUp`;
+- `POST /wallets/{walletId}/withdraw` — `Available` уменьшается, пишется `WalletTransactionType.Withdrawal`;
+- `GET /wallets/{walletId}` возвращает актуальные `Available`, `Held`, `Total`, `Version`.
+
+Обязательный заголовок `Idempotency-Key` (UUID в MVP) хранится в `WalletTransaction.ReferenceId`; filtered unique index `(WalletId, ReferenceId)` не даёт создать вторую операцию. Повтор с тем же ключом возвращает текущий результат, с другой суммой/типом — 409. `Version` защищает от потерянных обновлений; `DbUpdateConcurrencyException` маппится в 409.
+
+Полное решение и таблица ошибок — [ADR 0006](./adr/0006-wallet-operations-idempotency.md).
+

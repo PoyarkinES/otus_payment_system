@@ -23,16 +23,6 @@ public sealed class GetWalletQueryHandler : IRequestHandler<GetWalletQuery, Wall
         if (wallet.UserId != request.RequesterUserId)
             throw new DomainException("Доступ к чужому кошельку запрещён.", DomainError.Forbidden);
 
-        return new WalletResult(
-            wallet.Id,
-            wallet.UserId,
-            wallet.Currency.Value,
-            wallet.Available,
-            wallet.Held,
-            wallet.Total,
-            wallet.Status.ToString(),
-            wallet.Version,
-            wallet.CreatedAt,
-            wallet.UpdatedAt);
+        return WalletResult.From(wallet);
     }
 }

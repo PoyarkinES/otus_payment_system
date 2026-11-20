@@ -29,6 +29,9 @@ artifacts/
 *.snupkg
 packages/
 
+## Local docker overrides
+docker-compose.override.yml
+
 ## Test results
 TestResults/
 *.trx
