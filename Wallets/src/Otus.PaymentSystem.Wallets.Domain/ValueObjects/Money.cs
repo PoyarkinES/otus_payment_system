@@ -24,7 +24,7 @@ namespace Otus.PaymentSystem.Wallets.Domain.ValueObjects
         public static Money Create(decimal amount, Currency currency)
         {
             if (amount < 0)
-                throw new ArgumentException("Сумма не может быть отрицательной.", nameof(amount));
+                throw new DomainException("Сумма не может быть отрицательной.");
             if (currency is null)
                 throw new DomainException("Валюта обязательна.");
             if (decimal.Round(amount, 4) != amount)

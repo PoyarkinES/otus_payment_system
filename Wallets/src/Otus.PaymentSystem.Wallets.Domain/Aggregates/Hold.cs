@@ -12,6 +12,7 @@ namespace Otus.PaymentSystem.Wallets.Domain.Aggregates
         public Guid WalletId { get; private set; }
         public Guid TransferId { get; private set; }
         public Guid UserId { get; private set; }
+        public Guid RecipientUserId { get; private set; }
         public decimal Amount { get; private set; }
         public HoldStatus Status { get; private set; }
         public DateTimeOffset CreatedAt { get; private set; }
@@ -25,7 +26,7 @@ namespace Otus.PaymentSystem.Wallets.Domain.Aggregates
         /// </remarks>
         private Hold() { }
 
-        internal Hold(Guid walletId, Guid transferId, Guid userId, decimal amount)
+        internal Hold(Guid walletId, Guid transferId, Guid userId, Guid recipientUserId, decimal amount)
         {
             if (amount <= 0)
                 throw new DomainException("Сумма холда должна быть больше нуля.");
@@ -33,10 +34,17 @@ namespace Otus.PaymentSystem.Wallets.Domain.Aggregates
             if (transferId == Guid.Empty)
                 throw new DomainException("TransferId не может быть пустым.");
 
+            if (userId == Guid.Empty)
+                throw new DomainException("UserId не может быть пустым.");
+
+            if (recipientUserId == Guid.Empty)
+                throw new DomainException("RecipientUserId не может быть пустым.");
+
             Id = Guid.NewGuid();
             WalletId = walletId;
             TransferId = transferId;
             UserId = userId;
+            RecipientUserId = recipientUserId;
             Amount = amount;
             Status = HoldStatus.Active;
             CreatedAt = DateTimeOffset.UtcNow;

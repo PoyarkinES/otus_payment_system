@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Otus.PaymentSystem.Wallets.Application.Exceptions;
 using Otus.PaymentSystem.Wallets.Domain.Aggregates;
-using Otus.PaymentSystem.Wallets.Domain.Exceptions;
 using Otus.PaymentSystem.Wallets.Domain.ValueObjects;
 using Otus.PaymentSystem.Wallets.Infrastructure.Persistence;
 
@@ -25,13 +25,14 @@ public class EfWalletRepositoryPostgresTests : IClassFixture<PostgresFixture>
     {
         var userId = Guid.NewGuid();
         var transferId = Guid.NewGuid();
+        var recipientId = Guid.NewGuid();
 
         await using (var db = CreateDbContext())
         {
             var repo = new EfWalletRepository(db);
             var wallet = Wallet.Create(userId, Currency.Rub);
             wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
-            wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), userId);
+            wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), userId, recipientId);
 
             await repo.AddAsync(wallet);
             await repo.SaveChangesAsync();
@@ -56,6 +57,7 @@ public class EfWalletRepositoryPostgresTests : IClassFixture<PostgresFixture>
     {
         var userId = Guid.NewGuid();
         var transferId = Guid.NewGuid();
+        var recipientId = Guid.NewGuid();       
         Guid walletId;
 
         await using (var db = CreateDbContext())
@@ -63,7 +65,7 @@ public class EfWalletRepositoryPostgresTests : IClassFixture<PostgresFixture>
             var repo = new EfWalletRepository(db);
             var wallet = Wallet.Create(userId, Currency.Rub);
             wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
-            wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), userId);
+            wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), userId, recipientId);
             await repo.AddAsync(wallet);
             await repo.SaveChangesAsync();
             walletId = wallet.Id;
@@ -75,7 +77,7 @@ public class EfWalletRepositoryPostgresTests : IClassFixture<PostgresFixture>
             var loaded = await repo.GetByIdAsync(walletId);
 
             Assert.NotNull(loaded);
-            var second = loaded!.PlaceHold(transferId, Money.Create(30m, Currency.Rub), userId);
+            loaded!.PlaceHold(transferId, Money.Create(30m, Currency.Rub), userId, recipientId);
 
             Assert.Single(loaded.Holds); // идемпотентность после Include(Holds)
             Assert.Equal(70m, loaded.Available);
@@ -84,32 +86,154 @@ public class EfWalletRepositoryPostgresTests : IClassFixture<PostgresFixture>
     }
 
     [Fact]
-    public async Task SaveChangesAsync_DuplicateTransferId_ThrowsDomainExceptionConflict()
+    public async Task SaveChanges_DuplicateTransferId_ThrowsDuplicateHoldException()
     {
         var userId = Guid.NewGuid();
         var transferId = Guid.NewGuid();
+        var recipientId = Guid.NewGuid();
 
         await using (var db = CreateDbContext())
         {
             var repo = new EfWalletRepository(db);
             var wallet = Wallet.Create(userId, Currency.Rub);
             wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
-            wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), userId);
+            wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), userId, recipientId);
             await repo.AddAsync(wallet);
             await repo.SaveChangesAsync();
         }
 
-        // второй кошелёк с тем же TransferId → UNIQUE(Holds.TransferId) → DbUpdateException → DomainException
         await using (var db = CreateDbContext())
         {
             var repo = new EfWalletRepository(db);
             var other = Wallet.Create(Guid.NewGuid(), Currency.Rub);
             other.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
-            other.PlaceHold(transferId, Money.Create(10m, Currency.Rub), other.UserId);
+            other.PlaceHold(transferId, Money.Create(10m, Currency.Rub), other.UserId, recipientId);
             await repo.AddAsync(other);
 
-            await Assert.ThrowsAsync<DomainException>(() => repo.SaveChangesAsync());
+            await Assert.ThrowsAsync<DuplicateHoldException>(() => repo.SaveChangesAsync());
         }
+    }
+
+    [Fact]
+    public async Task GetByHoldIdAsync_ReturnsWalletWithHoldAndTransactions()
+    {
+        var userId = Guid.NewGuid();
+        var recipientId = Guid.NewGuid();
+        var transferId = Guid.NewGuid();
+        Guid walletId;
+        Guid holdId;
+
+        await using (var db = CreateDbContext())
+        {
+            var repo = new EfWalletRepository(db);
+            var wallet = Wallet.Create(userId, Currency.Rub);
+            wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
+            var hold = wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), userId, recipientId);
+            await repo.AddAsync(wallet);
+            await repo.SaveChangesAsync();
+            walletId = wallet.Id;
+            holdId = hold.Id;
+        }
+
+        await using (var db = CreateDbContext())
+        {
+            var repo = new EfWalletRepository(db);
+            var loaded = await repo.GetByHoldIdAsync(holdId);
+
+            Assert.NotNull(loaded);
+            Assert.Equal(walletId, loaded!.Id);
+            Assert.Single(loaded.Holds);
+            Assert.Equal(recipientId, Assert.Single(loaded.Holds).RecipientUserId);
+            Assert.Single(loaded.Transactions);
+        }
+    }
+
+    [Fact]
+    public async Task GetByTransferIdAsync_ReturnsOwningWallet()
+    {
+        var userId = Guid.NewGuid();
+        var recipientId = Guid.NewGuid();
+        var transferId = Guid.NewGuid();
+        Guid walletId;
+
+        await using (var db = CreateDbContext())
+        {
+            var repo = new EfWalletRepository(db);
+            var wallet = Wallet.Create(userId, Currency.Rub);
+            wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
+            wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), userId, recipientId);
+            await repo.AddAsync(wallet);
+            await repo.SaveChangesAsync();
+            walletId = wallet.Id;
+        }
+
+        await using (var db = CreateDbContext())
+        {
+            var repo = new EfWalletRepository(db);
+            var loaded = await repo.GetByTransferIdAsync(transferId);
+
+            Assert.NotNull(loaded);
+            Assert.Equal(walletId, loaded!.Id);
+            Assert.Single(loaded.Holds);
+            Assert.Equal(recipientId, Assert.Single(loaded.Holds).RecipientUserId);
+        }
+    }
+
+    [Fact]
+    public async Task GetByHoldIdAsync_UnknownId_ReturnsNull()
+    {
+        await using var db = CreateDbContext();
+        var repo = new EfWalletRepository(db);
+
+        Assert.Null(await repo.GetByHoldIdAsync(Guid.NewGuid()));
+        Assert.Null(await repo.GetByTransferIdAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task SaveChanges_DuplicateUserCurrency_ThrowsDuplicateWalletException()
+    {
+        var userId = Guid.NewGuid();
+        await using var db = CreateDbContext();
+        var repo = new EfWalletRepository(db);
+        await repo.AddAsync(Wallet.Create(userId, Currency.Rub));
+        await repo.SaveChangesAsync();
+
+        await repo.AddAsync(Wallet.Create(userId, Currency.Rub));
+
+        await Assert.ThrowsAsync<DuplicateWalletException>(() => repo.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task SaveChanges_ConcurrentUpdate_ThrowsWalletConcurrencyException()
+    {
+        var userId = Guid.NewGuid();
+        Guid walletId;
+
+        await using (var db = CreateDbContext())
+        {
+            var repo = new EfWalletRepository(db);
+            var wallet = Wallet.Create(userId, Currency.Rub);
+            wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
+            await repo.AddAsync(wallet);
+            await repo.SaveChangesAsync();
+            walletId = wallet.Id;
+        }
+
+        await using var dbB = CreateDbContext();
+        await using var dbC = CreateDbContext();
+        var repoB = new EfWalletRepository(dbB);
+        var repoC = new EfWalletRepository(dbC);
+        var walletB = await repoB.GetByIdAsync(walletId);
+        var walletC = await repoC.GetByIdAsync(walletId);
+
+        Assert.NotNull(walletB);
+        Assert.NotNull(walletC);
+        walletB!.Deposit(Money.Create(10m, Currency.Rub), Guid.NewGuid());
+        walletC!.Deposit(Money.Create(20m, Currency.Rub), Guid.NewGuid());
+
+        await repoB.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<WalletConcurrencyException>(() => repoC.SaveChangesAsync());
     }
 
     [Fact]

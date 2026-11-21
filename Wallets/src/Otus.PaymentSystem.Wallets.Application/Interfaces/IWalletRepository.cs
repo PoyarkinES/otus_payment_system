@@ -6,6 +6,8 @@ namespace Otus.PaymentSystem.Wallets.Application.Interfaces;
 public interface IWalletRepository
 {
     Task<Wallet?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Wallet?> GetByHoldIdAsync(Guid holdId, CancellationToken cancellationToken = default);
+    Task<Wallet?> GetByTransferIdAsync(Guid transferId, CancellationToken cancellationToken = default);
     Task<Wallet?> GetByUserAndCurrencyAsync(Guid userId, Currency currency, CancellationToken cancellationToken = default);
     Task<bool> ExistsAsync(Guid userId, Currency currency, CancellationToken cancellationToken = default);
     Task AddAsync(Wallet wallet, CancellationToken cancellationToken = default);

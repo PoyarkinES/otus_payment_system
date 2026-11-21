@@ -140,7 +140,8 @@ erDiagram
 | `Id` | `uuid` | PK |
 | `WalletId` | `uuid` | FK → `Wallets.Id` |
 | `TransferId` | `uuid` | UNIQUE, идемпотентность от Payments |
-| `UserId` | `uuid` | NOT NULL |
+| `UserId` | `uuid` | NOT NULL, плательщик |
+| `RecipientUserId` | `uuid` | NOT NULL, получатель перевода |
 | `Amount` | `numeric(18,4)` | NOT NULL, > 0 |
 | `Status` | `integer` | Active / Completed / Released / Expired |
 | `CreatedAt` | `timestamptz` | NOT NULL |
@@ -149,6 +150,8 @@ erDiagram
 `UNIQUE (TransferId)` — ключевое ограничение: повторный `hold` с тем же `transferId` возвращает существующий hold.
 
 Валюта холда отдельно не хранится: она равна валюте кошелька.
+
+Получатель хранится в холде (`RecipientUserId`): `confirm` не принимает его в запросе и берёт из холда — см. [ADR 0007](./adr/0007-wallet-holds.md).
 
 ### 2.3. `WalletTransactions` ✅
 
@@ -203,6 +206,7 @@ erDiagram
         uuid Id PK
         uuid WalletId FK
         uuid TransferId UK
+        uuid RecipientUserId
         numeric Amount
         int Status
     }
