@@ -105,6 +105,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
    .AllowAnonymous();
 
 app.MapWalletsEndpoints();
+app.MapWalletHoldsEndpoints();
 
 try
 {

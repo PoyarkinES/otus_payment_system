@@ -76,7 +76,7 @@ public static class WalletsEndpoints
         return Results.Ok(result);
     }
 
-    private static Guid? GetUserId(ClaimsPrincipal user)
+    internal static Guid? GetUserId(ClaimsPrincipal user)
     {
         string? sub = user.FindFirst("sub")?.Value;
         return Guid.TryParse(sub, out var id) ? id : null;
