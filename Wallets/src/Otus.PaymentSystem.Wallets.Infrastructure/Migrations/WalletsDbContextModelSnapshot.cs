@@ -121,7 +121,12 @@ namespace Otus.PaymentSystem.Wallets.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_Wallets_UserId_Currency");
 
-                    b.ToTable("Wallets", (string)null);
+                    b.ToTable("Wallets", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Wallets_Available_NonNegative", "\"Available\" >= 0");
+
+                            t.HasCheckConstraint("CK_Wallets_Held_NonNegative", "\"Held\" >= 0");
+                        });
                 });
 
             modelBuilder.Entity("Otus.PaymentSystem.Wallets.Domain.Aggregates.WalletTransaction", b =>

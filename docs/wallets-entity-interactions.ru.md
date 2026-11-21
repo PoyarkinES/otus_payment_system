@@ -352,12 +352,11 @@ services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<CreateWall
 
 1. CI workflow добавлен, но `on: push/pull_request: branches: [main]` — на feature-ветке прогона нет; зелёный CI пока не подтверждён.
 2. Локальная конфигурация: `appsettings.Development` — compose-стиль (`postgres:5432`, `identity:8080`); Wallets в compose нет, локально нужны env-переопределения.
-3. `CHECK (Available >= 0)`/`Held >= 0` в БД — нет, только доменные проверки.
-4. `TimeProvider`: сейчас `DateTimeOffset.UtcNow`, тесты зависят от часов.
-5. `Outbox`: фабрика/писатель и сериализация `Payload` появятся в M4.
-6. `Freeze/Unfreeze/Close` не реализованы.
-7. `JwtOptions` в Host не используется: `AddJwtBearerFromJwks` читает `IConfiguration` напрямую.
-8. `CreateWalletRequest` не проходит через `ValidationFilter<T>`; невалидная валюта ловится доменом (400).
+3. `TimeProvider`: сейчас `DateTimeOffset.UtcNow`, тесты зависят от часов.
+4. `Outbox`: фабрика/писатель и сериализация `Payload` появятся в M4.
+5. `Freeze/Unfreeze/Close` не реализованы.
+6. `JwtOptions` в Host не используется: `AddJwtBearerFromJwks` читает `IConfiguration` напрямую.
+7. `CreateWalletRequest` не проходит через `ValidationFilter<T>`; невалидная валюта ловится доменом (400).
 
 ## 11. Чек-лист для ревью M2W5
 

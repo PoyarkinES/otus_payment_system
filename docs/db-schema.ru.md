@@ -106,7 +106,7 @@ erDiagram
 >
 > **Подключение:** `ConnectionStrings:WalletsDb` (`ConnectionStrings__WalletsDb` в compose/окружении). В `appsettings.Development.json` уже есть; сервис Wallets в `docker-compose.yml` пока не добавлен, поэтому compose-ключ появится вместе с Host.
 
-Схема создана миграцией `20261113133347_InitialWallets` и применена к `otus_wallets`. Целевые таблицы — [architecture.ru.md](./architecture.ru.md:225) и [bounded-contexts.md](./bounded-contexts.md:150).
+Схема создана миграцией `20261113133347_InitialWallets`, CHECK-ограничения — миграцией `20261121064406_AddWalletBalanceChecks`; обе применены к `otus_wallets`. Целевые таблицы — [architecture.ru.md](./architecture.ru.md:225) и [bounded-contexts.md](./bounded-contexts.md:150).
 
 ### 2.1. `Wallets` ✅
 
@@ -126,7 +126,12 @@ erDiagram
 
 `Status` хранится числом, наружу отдаётся строкой (как `UserStatus`, #108). `Version` — concurrency token: EF обновляет строку с `WHERE Version = @old`.
 
-`CHECK (Available >= 0)` и `CHECK (Held >= 0)` в БД пока **не созданы** — инвариант держится на доменных проверках (`Wallet.Withdraw/PlaceHold`). Добавить отдельной миграцией, если нужен DB-level guard.
+`CHECK ("Available" >= 0)` и `CHECK ("Held" >= 0)` созданы миграцией `AddWalletBalanceChecks`:
+
+- `CK_Wallets_Available_NonNegative`;
+- `CK_Wallets_Held_NonNegative`.
+
+Доменные проверки остаются первичными, БД-ограничения — дополнительный guard.
 
 ### 2.2. `Holds` ✅
 
