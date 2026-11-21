@@ -497,8 +497,8 @@ Postgres-тесты запускаются с `IDENTITY_TEST_DB` (см. [testing
 |---|---|---|
 | Identity | ✅ M1 | поддержка, события — M4 |
 | Gateway/BFF | ✅ M1 | маршрут Wallets и 8 E2E добавлены; зелёный CI — при PR в main |
-| PostgreSQL + миграции | ✅ Identity + Wallets | миграция Wallets применена; CHECK-ограничения — позже |
-| Wallets | 🟡 домен + Host + Gateway + 47 тестов | зелёный CI (PR в main), CHECK, техдолг |
+| PostgreSQL + миграции | ✅ Identity + Wallets | миграции Wallets и CHECK-ограничения применены |
+| Wallets | 🟡 домен + Host + Gateway + 47 тестов | зелёный CI (PR в main), техдолг |
 | Payments | ⚪ каркас | M3 |
 | Fraud | ⚪ каркас | M5 |
 | Notifications/Audit | ⚪ каркас | M4 |
@@ -508,10 +508,10 @@ Postgres-тесты запускаются с `IDENTITY_TEST_DB` (см. [testing
 
 1. CI workflow добавлен, но `on: push/pull_request: branches: [main]` — на feature-ветке `50ab97f` прогона нет; зелёный CI не подтверждён.
 2. `WalletsDb`/`JwksUri` в `appsettings.Development` — compose-стиль; Wallets в compose нет, локально нужны env.
-3. `CHECK (Available >= 0)`/`Held >= 0` в БД нет; `TimeProvider`, `Outbox`, `Freeze/Close`, `DbUpdateConcurrencyException` — открыты.
-5. У Identity доменные события не публикуются и не очищаются; outbox появится в M4.
-6. `User.Version` не concurrency token; гонки профиля возможны.
-7. Service-to-service auth отсутствует; `X-User-Id` доверяется внутри сети.
+3. `TimeProvider`, `Outbox`, `Freeze/Close` — открыты; `DbUpdateConcurrencyException` обработан в Wallets.
+4. У Identity доменные события не публикуются и не очищаются; outbox появится в M4.
+5. `User.Version` не concurrency token; гонки профиля возможны.
+6. Service-to-service auth отсутствует; `X-User-Id` доверяется внутри сети.
 
 Зависимости:
 

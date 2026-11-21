@@ -73,5 +73,11 @@ public sealed class WalletConfiguration : IEntityTypeConfiguration<Wallet>
 
         builder.Navigation(w => w.Transactions)
             .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.ToTable("Wallets", table =>
+        {
+            table.HasCheckConstraint("CK_Wallets_Available_NonNegative", "\"Available\" >= 0");
+            table.HasCheckConstraint("CK_Wallets_Held_NonNegative", "\"Held\" >= 0");
+        });
     }
 }
