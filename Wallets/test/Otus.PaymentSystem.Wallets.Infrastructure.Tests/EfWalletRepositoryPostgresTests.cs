@@ -255,4 +255,147 @@ public class EfWalletRepositoryPostgresTests : IClassFixture<PostgresFixture>
             Assert.False(await repo.ExistsAsync(Guid.NewGuid(), Currency.Rub));
         }
     }
+
+    [Fact]
+    public async Task GetTransactionsPageAsync_ReturnsRequestedPage_AndTotalCount()
+    {
+        var userId = Guid.NewGuid();
+        Guid walletId;
+
+        await using (var db = CreateDbContext())
+        {
+            var repo = new EfWalletRepository(db);
+            var wallet = Wallet.Create(userId, Currency.Rub);
+            for (var i = 0; i < 5; i++)
+            {
+                wallet.Deposit(Money.Create(1m, Currency.Rub), Guid.NewGuid());
+            }
+
+            await repo.AddAsync(wallet);
+            await repo.SaveChangesAsync();
+            walletId = wallet.Id;
+        }
+
+        await using (var db = CreateDbContext())
+        {
+            var repo = new EfWalletRepository(db);
+
+            var page = await repo.GetTransactionsPageAsync(walletId, page: 1, pageSize: 2);
+
+            Assert.Equal(2, page.Items.Count);
+            Assert.Equal(5, page.TotalCount);
+        }
+    }
+
+    [Fact]
+    public async Task GetTransactionsPageAsync_OrdersByCreatedAtDesc_ThenId()
+    {
+        var userId = Guid.NewGuid();
+        Guid walletId;
+        Guid firstId;
+        Guid secondId;
+        Guid newestId;
+
+        await using (var db = CreateDbContext())
+        {
+            var repo = new EfWalletRepository(db);
+            var wallet = Wallet.Create(userId, Currency.Rub);
+            wallet.Deposit(Money.Create(1m, Currency.Rub), Guid.NewGuid());
+            wallet.Deposit(Money.Create(1m, Currency.Rub), Guid.NewGuid());
+            wallet.Deposit(Money.Create(1m, Currency.Rub), Guid.NewGuid());
+            var transactions = wallet.Transactions.OrderBy(t => t.BalanceBefore).ToArray();
+            firstId = transactions[0].Id;
+            secondId = transactions[1].Id;
+            newestId = transactions[2].Id;
+
+            await repo.AddAsync(wallet);
+            await repo.SaveChangesAsync();
+            walletId = wallet.Id;
+        }
+
+        var olderAt = DateTimeOffset.UtcNow.AddMinutes(-2);
+        var newerAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        await using (var db = CreateDbContext())
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE \"WalletTransactions\" SET \"CreatedAt\" = {olderAt} WHERE \"Id\" = {firstId}");
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE \"WalletTransactions\" SET \"CreatedAt\" = {olderAt} WHERE \"Id\" = {secondId}");
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE \"WalletTransactions\" SET \"CreatedAt\" = {newerAt} WHERE \"Id\" = {newestId}");
+        }
+
+        await using (var db = CreateDbContext())
+        {
+            var repo = new EfWalletRepository(db);
+            var page = await repo.GetTransactionsPageAsync(walletId, page: 1, pageSize: 3);
+
+            Assert.Equal(newestId, page.Items.First().Id);
+            var tiedIds = page.Items.Skip(1).Select(transaction => transaction.Id).ToArray();
+            var expectedTiedIds = await db.WalletTransactions
+                .Where(transaction => transaction.Id == firstId || transaction.Id == secondId)
+                .OrderByDescending(transaction => transaction.Id)
+                .Select(transaction => transaction.Id)
+                .ToArrayAsync();
+            Assert.Equal(expectedTiedIds, tiedIds);
+        }
+    }
+
+    [Fact]
+    public async Task ListByUserAsync_ReturnsOnlyOwnWallets()
+    {
+        var userId = Guid.NewGuid();
+        var rubWallet = Wallet.Create(userId, Currency.Rub);
+        var ownWalletIds = new[] { rubWallet.Id };
+
+        await using (var db = CreateDbContext())
+        {
+            var repo = new EfWalletRepository(db);
+            await repo.AddAsync(rubWallet);
+            await repo.AddAsync(Wallet.Create(Guid.NewGuid(), Currency.Rub));
+            await repo.AddAsync(Wallet.Create(Guid.NewGuid(), Currency.Rub));
+            await repo.SaveChangesAsync();
+        }
+
+        await using (var db = CreateDbContext())
+        {
+            var repo = new EfWalletRepository(db);
+
+            var wallets = await repo.ListByUserAsync(userId);
+
+            Assert.Single(wallets);
+            Assert.Equal(ownWalletIds.OrderBy(id => id), wallets.Select(wallet => wallet.Id).OrderBy(id => id));
+            Assert.All(wallets, wallet => Assert.Equal(userId, wallet.UserId));
+        }
+    }
+
+    [Fact]
+    public async Task GetByIdLightAsync_ReturnsWalletWithoutChildren()
+    {
+        var userId = Guid.NewGuid();
+        Guid walletId;
+
+        await using (var db = CreateDbContext())
+        {
+            var repo = new EfWalletRepository(db);
+            var wallet = Wallet.Create(userId, Currency.Rub);
+            wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
+            wallet.PlaceHold(Guid.NewGuid(), Money.Create(30m, Currency.Rub), userId, Guid.NewGuid());
+            await repo.AddAsync(wallet);
+            await repo.SaveChangesAsync();
+            walletId = wallet.Id;
+        }
+
+        await using (var db = CreateDbContext())
+        {
+            var repo = new EfWalletRepository(db);
+
+            var loaded = await repo.GetByIdLightAsync(walletId);
+
+            Assert.NotNull(loaded);
+            Assert.Equal(walletId, loaded!.Id);
+            Assert.Empty(loaded.Holds);
+            Assert.Empty(loaded.Transactions);
+        }
+    }
 }

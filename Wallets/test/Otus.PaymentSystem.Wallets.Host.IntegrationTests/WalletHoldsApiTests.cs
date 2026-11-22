@@ -54,6 +54,35 @@ namespace Otus.PaymentSystem.Wallets.Host.IntegrationTests
         }
 
         [Fact]
+        public async Task Post_Hold_SameTransferIdConcurrently_ReturnsExistingHold_AndDoesNotDoubleHold()
+        {
+            var client = CreateClient(Guid.NewGuid());
+            var walletId = await CreateFundedWalletAsync(client);
+            var transferId = Guid.NewGuid();
+            var recipientId = Guid.NewGuid();
+
+            var responses = await Task.WhenAll(
+                PostHoldAsync(client, walletId, transferId, 30m, recipientId),
+                PostHoldAsync(client, walletId, transferId, 30m, recipientId));
+
+            Assert.All(responses, response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
+            var holds = await Task.WhenAll(
+                responses.Select(response => response.Content.ReadFromJsonAsync<HoldResponse>()));
+            Assert.All(holds, Assert.NotNull);
+            Assert.Equal(holds[0]!.Id, holds[1]!.Id);
+
+            var balance = await GetWalletBalanceAsync(client, walletId);
+            Assert.Equal(70m, balance.Available);
+            Assert.Equal(30m, balance.Held);
+            Assert.Equal(1, await CountHoldsByTransferIdAsync(transferId));
+
+            foreach (var response in responses)
+            {
+                response.Dispose();
+            }
+        }
+
+        [Fact]
         public async Task Post_Hold_SameTransferIdDifferentAmount_Returns409()
         {
             var client = CreateClient(Guid.NewGuid());
@@ -151,6 +180,34 @@ namespace Otus.PaymentSystem.Wallets.Host.IntegrationTests
 
             recipientBalance = await GetRecipientBalanceAsync(recipientId);
             Assert.Equal(30m, recipientBalance.Available);
+        }
+
+        [Fact]
+        public async Task Post_ConfirmHold_Concurrently_CreditsRecipientOnce()
+        {
+            var senderId = Guid.NewGuid();
+            var recipientId = Guid.NewGuid();
+            var client = CreateClient(senderId);
+            var walletId = await CreateFundedWalletAsync(client);
+            using var placeHold = await PostHoldAsync(client, walletId, Guid.NewGuid(), 30m, recipientId);
+            var hold = await placeHold.Content.ReadFromJsonAsync<HoldResponse>();
+            Assert.NotNull(hold);
+
+            var responses = await Task.WhenAll(
+                PostHoldActionAsync(client, hold!.Id, "confirm"),
+                PostHoldActionAsync(client, hold.Id, "confirm"));
+
+            Assert.All(responses, response => Assert.Equal(HttpStatusCode.NoContent, response.StatusCode));
+            var senderBalance = await GetWalletBalanceAsync(client, walletId);
+            Assert.Equal(70m, senderBalance.Available);
+            Assert.Equal(0m, senderBalance.Held);
+            var recipientBalance = await GetRecipientBalanceAsync(recipientId);
+            Assert.Equal(30m, recipientBalance.Available);
+
+            foreach (var response in responses)
+            {
+                response.Dispose();
+            }
         }
 
         [Fact]
@@ -280,6 +337,13 @@ namespace Otus.PaymentSystem.Wallets.Host.IntegrationTests
                 .Where(wallet => wallet.UserId == recipientId)
                 .Select(wallet => new WalletBalanceResponse(wallet.Available, wallet.Held))
                 .SingleAsync();
+        }
+
+        private async Task<int> CountHoldsByTransferIdAsync(Guid transferId)
+        {
+            using var scope = _factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<WalletsDbContext>();
+            return await db.Holds.CountAsync(hold => hold.TransferId == transferId);
         }
 
         private sealed record WalletIdResponse(Guid Id);

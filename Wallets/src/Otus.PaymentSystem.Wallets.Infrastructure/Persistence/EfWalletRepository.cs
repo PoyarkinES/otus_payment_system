@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Otus.PaymentSystem.Wallets.Application.Contracts;
 using Otus.PaymentSystem.Wallets.Application.Exceptions;
 using Otus.PaymentSystem.Wallets.Application.Interfaces;
 using Otus.PaymentSystem.Wallets.Domain.Aggregates;
@@ -98,5 +99,36 @@ public sealed class EfWalletRepository(WalletsDbContext db) : IWalletRepository
             db.ChangeTracker.Clear();
             throw new DomainException("Нарушено уникальное ограничение.", DomainError.Conflict);
         }
+    }
+
+    public async Task<Wallet?> GetByIdLightAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+       return await db.Wallets
+            .AsNoTracking()
+            .FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
+    }
+
+    public async Task<PagedWalletTransactions> GetTransactionsPageAsync(Guid walletId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var skip = (page - 1) * pageSize;
+        var totalCount = await db.WalletTransactions.CountAsync(t => t.WalletId == walletId, cancellationToken);
+        List<WalletTransaction> transactions = await db.WalletTransactions
+            .AsNoTracking()
+            .Where(t => t.WalletId == walletId)
+            .OrderByDescending(t => t.CreatedAt)
+            .ThenByDescending(t => t.Id)
+            .Skip(skip)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+        return new PagedWalletTransactions(transactions, totalCount);
+    }
+
+    public async Task<IReadOnlyCollection<Wallet>> ListByUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await db.Wallets
+            .AsNoTracking()
+            .Where(w => w.UserId == userId)
+            .OrderBy(w => w.Currency)
+            .ToListAsync(cancellationToken);
     }
 }

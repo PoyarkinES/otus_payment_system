@@ -48,6 +48,10 @@ namespace Otus.PaymentSystem.Wallets.Application.Commands.ConfirmHold
                     when (attempt < 2)
                 {
                 }
+                catch (DuplicateWalletOperationException)
+                    when (attempt < 2)
+                {
+                }
                 catch (WalletConcurrencyException)
                     when (attempt < 2)
                 {

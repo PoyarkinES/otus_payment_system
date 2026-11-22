@@ -47,24 +47,36 @@ namespace Otus.PaymentSystem.Wallets.Application.Commands.PlaceHold
             }
             catch (DuplicateHoldException)
             {
-                var owner = await wallets.GetByTransferIdAsync(request.TransferId, cancellationToken);
-                if (owner is null)
-                    throw new DomainException("Холд с таким TransferId уже существует.", DomainError.Conflict);
-
-                if (owner.UserId != request.UserId)
-                    throw new DomainException("TransferId уже использован другим кошельком.", DomainError.Conflict);
-
-                var racedHold = owner.Holds.FirstOrDefault(h => h.TransferId == request.TransferId);
-                if (racedHold is null)
-                    throw new DomainException("Холд с таким TransferId уже существует.", DomainError.Conflict);
-
-                WalletOperationGuard.EnsureSameHoldParameters(
-                    racedHold,
-                    amount.Amount,
-                    request.RecipientUserId);
-
-                return HoldResult.From(racedHold, owner.Currency);
+                return await RecoverExistingHoldAsync(request, amount.Amount, cancellationToken);
             }
+            catch (WalletConcurrencyException)
+            {
+                return await RecoverExistingHoldAsync(request, amount.Amount, cancellationToken);
+            }
+        }
+
+        private async Task<HoldResult> RecoverExistingHoldAsync(
+            PlaceHoldCommand request,
+            decimal amount,
+            CancellationToken cancellationToken)
+        {
+            var owner = await wallets.GetByTransferIdAsync(request.TransferId, cancellationToken);
+            if (owner is null)
+                throw new DomainException("Холд с таким TransferId уже существует.", DomainError.Conflict);
+
+            if (owner.UserId != request.UserId)
+                throw new DomainException("TransferId уже использован другим кошельком.", DomainError.Conflict);
+
+            var racedHold = owner.Holds.FirstOrDefault(h => h.TransferId == request.TransferId);
+            if (racedHold is null)
+                throw new DomainException("Холд с таким TransferId уже существует.", DomainError.Conflict);
+
+            WalletOperationGuard.EnsureSameHoldParameters(
+                racedHold,
+                amount,
+                request.RecipientUserId);
+
+            return HoldResult.From(racedHold, owner.Currency);
         }
 
         private async Task<Wallet> GetOwnedWallet(Guid walletId, Guid userId, CancellationToken ct)
