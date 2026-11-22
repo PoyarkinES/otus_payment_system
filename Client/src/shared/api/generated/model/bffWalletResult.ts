@@ -8,11 +8,14 @@
 import type { BffWalletOperationResult } from './bffWalletOperationResult';
 
 export interface BffWalletResult {
-    id: string;
-    currency: string;
-    available: number;
-    held: number;
-    total: number;
-    status: string;
-    recentOperations: BffWalletOperationResult[];
+    id?: string;
+    /** @nullable */
+    currency?: string | null;
+    available?: number;
+    held?: number;
+    total?: number;
+    /** @nullable */
+    status?: string | null;
+    /** @nullable */
+    recentOperations?: BffWalletOperationResult[] | null;
 }

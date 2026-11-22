@@ -9,6 +9,8 @@ import type { BffWalletCurrencyTotalResult } from './bffWalletCurrencyTotalResul
 import type { BffWalletResult } from './bffWalletResult';
 
 export interface BffWalletsResult {
-    wallets: BffWalletResult[];
-    totals: BffWalletCurrencyTotalResult[];
+    /** @nullable */
+    wallets?: BffWalletResult[] | null;
+    /** @nullable */
+    totals?: BffWalletCurrencyTotalResult[] | null;
 }
