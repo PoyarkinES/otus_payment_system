@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using MediatR;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using Otus.PaymentSystem.Wallets.Application.Commands.CreateWallet;
 using Otus.PaymentSystem.Wallets.Application.Contracts;
 using Otus.PaymentSystem.Wallets.Application.Queries.GetWallet;

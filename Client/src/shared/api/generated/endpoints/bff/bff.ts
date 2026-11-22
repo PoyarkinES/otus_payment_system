@@ -18,7 +18,13 @@ import type {
     UseQueryResult,
 } from '@tanstack/react-query';
 
-import type { BffHealthResult, BffMeResult, ProblemDetails } from '../../model';
+import type {
+    BffHealthResult,
+    BffMeResult,
+    BffWalletsParams,
+    BffWalletsResult,
+    ProblemDetails,
+} from '../../model';
 
 import { apiFetch } from '../../../http';
 import type { ErrorType } from '../../../http';
@@ -290,6 +296,195 @@ export function useBffHealth<
     queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
     const queryOptions = getBffHealthQueryOptions(options);
+
+    const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+        queryKey: DataTag<QueryKey, TData, TError>;
+    };
+
+    return withQueryKey(query, queryOptions.queryKey);
+}
+
+export type bffWalletsResponse200 = {
+    data: BffWalletsResult;
+    status: 200;
+};
+
+export type bffWalletsResponse400 = {
+    data: ProblemDetails;
+    status: 400;
+};
+
+export type bffWalletsResponse401 = {
+    data: ProblemDetails;
+    status: 401;
+};
+
+export type bffWalletsResponse429 = {
+    data: ProblemDetails;
+    status: 429;
+};
+
+export type bffWalletsResponse502 = {
+    data: ProblemDetails;
+    status: 502;
+};
+
+export type bffWalletsResponse503 = {
+    data: ProblemDetails;
+    status: 503;
+};
+
+export type bffWalletsResponseSuccess = bffWalletsResponse200 & {
+    headers: Headers;
+};
+export type bffWalletsResponseError = (
+    | bffWalletsResponse400
+    | bffWalletsResponse401
+    | bffWalletsResponse429
+    | bffWalletsResponse502
+    | bffWalletsResponse503
+) & {
+    headers: Headers;
+};
+
+export type bffWalletsResponse = bffWalletsResponseSuccess | bffWalletsResponseError;
+
+export const getBffWalletsUrl = (params?: BffWalletsParams) => {
+    const normalizedParams = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined) {
+            normalizedParams.append(key, value === null ? 'null' : String(value));
+        }
+    });
+
+    const stringifiedParams = normalizedParams.toString();
+
+    return stringifiedParams.length > 0 ? `/bff/wallets?${stringifiedParams}` : `/bff/wallets`;
+};
+
+/**
+ * Возвращает кошельки, суммы по валютам и последние операции. recentOperations по умолчанию равен 5; допустимый диапазон — 0..20.
+ * @summary Сводка по кошелькам пользователя
+ */
+export const bffWallets = async (
+    params?: BffWalletsParams,
+    options?: Parameters<typeof apiFetch>[1],
+): Promise<bffWalletsResponse> => {
+    return apiFetch<bffWalletsResponse>(getBffWalletsUrl(params), {
+        ...options,
+        method: 'GET',
+    });
+};
+
+export const getBffWalletsQueryKey = (params?: BffWalletsParams) => {
+    return [`/bff/wallets`, ...(params ? [params] : [])] as const;
+};
+
+export const getBffWalletsQueryOptions = <
+    TData = Awaited<ReturnType<typeof bffWallets>>,
+    TError = ErrorType<ProblemDetails>,
+>(
+    params?: BffWalletsParams,
+    options?: {
+        query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof bffWallets>>, TError, TData>>;
+        request?: SecondParameter<typeof apiFetch>;
+    },
+) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey = queryOptions?.queryKey ?? getBffWalletsQueryKey(params);
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof bffWallets>>> = ({ signal }) =>
+        bffWallets(params, { signal, ...requestOptions });
+
+    return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+        Awaited<ReturnType<typeof bffWallets>>,
+        TError,
+        TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type BffWalletsQueryResult = NonNullable<Awaited<ReturnType<typeof bffWallets>>>;
+export type BffWalletsQueryError = ErrorType<ProblemDetails>;
+
+/**
+ * Возвращает кошельки, суммы по валютам и последние операции. recentOperations по умолчанию равен 5; допустимый диапазон — 0..20.
+ * @summary Сводка по кошелькам пользователя
+ */
+export function useBffWallets<
+    TData = Awaited<ReturnType<typeof bffWallets>>,
+    TError = ErrorType<ProblemDetails>,
+>(
+    params: undefined | BffWalletsParams,
+    options: {
+        query: Partial<UseQueryOptions<Awaited<ReturnType<typeof bffWallets>>, TError, TData>> &
+            Pick<
+                DefinedInitialDataOptions<
+                    Awaited<ReturnType<typeof bffWallets>>,
+                    TError,
+                    Awaited<ReturnType<typeof bffWallets>>
+                >,
+                'initialData'
+            >;
+        request?: SecondParameter<typeof apiFetch>;
+    },
+    queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * Возвращает кошельки, суммы по валютам и последние операции. recentOperations по умолчанию равен 5; допустимый диапазон — 0..20.
+ * @summary Сводка по кошелькам пользователя
+ */
+export function useBffWallets<
+    TData = Awaited<ReturnType<typeof bffWallets>>,
+    TError = ErrorType<ProblemDetails>,
+>(
+    params?: BffWalletsParams,
+    options?: {
+        query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof bffWallets>>, TError, TData>> &
+            Pick<
+                UndefinedInitialDataOptions<
+                    Awaited<ReturnType<typeof bffWallets>>,
+                    TError,
+                    Awaited<ReturnType<typeof bffWallets>>
+                >,
+                'initialData'
+            >;
+        request?: SecondParameter<typeof apiFetch>;
+    },
+    queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * Возвращает кошельки, суммы по валютам и последние операции. recentOperations по умолчанию равен 5; допустимый диапазон — 0..20.
+ * @summary Сводка по кошелькам пользователя
+ */
+export function useBffWallets<
+    TData = Awaited<ReturnType<typeof bffWallets>>,
+    TError = ErrorType<ProblemDetails>,
+>(
+    params?: BffWalletsParams,
+    options?: {
+        query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof bffWallets>>, TError, TData>>;
+        request?: SecondParameter<typeof apiFetch>;
+    },
+    queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * Возвращает кошельки, суммы по валютам и последние операции. recentOperations по умолчанию равен 5; допустимый диапазон — 0..20.
+ * @summary Сводка по кошелькам пользователя
+ */
+export function useBffWallets<
+    TData = Awaited<ReturnType<typeof bffWallets>>,
+    TError = ErrorType<ProblemDetails>,
+>(
+    params?: BffWalletsParams,
+    options?: {
+        query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof bffWallets>>, TError, TData>>;
+        request?: SecondParameter<typeof apiFetch>;
+    },
+    queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+    const queryOptions = getBffWalletsQueryOptions(params, options);
 
     const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
         queryKey: DataTag<QueryKey, TData, TError>;
