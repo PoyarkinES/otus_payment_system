@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Otus.PaymentSystem.Gateway.Host.Endpoints;
 using System;
 using System.Threading.Tasks;
 using WalletsProgram = WalletsHost::Program;
@@ -55,6 +56,10 @@ public sealed class GatewayApiFactory : IAsyncLifetime
                     services.AddAuthentication(TestAuthHandler.SchemeName)
                         .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
                             TestAuthHandler.SchemeName, _ => { });
+                    services.AddTransient<WalletsTestAuthHeaderHandler>();
+                    services.AddHttpClient(BffEndpoints.WalletsClientName)
+                        .AddHttpMessageHandler<WalletsTestAuthHeaderHandler>()
+                        .ConfigurePrimaryHttpMessageHandler(() => Wallets.Server.CreateHandler());
                 });
             });
 
@@ -68,5 +73,18 @@ public sealed class GatewayApiFactory : IAsyncLifetime
         Gateway.Dispose();
         Wallets.Dispose();
         return Task.CompletedTask;
+    }
+
+    private sealed class WalletsTestAuthHeaderHandler : DelegatingHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            System.Threading.CancellationToken cancellationToken)
+        {
+            if (request.Headers.TryGetValues("X-User-Id", out IEnumerable<string>? userIds))
+                request.Headers.TryAddWithoutValidation("X-Test-UserId", userIds);
+
+            return base.SendAsync(request, cancellationToken);
+        }
     }
 }

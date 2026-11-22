@@ -38,7 +38,7 @@ The repository is organized as a set of independent microservice solutions. Each
 .
 ├── Directory.Build.props        # shared MSBuild settings (TFM, nullable, analyzers)
 ├── global.json                  # pinned .NET SDK version
-├── openapi/                     # Identity OpenAPI contract (generated, do not edit)
+├── openapi/                     # Identity and Gateway OpenAPI contracts (generated, do not edit)
 ├── Client/                      # web client: React SPA, talks only to the Gateway (see Client/README.md)
 ├── Shared/
 │   ├── Otus.PaymentSystem.Shared.sln
@@ -96,8 +96,8 @@ See [ADR 0001](./docs/adr/0001-api-gateway.md).
 
 `Client/` is a React + TypeScript SPA built with MUI components. It talks only to the Gateway,
 and its API client is generated from `openapi/gateway.v1.json`. It currently has the app
-scaffold and a "System status" page (`/bff/health`); sign-in, profile and wallets follow in
-epic #80.
+scaffold and a "System status" page (`/bff/health`); the Gateway also exposes the read-only
+wallet summary at `/bff/wallets`, while the wallet UI remains future work.
 
 ```bash
 cd Client
@@ -133,12 +133,12 @@ Gateway → PostgreSQL → Wallets (+ holds) → Transfers (Redis, hold, Fraud s
 ## Status
 
 - **Identity MVP** is done: registration, login, JWT, roles, profile, block/unblock, PostgreSQL + migrations, unit tests.
-- **Gateway** is done: YARP, JWT validation, `X-User-Id`, CORS, `/health`, 8 tests, CI.
-- **CI** builds every solution, runs Shared/Gateway/Identity tests and checks the OpenAPI contract (`openapi-drift`).
-- **M1 in progress:** next are refresh/JWKS, rate limiting, Docker Compose.
-- **Missing:** refresh/logout, JWKS, rate limiting, Docker Compose, BFF `/bff/me`.
+- **Gateway** exposes YARP routes and BFF `/bff/me`, `/bff/health`, `/bff/wallets`; the wallet summary includes per-currency totals and recent operations.
+- **Wallets (#52)** implements balances, holds, ledger history and owner-only wallet listing.
+- **Verified Gateway tests:** 34 Host/unit/web tests and 11 Gateway E2E tests against in-process Wallets + PostgreSQL.
+- **CI** builds solutions, runs tests and checks OpenAPI drift; Gateway E2E was verified locally with `WALLETS_API_TEST_DB`.
 - **Web client (#82):** React + MUI scaffold, API client generated from the Gateway OpenAPI, system status page, `client` CI job.
-- Wallets/Transfers/Fraud/Notifications/Audit currently contain domain events only.
+- **Next:** Payments/transfers and wallet UI; RabbitMQ, Redis, Fraud and Merchant Payments remain future stages.
 - **Post-1.0:** KYC/Onboarding (MongoDB + MinIO + gRPC), does not block 1.0.
 
 Current status and task order: pinned issue [#70](https://github.com/PoyarkinES/otus_payment_system/issues/70).

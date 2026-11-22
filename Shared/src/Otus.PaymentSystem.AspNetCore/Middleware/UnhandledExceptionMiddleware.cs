@@ -24,6 +24,22 @@ public sealed class UnhandledExceptionMiddleware(
         {
             throw;
         }
+        catch (BadHttpRequestException exception)
+        {
+            if (context.Response.HasStarted)
+                throw;
+
+            logger.LogWarning(
+                exception,
+                "Invalid HTTP request for {Method} {Path}",
+                context.Request.Method,
+                context.Request.Path);
+
+            await ApiProblems.WriteAsync(
+                context,
+                exception.StatusCode,
+                "Некорректные параметры HTTP-запроса.");
+        }
         catch (Exception exception)
         {
             if (context.Response.HasStarted)

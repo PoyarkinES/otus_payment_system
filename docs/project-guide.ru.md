@@ -1,6 +1,6 @@
 # Otus Payment System — путеводитель по проекту
 
-> **Статус:** актуально на 13.11.2026. Это навигационный документ, а не замена архитектуре и схеме БД.
+> **Статус:** актуально на 22.11.2026. Это навигационный документ, а не замена архитектуре и схеме БД.
 >
 > **Зачем он нужен:** перед началом issue быстро ответить на вопросы «в каком сервисе делать», «какие сущности и поля», «где строка подключения», «кто кого вызывает», «какие тесты и docs обновить».
 >
@@ -40,7 +40,7 @@
 | Fraud | `Fraud/` | supporting: правила, fallback | ⚪ каркас | PostgreSQL (план) | ⚪ нет |
 | Notifications | `Notifications/` | downstream: email/push | ⚪ каркас | PostgreSQL (план) | ⚪ нет |
 | Audit | `Audit/` | downstream: append-only журнал | ⚪ каркас | PostgreSQL (план) | ⚪ нет |
-| Gateway | `Gateway/` | edge/BFF, не bounded context | ✅ M1 | нет | ✅ `Gateway.Host` |
+| Gateway | `Gateway/` | edge/BFF: маршрутизация и read-only агрегация `/bff/*` | ✅ | нет | ✅ `Gateway.Host` |
 | Shared | `Shared/` | SharedKernel + общий ProblemDetails | ✅ | нет | — |
 
 Легенда: ✅ готово · 🟡 в работе · ⚪ план/каркас.
@@ -72,7 +72,7 @@
 │   ├── src/Otus.PaymentSystem.Identity.{Domain,Application,Infrastructure,Host}/
 │   ├── test/…
 │   └── Dockerfile
-├── Wallets/                       # Domain/Application/Infrastructure, Host пока нет
+├── Wallets/                       # Domain/Application/Infrastructure/Host + тесты
 ├── Payments/                      # каркас Domain/Application/Infrastructure
 ├── Fraud/                         # каркас
 ├── Notifications/                 # каркас
@@ -155,14 +155,14 @@ dotnet test Identity/Otus.PaymentSystem.Identity.sln --filter "FullyQualifiedNam
 | PostgreSQL (compose) | — | 5432 (внутри) | наружу не публикуется |
 | PostgreSQL (override) | 5434 | — | локальный `docker-compose.override.yml` |
 | Frontend | 5173 | — | CORS в Gateway |
-| Wallets | план | план | Host ещё не создан |
+| Wallets | 5200 | не включён в compose | Host есть; локальный адрес настраивается через кластер Gateway |
 
 ### 3.4. Строки подключения
 
 | Сервис | Ключ | Где задаётся сейчас | Статус |
 |---|---|---|---|
 | Identity | `ConnectionStrings:IdentityDb` | user-secrets локально; `ConnectionStrings__IdentityDb` в compose/окружении | ✅ работает |
-| Wallets | `ConnectionStrings:WalletsDb` | пока нигде; появится вместе с Wallets.Host | ⚪ план |
+| Wallets | `ConnectionStrings:WalletsDb` | `Wallets.Host`; тесты используют `WALLETS_API_TEST_DB` | ✅ Host и тестовая БД |
 | Payments | `ConnectionStrings:PaymentsDb` | пока нигде | ⚪ план |
 | Fraud | `ConnectionStrings:FraudDb` | пока нигде | ⚪ план |
 | Notifications | `ConnectionStrings:NotificationsDb` | пока нигде | ⚪ план |
@@ -223,7 +223,7 @@ dotnet ef database update \
 | Infrastructure | `...Infrastructure.Tests` | EF-маппинг, репозитории; Postgres-тесты — отдельно |
 | Contract | `openapi/*.json` + CI drift | спека соответствует коду |
 
-Postgres-тесты запускаются с `IDENTITY_TEST_DB` (см. [testing-strategy.ru.md](./testing-strategy.ru.md)).
+Postgres-тесты Identity запускаются с `IDENTITY_TEST_DB`; Wallets API и Gateway E2E используют `WALLETS_API_TEST_DB` (см. [testing-strategy.ru.md](./testing-strategy.ru.md)).
 
 ## 4. Каталог сущностей
 
@@ -284,7 +284,7 @@ Postgres-тесты запускаются с `IDENTITY_TEST_DB` (см. [testing
 
 ### 4.7. Gateway
 
-Своих сущностей нет. Gateway хранит только конфигурацию маршрутов, JWT/JWKS-кэш и BFF-представления (`/bff/me`, `/bff/health`).
+Своих сущностей нет. Gateway хранит только конфигурацию маршрутов, JWT/JWKS-кэш и read-only BFF-представления (`/bff/me`, `/bff/health`, `/bff/wallets`).
 
 ### 4.8. Общие правила сущностей
 
@@ -301,7 +301,7 @@ Postgres-тесты запускаются с `IDENTITY_TEST_DB` (см. [testing
 | Публичный путь | Куда | Auth | Статус |
 |---|---|---|---|
 | `/api/identity/**` | Identity.Host | JWT для защищённых | ✅ |
-| `/api/wallets/**` | Wallets.Host | JWT + ownership в Wallets | ⚪ M2W5 |
+| `/api/wallets/**` | Wallets.Host | JWT + ownership в Wallets | ✅ |
 | `/api/transfers/**` | Payments.Host | JWT | ⚪ M3 |
 | `/api/payments/**` | Payments.Host | API key/merchant | ⚪ M6 |
 | `/api/fraud/**` | Fraud.Host | service/admin | ⚪ M5 |
@@ -309,7 +309,7 @@ Postgres-тесты запускаются с `IDENTITY_TEST_DB` (см. [testing
 | `/api/audit/**` | Audit.Host | admin/read-only | ⚪ M4 |
 | `/bff/me` | Gateway | JWT | ✅ |
 | `/bff/health` | Gateway | anonymous | ✅ |
-| `/bff/wallets` | Gateway | JWT | ⚪ M2W7 |
+| `/bff/wallets` | Gateway | JWT; список, итоги по валютам, последние операции | ✅ |
 | `/bff/transfers` | Gateway | JWT | ⚪ M3 |
 
 Клиент **не ходит** напрямую в Identity/Wallets/Payments: только через Gateway/BFF.
@@ -320,7 +320,7 @@ Postgres-тесты запускаются с `IDENTITY_TEST_DB` (см. [testing
 |---|---|---|---|
 | Client | Gateway | все запросы | ✅ |
 | Gateway | Identity | `/api/identity/**`, `/bff/health` | ✅ |
-| Gateway | Wallets | `/api/wallets/**` | ⚪ |
+| Gateway | Wallets | `/api/wallets/**`, `/bff/wallets` | ✅ |
 | Payments | Wallets | `hold`/`confirm`/`release`/`getHold` | ⚪ M3 |
 | Payments | Fraud | `check`, `getSettings` | ⚪ M3/M5 |
 | Payments | Redis | кэш `user:{id}` | ⚪ M3 |
@@ -496,27 +496,26 @@ Postgres-тесты запускаются с `IDENTITY_TEST_DB` (см. [testing
 | Направление | Статус | Следующий шаг |
 |---|---|---|
 | Identity | ✅ M1 | поддержка, события — M4 |
-| Gateway/BFF | ✅ M1 | маршрут Wallets и 8 E2E добавлены; зелёный CI — при PR в main |
+| Gateway/BFF | ✅ `/bff/me`, `/bff/health`, `/bff/wallets` | contract и Orval-клиент синхронизируются; UI-экран кошелька отдельно |
 | PostgreSQL + миграции | ✅ Identity + Wallets | миграции Wallets и CHECK-ограничения применены |
-| Wallets | 🟡 домен + Host + Gateway + 47 тестов | зелёный CI (PR в main), техдолг |
+| Wallets | ✅ domain, Host, holds, ledger history, list и Gateway integration | Payments/transfer flow — M3; остаётся техдолг |
 | Payments | ⚪ каркас | M3 |
 | Fraud | ⚪ каркас | M5 |
 | Notifications/Audit | ⚪ каркас | M4 |
 | Web UI | ⚪ | параллельно M2–M6 |
 
-Текущие пробелы (на 13.11.2026):
+Текущие пробелы (на 22.11.2026):
 
-1. CI workflow добавлен, но `on: push/pull_request: branches: [main]` — на feature-ветке `50ab97f` прогона нет; зелёный CI не подтверждён.
-2. `WalletsDb`/`JwksUri` в `appsettings.Development` — compose-стиль; Wallets в compose нет, локально нужны env.
-3. `TimeProvider`, `Outbox`, `Freeze/Close` — открыты; `DbUpdateConcurrencyException` обработан в Wallets.
-4. У Identity доменные события не публикуются и не очищаются; outbox появится в M4.
-5. `User.Version` не concurrency token; гонки профиля возможны.
-6. Service-to-service auth отсутствует; `X-User-Id` доверяется внутри сети.
+1. Wallets не включён в compose; локально нужны env-переопределения базы и адресов сервисов.
+2. `TimeProvider`, outbox publisher и `Freeze/Unfreeze/Close` остаются будущими задачами.
+3. У Identity доменные события не публикуются и не очищаются; outbox появится в M4.
+4. `User.Version` не concurrency token; гонки профиля возможны.
+5. Service-to-service auth отсутствует; `X-User-Id` доверяется внутри сети.
 
 Зависимости:
 
-- Не начинать Wallets, пока не готовы PostgreSQL/Gateway (M1) — уже готовы.
-- Не начинать Transfers, пока Wallets и hold/confirm/release не закрыты.
+- PostgreSQL/Gateway и Wallets read/write/history API уже готовы.
+- Следующий большой контекст — Transfers; он опирается на Wallets hold/confirm/release.
 - Не включать RabbitMQ/outbox, пока не готовы агрегаты Payments/Wallets.
 
 ## 9. Где что искать

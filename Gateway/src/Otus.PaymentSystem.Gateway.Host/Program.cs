@@ -10,6 +10,7 @@ using Otus.PaymentSystem.Gateway.Host.Swagger;
 using Serilog;
 using Serilog.Formatting.Compact;
 using System;
+using System.Globalization;
 using System.Text;
 using System.Threading.RateLimiting;
 using Otus.PaymentSystem.AspNetCore.Problems;
@@ -154,7 +155,8 @@ builder.Services.AddRateLimiter(options =>
     options.OnRejected = async (context, ct) =>
     {
         if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan retryAfter))
-            context.HttpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
+            context.HttpContext.Response.Headers.RetryAfter =
+                ((int)retryAfter.TotalSeconds).ToString(CultureInfo.InvariantCulture);
 
         await ApiProblems.WriteAsync(
             context.HttpContext,
@@ -176,8 +178,8 @@ builder.Services.AddCors(options =>
             .WithExposedHeaders(CorrelationIdMiddleware.HeaderName));
 });
 
-// BFF: единственное место, где Gateway сам ходит в сервисы, — health-агрегат.
-// Адрес Identity берём из кластера прокси, чтобы health не мог разойтись с маршрутизацией.
+// Адреса BFF-клиентов берём из кластеров прокси, чтобы внутренние вызовы
+// не расходились с YARP-маршрутизацией.
 string identityAddress = builder.Configuration["ReverseProxy:Clusters:identity:Destinations:primary:Address"]
                          ?? "http://localhost:5100/";
 
@@ -186,6 +188,15 @@ builder.Services.AddHttpClient(BffEndpoints.IdentityClientName, client =>
     client.BaseAddress = new Uri(identityAddress, UriKind.Absolute);
     // Health не должен ждать: если Identity тормозит, ответ "degraded" полезнее, чем таймаут клиента.
     client.Timeout = TimeSpan.FromSeconds(3);
+});
+
+string walletsAddress = builder.Configuration["ReverseProxy:Clusters:wallets:Destinations:primary:Address"]
+                        ?? "http://localhost:5200/";
+
+builder.Services.AddHttpClient(BffEndpoints.WalletsClientName, client =>
+{
+    client.BaseAddress = new Uri(walletsAddress, UriKind.Absolute);
+    client.Timeout = TimeSpan.FromSeconds(5);
 });
 
 WebApplication app = builder.Build();

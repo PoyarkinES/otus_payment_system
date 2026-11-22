@@ -1,6 +1,6 @@
 # Контракты API: что сделано и с чего начать
 
-> **Обновлено 04.11.2026.** Ветка `feat/m1-w4-bff` (M1W4): BFF и админский профиль готовы, `openapi/identity.v1.json` перегенерирован.
+> **Обновлено 22.11.2026.** Спецификации Identity и Gateway хранятся в `openapi/`; Gateway BFF включает сводку кошельков, а Orval-клиент генерируется из gateway-спеки.
 > **Связанные:** [#22](https://github.com/PoyarkinES/otus_payment_system/issues/22) · [#21](https://github.com/PoyarkinES/otus_payment_system/issues/21) · [#48](https://github.com/PoyarkinES/otus_payment_system/issues/48) · [#49](https://github.com/PoyarkinES/otus_payment_system/issues/49) · [ADR 0001](./adr/0001-api-gateway.md) · [Единый формат ошибок](./api-errors.ru.md)
 
 ## 0. С чего начать
@@ -101,9 +101,11 @@
 
 ### Шаг 5. #49 — BFF — ✅
 
-`GET /bff/me` (claims `sub`, `email`, `role`, без вызова Identity) и `GET /bff/health` (агрегат Gateway + Identity, 503 при недоступности) реализованы в `Gateway.Host/Endpoints/BffEndpoints.cs` и покрыты 9 юнит-тестами.
+`GET /bff/me` (claims `sub`, `email`, `role`, без вызова Identity), `GET /bff/health` (агрегат Gateway + Identity) и `GET /bff/wallets` реализованы в `Gateway.Host/Endpoints/BffEndpoints.cs`.
 
-Отдельной спеки Gateway в M1 не было осознанно: фронтенд стартует в M2–M6, а контракт BFF был зафиксирован тестами (имена полей JSON) и [demo-m1.ru.md](./demo-m1.ru.md). **Обновлено в M1.1 (#107):** спека появилась раньше — `openapi/gateway.v1.json` и job `openapi-gateway-drift`.
+`GET /bff/wallets` агрегирует пользовательские кошельки и последние операции из Wallets, группирует totals по валюте и принимает `recentOperations` от 0 до 20 (по умолчанию 5). Недопустимое значение даёт 400; upstream non-2xx — 502; сетевой сбой/таймаут — 503 без частичного ответа. Маршрут и DTO описываются в `openapi/gateway.v1.json`, клиент генерируется Orval.
+
+Спецификация Gateway (`openapi/gateway.v1.json`) генерируется из endpoint metadata; job `openapi-gateway-drift` проверяет её актуальность. Изменения BFF DTO/ответов требуют повторной генерации и обновления Orval-клиента.
 
 ## 5. Артефакт OpenAPI: как устроен
 
@@ -129,7 +131,7 @@ dotnet run --project Identity/src/Otus.PaymentSystem.Identity.Host
 |---|---|
 | Спека устаревает | drift-check в CI, обязательный regenerate в PR с изменением DTO |
 | Расхождение формата ошибок между Gateway и Identity | общий `ApiProblems` + тест на одинаковый JSON |
-| Сервис без спеки расходится с ожиданиями клиента | BFF покрыт тестами на имена полей и демо-сценарием; спека Gateway — в бэклоге M2 |
+| Сервис без спеки расходится с ожиданиями клиента | Gateway/BFF описаны в `openapi/gateway.v1.json`, drift-check выполняется в CI |
 | Версионирование вводят слишком рано | до 1.0 версия только в имени файла, не в пути |
 
 ## 7. Открытые вопросы
