@@ -7,9 +7,8 @@
  */
 
 export interface BffWalletCurrencyTotalResult {
-    /** @nullable */
-    currency?: string | null;
-    available?: number;
-    held?: number;
-    total?: number;
+    currency: string;
+    available: number;
+    held: number;
+    total: number;
 }

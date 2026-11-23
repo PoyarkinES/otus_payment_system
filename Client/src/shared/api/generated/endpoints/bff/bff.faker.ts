@@ -12,121 +12,60 @@ import type { BffHealthResult, BffMeResult, BffWalletsResult } from '../../model
 export const getBffMeResponseMock = (
     overrideResponse: Partial<Extract<BffMeResult, object>> = {},
 ): BffMeResult => ({
-    userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
-    email: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-    role: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+    userId: faker.string.uuid(),
+    email: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    role: faker.string.alpha({ length: { min: 10, max: 20 } }),
     ...overrideResponse,
 });
 
 export const getBffHealthResponseMock = (
     overrideResponse: Partial<Extract<BffHealthResult, object>> = {},
 ): BffHealthResult => ({
-    status: faker.helpers.arrayElement([
-        faker.string.alpha({ length: { min: 10, max: 20 } }),
-        null,
-    ]),
-    services: faker.helpers.arrayElement([
-        {
-            gateway: faker.helpers.arrayElement([
-                faker.string.alpha({ length: { min: 10, max: 20 } }),
-                null,
-            ]),
-            identity: faker.helpers.arrayElement([
-                faker.string.alpha({ length: { min: 10, max: 20 } }),
-                null,
-            ]),
-        },
-        undefined,
-    ]),
+    status: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    services: {
+        gateway: faker.string.alpha({ length: { min: 10, max: 20 } }),
+        identity: faker.string.alpha({ length: { min: 10, max: 20 } }),
+    },
     ...overrideResponse,
 });
 
 export const getBffWalletsResponseMock = (
     overrideResponse: Partial<Extract<BffWalletsResult, object>> = {},
 ): BffWalletsResult => ({
-    wallets: faker.helpers.arrayElement([
-        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-            id: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
-            currency: faker.helpers.arrayElement([
-                faker.string.alpha({ length: { min: 10, max: 20 } }),
-                null,
-            ]),
-            available: faker.helpers.arrayElement([
-                faker.number.float({ fractionDigits: 2 }),
-                undefined,
-            ]),
-            held: faker.helpers.arrayElement([
-                faker.number.float({ fractionDigits: 2 }),
-                undefined,
-            ]),
-            total: faker.helpers.arrayElement([
-                faker.number.float({ fractionDigits: 2 }),
-                undefined,
-            ]),
-            status: faker.helpers.arrayElement([
-                faker.string.alpha({ length: { min: 10, max: 20 } }),
-                null,
-            ]),
-            recentOperations: faker.helpers.arrayElement([
-                Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(
-                    () => ({
-                        id: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
-                        referenceId: faker.helpers.arrayElement([faker.string.uuid(), null]),
-                        type: faker.helpers.arrayElement([
-                            faker.string.alpha({ length: { min: 10, max: 20 } }),
-                            null,
-                        ]),
-                        amount: faker.helpers.arrayElement([
-                            faker.number.float({ fractionDigits: 2 }),
-                            undefined,
-                        ]),
-                        currency: faker.helpers.arrayElement([
-                            faker.string.alpha({ length: { min: 10, max: 20 } }),
-                            null,
-                        ]),
-                        balanceBefore: faker.helpers.arrayElement([
-                            faker.number.float({ fractionDigits: 2 }),
-                            undefined,
-                        ]),
-                        balanceAfter: faker.helpers.arrayElement([
-                            faker.number.float({ fractionDigits: 2 }),
-                            undefined,
-                        ]),
-                        description: faker.helpers.arrayElement([
-                            faker.string.alpha({ length: { min: 10, max: 20 } }),
-                            null,
-                        ]),
-                        createdAt: faker.helpers.arrayElement([
-                            faker.date.past().toISOString().slice(0, 19) + 'Z',
-                            undefined,
-                        ]),
-                    }),
-                ),
-                null,
-            ]),
-        })),
-        null,
-    ]),
-    totals: faker.helpers.arrayElement([
-        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-            currency: faker.helpers.arrayElement([
-                faker.string.alpha({ length: { min: 10, max: 20 } }),
-                null,
-            ]),
-            available: faker.helpers.arrayElement([
-                faker.number.float({ fractionDigits: 2 }),
-                undefined,
-            ]),
-            held: faker.helpers.arrayElement([
-                faker.number.float({ fractionDigits: 2 }),
-                undefined,
-            ]),
-            total: faker.helpers.arrayElement([
-                faker.number.float({ fractionDigits: 2 }),
-                undefined,
-            ]),
-        })),
-        null,
-    ]),
+    wallets: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(
+        () => ({
+            id: faker.string.uuid(),
+            currency: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            available: faker.number.float({ fractionDigits: 2 }),
+            held: faker.number.float({ fractionDigits: 2 }),
+            total: faker.number.float({ fractionDigits: 2 }),
+            status: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            recentOperations: Array.from(
+                { length: faker.number.int({ min: 1, max: 10 }) },
+                (_, i) => i + 1,
+            ).map(() => ({
+                id: faker.string.uuid(),
+                referenceId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+                type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+                amount: faker.number.float({ fractionDigits: 2 }),
+                currency: faker.string.alpha({ length: { min: 10, max: 20 } }),
+                balanceBefore: faker.number.float({ fractionDigits: 2 }),
+                balanceAfter: faker.number.float({ fractionDigits: 2 }),
+                description: faker.helpers.arrayElement([
+                    faker.string.alpha({ length: { min: 10, max: 20 } }),
+                    null,
+                ]),
+                createdAt: faker.date.past().toISOString().slice(0, 19) + 'Z',
+            })),
+        }),
+    ),
+    totals: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(
+        () => ({
+            currency: faker.string.alpha({ length: { min: 10, max: 20 } }),
+            available: faker.number.float({ fractionDigits: 2 }),
+            held: faker.number.float({ fractionDigits: 2 }),
+            total: faker.number.float({ fractionDigits: 2 }),
+        }),
+    ),
     ...overrideResponse,
 });

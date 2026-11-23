@@ -7,9 +7,7 @@
  */
 
 export interface BffMeResult {
-    userId?: string;
-    /** @nullable */
-    email?: string | null;
-    /** @nullable */
-    role?: string | null;
+    userId: string;
+    email: string;
+    role: string;
 }
