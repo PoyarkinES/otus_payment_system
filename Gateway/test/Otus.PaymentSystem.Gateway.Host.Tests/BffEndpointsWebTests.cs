@@ -74,6 +74,46 @@ public sealed class BffEndpointsWebTests : IClassFixture<BffApiFactory>
         Assert.Contains("\"status\":\"ok\"", body);
         Assert.Contains("\"identity\":\"ok\"", body);
     }
+
+    [Fact]
+    public async Task GetWallets_Anonymous_ReturnsUnauthorized()
+    {
+        using HttpClient client = _factory.CreateClient();
+
+        using HttpResponseMessage response = await client.GetAsync("/bff/wallets");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetWallets_Authenticated_ReturnsWalletsFromUpstream()
+    {
+        using HttpClient client = _factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/bff/wallets");
+        request.Headers.Add("X-Test-Sub", BffApiFactory.UserId.ToString());
+
+        using HttpResponseMessage response = await client.SendAsync(request);
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("\"wallets\":[]", body);
+        Assert.Contains("\"totals\":[]", body);
+    }
+
+    [Theory]
+    [InlineData("-1")]
+    [InlineData("21")]
+    [InlineData("not-an-integer")]
+    public async Task GetWallets_InvalidRecentOperations_ReturnsBadRequest(string value)
+    {
+        using HttpClient client = _factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/bff/wallets?recentOperations={value}");
+        request.Headers.Add("X-Test-Sub", BffApiFactory.UserId.ToString());
+
+        using HttpResponseMessage response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }
 
 /// <summary>
@@ -92,6 +132,9 @@ public sealed class BffApiFactory : WebApplicationFactory<Program>
 
             services.AddHttpClient(BffEndpoints.IdentityClientName)
                 .ConfigurePrimaryHttpMessageHandler(() => new StubIdentityHandler());
+
+            services.AddHttpClient(BffEndpoints.WalletsClientName)
+                .ConfigurePrimaryHttpMessageHandler(() => new StubWalletsHandler());
         });
     }
 
@@ -126,5 +169,16 @@ public sealed class BffApiFactory : WebApplicationFactory<Program>
             HttpRequestMessage request,
             CancellationToken cancellationToken) =>
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+    }
+
+    private sealed class StubWalletsHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]", System.Text.Encoding.UTF8, "application/json")
+            });
     }
 }

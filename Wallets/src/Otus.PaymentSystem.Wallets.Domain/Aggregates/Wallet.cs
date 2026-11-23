@@ -99,7 +99,8 @@ namespace Otus.PaymentSystem.Wallets.Domain.Aggregates
         /// Замораживает сумму под перевод: Available уменьшается, Held растёт.
         /// Повторный вызов с тем же transferId возвращает существующий холд.
         /// </summary>
-        public Hold PlaceHold(Guid transferId, Money amount, Guid userId)
+        /// <returns>Возвращает созданный или существующий холд.</returns>
+        public Hold PlaceHold(Guid transferId, Money amount, Guid userId, Guid recipientUserId)
         {
             EnsureActive();
             EnsureSameCurrency(amount);
@@ -109,33 +110,43 @@ namespace Otus.PaymentSystem.Wallets.Domain.Aggregates
                 throw new DomainException("TransferId не может быть пустым.");
             if (userId == Guid.Empty)
                 throw new DomainException("UserId не может быть пустым.");
+            if (recipientUserId == Guid.Empty)
+                throw new DomainException("RecipientUserId не может быть пустым.");
+            if (recipientUserId == userId)
+                throw new DomainException("Получатель не может совпадать с плательщиком.");
 
             // Идемпотентность на уровне агрегата работает только если холды загружены.
             // В БД настоящий арбитр — UNIQUE(Holds.TransferId): гонку двух запросов ловит он.
             var existing = _holds.FirstOrDefault(h => h.TransferId == transferId);
             if (existing is not null)
+            {
+                if (existing.Amount != amount.Amount || existing.UserId != userId || existing.RecipientUserId != recipientUserId)
+                    throw new DomainException("Холд с таким TransferId уже существует.", DomainError.Conflict);
+
                 return existing;
+            }
 
             if (Available < amount.Amount)
                 throw new DomainException(
                     $"Недостаточно средств для холда: доступно {Available:0.####}, требуется {amount.Amount:0.####}.",
                     DomainError.Conflict);
 
-            var hold = new Hold(Id, transferId, userId, amount.Amount);
+            var hold = new Hold(Id, transferId, userId, recipientUserId, amount.Amount);
             _holds.Add(hold);
             Available -= amount.Amount;
             Held += amount.Amount;
             Touch();
             return hold;
         }
-        
+
         /// <summary>Снимает заморозку: Held возвращается в Available. Идемпотентно.</summary>
-        public void ReleaseHold(Guid holdId)
+        /// <returns>Возвращает true, если холд снят, false если он уже был снят.</returns>
+        public bool ReleaseHold(Guid holdId)
         {
             var hold = FindHold(holdId);
 
             if (hold.Status == HoldStatus.Released)
-                return;
+                return false;
 
             if (hold.Status != HoldStatus.Active)
                 throw new DomainException($"Холд в состоянии {hold.Status} нельзя снять.", DomainError.Conflict);
@@ -144,18 +155,20 @@ namespace Otus.PaymentSystem.Wallets.Domain.Aggregates
             Available += hold.Amount;
             hold.Release();
             Touch();
+            return true;
         }
 
         /// <summary>
         /// Исполняет холд: замороженные деньги уходят из кошелька.
         /// Зачисление получателю — ReceiveTransfer у его кошелька, в той же транзакции.
         /// </summary>
-        public void ConfirmHold(Guid holdId)
+        /// <returns>Возвращает true, если холд исполнен, false если он уже был исполнен.</returns>
+        public bool ConfirmHold(Guid holdId)
         {
             Hold hold = FindHold(holdId);
 
             if (hold.Status == HoldStatus.Completed)
-                return;
+                return false;
 
             if (hold.Status != HoldStatus.Active)
                 throw new DomainException($"Холд в состоянии {hold.Status} нельзя исполнить.", DomainError.Conflict);
@@ -172,6 +185,7 @@ namespace Otus.PaymentSystem.Wallets.Domain.Aggregates
                 "Перевод получателю");
             Touch();
             Raise(new BalanceTransferredOut(Id, hold.Amount, Currency.Value, hold.TransferId, UpdatedAt));
+            return true;
         }
 
         public void ReceiveTransfer(Guid transferId, Money amount)

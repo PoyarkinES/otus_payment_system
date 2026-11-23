@@ -1,6 +1,6 @@
 # Wallets: взаимодействие сущностей, инициализация и вызовы
 
-> **Статус:** M2W5–W6 (#50, #51), ветка `feature/51-wallet-deposit-withdraw`. Domain, Application, Infrastructure, Host, Gateway-маршрут, deposit/withdraw, 13 Host HTTP-тестов и 8 Gateway E2E готовы; остались зелёный прогон CI и техдолг.
+> **Статус:** #52: Wallets поддерживает holds, deposit/withdraw, историю операций и список кошельков; Gateway агрегирует `/bff/wallets`. PostgreSQL- и HTTP-проверки Wallets и Gateway добавлены; UI-экран кошелька остаётся отдельной задачей.
 >
 > **Связанные документы:** [architecture.ru.md](./architecture.ru.md) · [db-schema.ru.md](./db-schema.ru.md) · [bounded-contexts.md](./bounded-contexts.md)
 
@@ -198,7 +198,15 @@ sequenceDiagram
 
 Политика: `404` — кошелька нет; `403` — кошелёк существует, но принадлежит другому пользователю (см. [auth-requirements.ru.md](./auth-requirements.ru.md), [api-errors.ru.md](./api-errors.ru.md)).
 
-### 5.3. Hold → confirm / release
+### 5.3. Список кошельков и история операций
+
+- `GET /wallets` возвращает только кошельки текущего пользователя. Репозиторий фильтрует по `UserId`, использует `AsNoTracking()` и не загружает `Holds` или `Transactions`.
+- `GET /wallets/{walletId}/operations?page=1&pageSize=20` сначала проверяет существование и владельца через лёгкую загрузку кошелька без `Include`, затем читает только запрошенную страницу ledger.
+- `page` начинается с 1; допустимые значения — `page >= 1`, `pageSize` от 1 до 100. Невалидная пагинация даёт 400; выход за последнюю страницу — 200 с пустыми `Items` и фактическим `TotalCount`.
+- История сортируется по `CreatedAt DESC`, затем по `Id DESC`; существующий чужой кошелёк даёт 403, отсутствующий — 404.
+- Запись операции создаётся только методом агрегата `Wallet`; query-handler не меняет и не создаёт ledger-сущности.
+
+### 5.4. Hold → confirm / release
 
 ```mermaid
 sequenceDiagram
@@ -276,7 +284,7 @@ services.AddScoped<IWalletRepository, EfWalletRepository>();
 services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<CreateWalletCommand>());
 ```
 
-> Имя ключа — `WalletsDb` (по аналогии с `IdentityDb`); в `docker-compose.yml` сервис Wallets пока не добавлен, поэтому ключ ещё не заведён.
+> Имя ключа подключения — `WalletsDb`. Wallets не включён в основной compose-стек; для локального запуска и тестов строка подключения задаётся конфигурацией/переменной окружения.
 >
 > `IUnitOfWork` не вводим, пока репозиторий один: `IWalletRepository.SaveChangesAsync` и scoped `DbContext` закрывают транзакцию сценария. Отдельный unit of work появится, если в одной транзакции будут несколько репозиториев.
 
@@ -296,9 +304,11 @@ services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<CreateWall
 - Эндпоинты — extension `MapWalletsEndpoints()` (как `MapAuthEndpoints()` в Identity), группа `/wallets`:
   - `POST /wallets` — `RequireAuthorization()`; `userId` из `sub`; `201` + `Location`.
   - `GET /wallets/{id:guid}` — `RequireAuthorization()`; ownership в handler'е; `200/403/404`.
+  - `GET /wallets` — `RequireAuthorization()`; только кошельки `sub`, без дочерних сущностей.
+  - `GET /wallets/{walletId:guid}/operations` — `RequireAuthorization()`; постраничная история ledger, 400 при неверной пагинации, 403/404 по ownership/существованию.
   - `GET /health` — в `Program.cs`, анонимный.
 - `Database:AutoMigrate` — только для compose; в обычном запуске миграции применяются вручную.
-- Миграции: `IDesignTimeDbContextFactory<WalletsDbContext>` в `Infrastructure/Persistence/WalletsDbContextFactory.cs` (пока Host без `Program.cs`), строка — из `WALLETS_CONNECTION_STRING`/env; команда `dotnet ef migrations add InitialWallets --project ...Infrastructure --startup-project ...Infrastructure --output-dir Persistence/Migrations`.
+- Миграции управляются Infrastructure-проектом через `IDesignTimeDbContextFactory<WalletsDbContext>`; строка для design-time берётся из `WALLETS_CONNECTION_STRING`/env.
 
 ### 7.3. Gateway
 
@@ -307,6 +317,8 @@ services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<CreateWall
 - `userId` берётся из claim `sub`; `X-User-Id` добавляется Gateway только для внутренних вызовов и в публичных endpoint'ах Wallets не используется.
 - Публичные запросы идут с `Authorization: Bearer`; сервисная аутентификация Payments → Wallets в MVP не реализована.
 - Порт Wallets Host задаётся в `launchSettings.json`/`appsettings` (в контейнере — 8080); адрес — в `ReverseProxy:Clusters:wallets`.
+- `GET /bff/wallets` — отдельный read-only агрегат: named HttpClient `wallets` получает список кошельков, затем параллельно запрашивает последние операции. `recentOperations` по умолчанию 5, диапазон 0..20; суммы группируются по валютам.
+- BFF пробрасывает `Authorization`, доверенный `X-User-Id` и `X-Correlation-Id`; любой upstream non-2xx даёт 502, недоступность/таймаут — 503, частичная сводка не возвращается.
 
 ## 8. Статусы и переходы
 
@@ -343,20 +355,18 @@ services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<CreateWall
 |---|---|
 | Domain | `Wallet`, `Hold`, `WalletTransaction`, `Money`, `Currency`, события, ошибки — готовы |
 | Infrastructure | `WalletsDbContext` + 4 конфигурации + `AddWalletsInfrastructure` + `EfWalletRepository` + миграция `InitialWallets` |
-| Application | `CreateWallet`/`GetWallet`, `DepositWallet`/`WithdrawWallet`, `WalletOperationGuard`, `IWalletRepository`, `WalletResult` |
-| Host | `Program.cs`, `WalletsEndpoints`, deposit/withdraw, middleware, JWT; API-тесты в `Host.IntegrationTests` |
-| Gateway | маршрут `/api/wallets/**` → `http://localhost:5200/`; deposit/withdraw E2E |
-| Tests | `Domain.Tests` 13 + `Host.Tests` 9 + `Infrastructure.Tests` 4 + `Host.IntegrationTests` 13 + `Gateway.Host.IntegrationTests` 8 = **47** |
+| Application | `CreateWallet`/`GetWallet`, list/history queries, deposit/withdraw/hold commands, `IWalletRepository` и response DTO |
+| Host | `Program.cs`, `WalletsEndpoints`, список, история, deposit/withdraw/holds, middleware, JWT; HTTP-тесты в `Host.IntegrationTests` |
+| Gateway | YARP `/api/wallets/**` и BFF `/bff/wallets`; Gateway BFF покрыт unit/web и PostgreSQL E2E-тестами |
+| Tests | Domain, Application, Infrastructure/PostgreSQL, Host HTTP и Gateway E2E — отдельные проекты; точное число тестов зависит от текущей ветки |
 
 Открытые вопросы после миграции:
 
-1. CI workflow добавлен, но `on: push/pull_request: branches: [main]` — на feature-ветке прогона нет; зелёный CI пока не подтверждён.
-2. Локальная конфигурация: `appsettings.Development` — compose-стиль (`postgres:5432`, `identity:8080`); Wallets в compose нет, локально нужны env-переопределения.
-3. `TimeProvider`: сейчас `DateTimeOffset.UtcNow`, тесты зависят от часов.
-4. `Outbox`: фабрика/писатель и сериализация `Payload` появятся в M4.
-5. `Freeze/Unfreeze/Close` не реализованы.
-6. `JwtOptions` в Host не используется: `AddJwtBearerFromJwks` читает `IConfiguration` напрямую.
-7. `CreateWalletRequest` не проходит через `ValidationFilter<T>`; невалидная валюта ловится доменом (400).
+1. Wallets отсутствует в основном compose-стеке; локально нужны адреса и строка подключения из окружения.
+2. `TimeProvider` не введён; доменные timestamp создаются текущим временем.
+3. Outbox publisher и публикация событий остаются будущей работой.
+4. `Freeze`/`Unfreeze`/`Close` не реализованы.
+5. Сервисная аутентификация Payments → Wallets остаётся отдельным security-долгом; Gateway BFF использует пользовательский JWT.
 
 ## 11. Чек-лист для ревью M2W5
 
@@ -366,11 +376,13 @@ services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<CreateWall
 - [x] `POST /api/wallets` и `GET /api/wallets/{id}` идут через MediatR.
 - [x] `userId` берётся из `sub`, а не из тела.
 - [x] `GET` чужого кошелька → `403`, несуществующего → `404`.
+- [x] `GET /wallets` фильтрует по владельцу без загрузки детей.
+- [x] История использует лёгкую загрузку, пагинацию и стабильный порядок `CreatedAt DESC, Id DESC`.
 - [x] Для read-only навигаций задан `UsePropertyAccessMode(Field)`; `Include(Holds)` проверен тестом.
-- [ ] `Version` — concurrency token; `SaveChanges` обрабатывает `DbUpdateConcurrencyException`.
+- [x] `Version` — concurrency token; concurrency и retry-сценарии покрыты тестами.
 - [x] Миграция создаёт `Wallets`, `Holds`, `WalletTransactions`, `Outbox` и индексы.
 - [x] Тесты домена и API покрывают создание, чтение, ownership и hold-сценарии.
-- [x] E2E через Gateway: 5 тестов (`Gateway.Host.IntegrationTests`).
+- [x] E2E через Gateway покрывает CRUD-операции Wallets и BFF-сводку с историей.
 
 ## 12. Операции deposit/withdraw (#51)
 
@@ -383,4 +395,10 @@ services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<CreateWall
 Обязательный заголовок `Idempotency-Key` (UUID в MVP) хранится в `WalletTransaction.ReferenceId`; filtered unique index `(WalletId, ReferenceId)` не даёт создать вторую операцию. Повтор с тем же ключом возвращает текущий результат, с другой суммой/типом — 409. `Version` защищает от потерянных обновлений; `DbUpdateConcurrencyException` маппится в 409.
 
 Полное решение и таблица ошибок — [ADR 0006](./adr/0006-wallet-operations-idempotency.md).
+
+## 13. История и BFF (#52)
+
+Wallets отдаёт пользовательский список через `GET /wallets` и постраничный ledger через `GET /wallets/{walletId}/operations`. История не загружает все транзакции агрегата: проверка владельца использует `GetByIdLightAsync`, а данные — отдельный запрос с `Skip/Take`, общим `TotalCount` и порядком `CreatedAt DESC, Id DESC`.
+
+Gateway `GET /bff/wallets` собирает список кошельков и недавние операции в единый UI-ответ. Суммы агрегируются отдельно для каждой валюты; `recentOperations` имеет default 5 и диапазон 0..20. Gateway не меняет Wallets и не возвращает частичные данные, если внутренний запрос завершился ошибкой. Схема ответа зафиксирована в `openapi/gateway.v1.json`, а TypeScript-клиент генерируется Orval.
 

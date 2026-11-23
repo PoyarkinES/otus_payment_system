@@ -33,6 +33,9 @@ namespace Otus.PaymentSystem.Wallets.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamptz");
 
+                    b.Property<Guid>("RecipientUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 

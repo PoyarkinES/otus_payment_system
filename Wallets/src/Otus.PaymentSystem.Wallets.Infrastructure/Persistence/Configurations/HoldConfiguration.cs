@@ -40,6 +40,9 @@ public sealed class HoldConfiguration : IEntityTypeConfiguration<Hold>
             .HasColumnType("timestamptz")
             .IsRequired();
 
+        builder.Property(h => h.RecipientUserId)
+            .IsRequired();
+
         builder.HasIndex(h => h.TransferId)
             .IsUnique()
             .HasDatabaseName("IX_Holds_TransferId");

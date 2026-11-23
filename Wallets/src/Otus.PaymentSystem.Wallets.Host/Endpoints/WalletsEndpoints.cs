@@ -1,15 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using MediatR;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using Otus.PaymentSystem.Wallets.Application.Commands.CreateWallet;
 using Otus.PaymentSystem.Wallets.Application.Contracts;
 using Otus.PaymentSystem.Wallets.Application.Queries.GetWallet;
 using Otus.PaymentSystem.Wallets.Host.Contracts;
 using Otus.PaymentSystem.Wallets.Application.Commands.DepositWallet;
 using Otus.PaymentSystem.Wallets.Application.Commands.WithdrawWallet;
+using Otus.PaymentSystem.Wallets.Application.Queries.GetWalletOperations;
+using Otus.PaymentSystem.Wallets.Application.Queries.ListUserWallets;
 
 namespace Otus.PaymentSystem.Wallets.Host.Endpoints;
 
@@ -17,7 +16,7 @@ public static class WalletsEndpoints
 {
     public static IEndpointRouteBuilder MapWalletsEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/wallets")
+        RouteGroupBuilder group = app.MapGroup("/wallets")
             .WithTags("Wallets")
             .RequireAuthorization();
 
@@ -49,6 +48,19 @@ public static class WalletsEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        group.MapGet("/{id:guid}/operations", GetWalletOperations)
+            .WithName("GetWalletOperations")
+            .Produces<WalletOperationsPageResult>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapGet("", ListUserWallets)
+            .WithName("ListUserWallets")
+            .Produces<IReadOnlyCollection<WalletResult>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
         return app;
     }
 
@@ -72,13 +84,13 @@ public static class WalletsEndpoints
     {
         Guid? userId = GetUserId(user);
         if (userId is null) return Results.Unauthorized();
-        var result = await mediator.Send(new GetWalletQuery(id, userId.Value), cancellationToken);
+        WalletResult result = await mediator.Send(new GetWalletQuery(id, userId.Value), cancellationToken);
         return Results.Ok(result);
     }
 
-    private static Guid? GetUserId(ClaimsPrincipal user)
+    internal static Guid? GetUserId(ClaimsPrincipal user)
     {
-        string? sub = user.FindFirst("sub")?.Value;
+        var sub = user.FindFirst("sub")?.Value;
         return Guid.TryParse(sub, out var id) ? id : null;
     }
 
@@ -93,7 +105,7 @@ public static class WalletsEndpoints
         Guid? userId = GetUserId(user);
         if (userId is null) return Results.Unauthorized();
 
-        var result = await mediator.Send(
+        WalletResult result = await mediator.Send(
             new DepositWalletCommand(id, userId.Value, request.Amount, idempotencyKey),
             cancellationToken);
 
@@ -117,4 +129,34 @@ public static class WalletsEndpoints
 
         return Results.Ok(result);
     }
+
+    private static async Task<IResult> GetWalletOperations(
+        Guid id,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize,
+        ClaimsPrincipal user,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        Guid? userId = GetUserId(user);
+        if (userId is null) return Results.Unauthorized();
+
+        page ??= 1;
+        pageSize ??= 20;
+
+        WalletOperationsPageResult result = await mediator.Send(
+            new GetWalletOperationsQuery(id, userId.Value, page.Value, pageSize.Value),
+            cancellationToken);
+        return Results.Ok(result);
+    }
+
+    private static async Task<IResult> ListUserWallets(ClaimsPrincipal user, IMediator mediator, CancellationToken cancellationToken)
+    {
+        Guid? userId = GetUserId(user);
+        if (userId is null) return Results.Unauthorized();
+        
+        IReadOnlyCollection<WalletResult> result = await mediator.Send(new ListUserWalletsQuery(userId.Value), cancellationToken);
+        return Results.Ok(result);
+    }
+
 }

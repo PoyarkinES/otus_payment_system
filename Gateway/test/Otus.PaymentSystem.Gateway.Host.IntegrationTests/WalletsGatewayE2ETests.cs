@@ -80,6 +80,72 @@ public class WalletsGatewayE2ETests : IClassFixture<GatewayApiFactory>
     }
 
     [Fact]
+    public async Task Get_BffWallets_ThroughGateway_ReturnsWalletAndRecentOperations()
+    {
+        using HttpClient client = CreateClient(Guid.NewGuid());
+        using HttpResponseMessage created = await client.PostAsJsonAsync(
+            "/api/wallets",
+            new { currency = "RUB" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+
+        WalletResponse wallet = (await created.Content.ReadFromJsonAsync<WalletResponse>())!;
+        using HttpResponseMessage deposit = await PostOperationAsync(
+            client,
+            wallet.Id,
+            "deposit",
+            100m,
+            Guid.NewGuid());
+        Assert.Equal(HttpStatusCode.OK, deposit.StatusCode);
+        using HttpResponseMessage withdrawal = await PostOperationAsync(
+            client,
+            wallet.Id,
+            "withdraw",
+            25m,
+            Guid.NewGuid());
+        Assert.Equal(HttpStatusCode.OK, withdrawal.StatusCode);
+
+        using HttpResponseMessage response = await client.GetAsync("/bff/wallets?recentOperations=1");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        BffWalletsResponse? result = await response.Content.ReadFromJsonAsync<BffWalletsResponse>();
+
+        Assert.NotNull(result);
+        BffWalletResponse resultWallet = Assert.Single(result!.Wallets);
+        Assert.Equal(wallet.Id, resultWallet.Id);
+        Assert.Equal("RUB", resultWallet.Currency);
+        Assert.Equal(75m, resultWallet.Available);
+        Assert.Equal(75m, resultWallet.Total);
+        Assert.Single(resultWallet.RecentOperations);
+        BffCurrencyTotalResponse total = Assert.Single(result.Totals);
+        Assert.Equal("RUB", total.Currency);
+        Assert.Equal(75m, total.Available);
+        Assert.Equal(75m, total.Total);
+    }
+
+    [Fact]
+    public async Task Get_BffWallets_WithoutAuth_Returns401()
+    {
+        using HttpClient client = _factory.Gateway.CreateClient();
+
+        using HttpResponseMessage response = await client.GetAsync("/bff/wallets");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Get_BffWallets_ForNewUser_ReturnsEmptyCollections()
+    {
+        using HttpClient client = CreateClient(Guid.NewGuid());
+
+        using HttpResponseMessage response = await client.GetAsync("/bff/wallets");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        BffWalletsResponse? result = await response.Content.ReadFromJsonAsync<BffWalletsResponse>();
+        Assert.NotNull(result);
+        Assert.Empty(result!.Wallets);
+        Assert.Empty(result.Totals);
+    }
+
+    [Fact]
     public async Task Post_Deposit_ThroughGateway_Returns200_AndUpdatesBalance()
     {
         var client = CreateClient(Guid.NewGuid());
@@ -186,6 +252,36 @@ public class WalletsGatewayE2ETests : IClassFixture<GatewayApiFactory>
         int Version,
         DateTimeOffset CreatedAt,
         DateTimeOffset UpdatedAt);
+
+    private sealed record BffWalletsResponse(
+        IReadOnlyCollection<BffWalletResponse> Wallets,
+        IReadOnlyCollection<BffCurrencyTotalResponse> Totals);
+
+    private sealed record BffWalletResponse(
+        Guid Id,
+        string Currency,
+        decimal Available,
+        decimal Held,
+        decimal Total,
+        string Status,
+        IReadOnlyCollection<BffOperationResponse> RecentOperations);
+
+    private sealed record BffCurrencyTotalResponse(
+        string Currency,
+        decimal Available,
+        decimal Held,
+        decimal Total);
+
+    private sealed record BffOperationResponse(
+        Guid Id,
+        Guid? ReferenceId,
+        string Type,
+        decimal Amount,
+        string Currency,
+        decimal BalanceBefore,
+        decimal BalanceAfter,
+        string? Description,
+        DateTimeOffset CreatedAt);
 
     private static async Task<HttpResponseMessage> PostOperationAsync(HttpClient client, Guid walletId, string operation, decimal amount, Guid idempotencyKey)
     {

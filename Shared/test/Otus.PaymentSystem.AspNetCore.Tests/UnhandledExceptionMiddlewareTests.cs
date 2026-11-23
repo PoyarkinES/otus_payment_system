@@ -42,6 +42,23 @@ public sealed class UnhandledExceptionMiddlewareTests
     }
 
     [Fact]
+    public async Task InvokeAsync_BadHttpRequest_WritesItsStatusCode()
+    {
+        var context = NewContext();
+        var middleware = CreateMiddleware(
+            new ApiProblemOptions { IncludeExceptionDetails = true },
+            _ => throw new BadHttpRequestException("Failed to bind parameter.", StatusCodes.Status400BadRequest));
+
+        await middleware.InvokeAsync(context);
+
+        string json = await ReadBodyAsync(context);
+        using var doc = JsonDocument.Parse(json);
+        Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
+        Assert.Equal("Некорректные параметры HTTP-запроса.", doc.RootElement.GetProperty("detail").GetString());
+        Assert.DoesNotContain("Failed to bind", json);
+    }
+
+    [Fact]
     public async Task InvokeAsync_RethrowsWhenResponseHasStarted()
     {
         var body = new MemoryStream();

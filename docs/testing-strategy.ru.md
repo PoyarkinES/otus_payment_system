@@ -12,13 +12,13 @@
 | Сценарии приложения | `Identity/test/Otus.PaymentSystem.Identity.Application.Tests` | хендлеры MediatR: login/refresh/logout/register/block/update, отзыв цепочки при смене пароля | фейковые репозитории и `ITokenService` |
 | Host-уровень | `Identity/test/Otus.PaymentSystem.Identity.Host.Tests` | middleware (`CorrelationId`, `DomainException`), валидаторы контрактов, `ClaimsPrincipalExtensions` | `DefaultHttpContext` |
 | Инфраструктура | `Identity/test/Otus.PaymentSystem.Identity.Infrastructure.Tests` | EF-маппинг, репозитории, формат refresh-токена, `JwtTokenService` на RS256 | PostgreSQL для части тестов |
-| Edge / BFF | `Gateway/test/Otus.PaymentSystem.Gateway.Host.Tests` | `UserIdHeaderMiddleware`, `CorrelationIdMiddleware`, хендлеры `/bff/me` и `/bff/health` | подменённый `HttpMessageHandler` |
-| HTTP-конвейер хоста | `Gateway.Host.Tests`, `Identity.Host.Tests` (`WebApplicationFactory`) | 401/403/200 через реальные auth-политики, агрегат health, формат ProblemDetails | TestServer, тестовая auth-схема, фейковый репозиторий |
+| Edge / BFF | `Gateway/test/Otus.PaymentSystem.Gateway.Host.Tests` | `/bff/me`, `/bff/health`, `/bff/wallets`, суммы/операции, upstream-заголовки и 502/503 | подменённый `HttpMessageHandler` |
+| HTTP-конвейер хоста | Gateway и Identity (`WebApplicationFactory`) | auth-политики, BFF route и формат ProblemDetails | TestServer, тестовая auth-схема, подменённый Wallets handler |
 | Общая библиотека | `Shared/test/Otus.PaymentSystem.AspNetCore.Tests` | `ApiProblems`, `ValidationFilter`, middleware ответов | нет |
 | Контракт | `openapi/*.v1.json` + jobs `openapi-drift`, `openapi-gateway-drift` | спеки соответствуют коду | запуск Host |
 | Смоук | [demo-m1.ru.md](./demo-m1.ru.md) | стек в Docker: логин, BFF, админский `GET /users/{id}` | docker compose |
 
-Проверенные числа на 2026-11-04: Identity — **106 тестов** (без Postgres-тестов), Gateway — **20 тестов**.
+Проверенные числа на 2026-11-22: Gateway — **34 Host/unit/web-теста** и **11 Gateway E2E-тестов** (последние требуют PostgreSQL). Историческое число Identity — 106 тестов без Postgres-тестов; оно не пересчитывалось в рамках этой задачи.
 
 ## Правила размещения новых тестов
 
@@ -30,7 +30,7 @@
 
 ## Тесты с PostgreSQL
 
-Часть тестов инфраструктуры требует реальной БД: `EfUserRepositoryPostgresTests`.
+Тесты инфраструктуры и пользовательские интеграционные сценарии требуют реальной БД: `EfUserRepositoryPostgresTests`, Wallets Host integration tests и Gateway E2E.
 
 - Локально: поднять `otus-postgres`, задать `IDENTITY_TEST_DB` и запустить точечно.
 
@@ -39,6 +39,8 @@
   dotnet test Identity\test\Otus.PaymentSystem.Identity.Infrastructure.Tests `
       --filter "FullyQualifiedName~EfUserRepositoryPostgresTests"
   ```
+
+- Для Wallets Host и Gateway E2E задайте `WALLETS_API_TEST_DB` на тестовую PostgreSQL-базу `otus_wallets_api_test`; Gateway вызывает Wallets in-process, но сохраняет реальные HTTP-конвейеры обоих Host.
 
 - В CI это отдельный job `identity-integration-tests` с сервис-контейнером `postgres:17`; остальные job гоняют фильтр `FullyQualifiedName!~Postgres`, чтобы не требовать БД.
 
@@ -77,9 +79,9 @@ Get-ChildItem -Recurse -Filter *.sln | ForEach-Object { dotnet build $_.FullName
 
 ## Пробелы (осознанные)
 
-1. **Wallets: Host HTTP-тесты и Gateway E2E** — 13 тестов `WebApplicationFactory` (Host) + 8 E2E через Gateway (in-process YARP + `WebApplicationFactory<Wallets.Host>`). HTTP-тесты остальных сервисов — нет.
+1. **Wallets: Host HTTP-тесты и Gateway E2E** — 13 тестов `WebApplicationFactory` (Host) + 11 E2E через Gateway (YARP и BFF используют in-process `WebApplicationFactory<Wallets.Host>`). HTTP-тесты остальных сервисов — нет.
 2. **Нет E2E через UI** — фронтенда пока нет.
-3. **Wallets** — домен, Host, 47 тестов; **Payments/Fraud/Notifications/Audit** пока каркас, их тесты появятся в M3–M5.
+3. **Wallets** — домен, Host, PostgreSQL-репозиторные тесты и API/E2E тесты; **Payments/Fraud/Notifications/Audit** пока каркас, их тесты появятся в M3–M5.
 4. **Нет тестов на rate limiting** кроме ручной проверки 429 — лимитер живёт в конфигурации Gateway, а не в коде.
 5. **Wallets: тестовые БД разведены** — `otus_wallets_api_test` (Host.IntegrationTests + Gateway E2E) и `otus_wallets_repo_test` (Infrastructure.Tests).
 6. **HTTP-тесты Identity используют фейковый репозиторий**, а не реальную БД: EF-путь проверяется отдельно в `Infrastructure.Tests` (Postgres).

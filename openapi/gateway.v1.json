@@ -97,6 +97,96 @@
         }
       }
     },
+    "/bff/wallets": {
+      "get": {
+        "tags": [
+          "BFF"
+        ],
+        "summary": "Сводка по кошелькам пользователя",
+        "description": "Возвращает кошельки, суммы по валютам и последние операции. recentOperations по умолчанию равен 5; допустимый диапазон — 0..20.",
+        "operationId": "BffWallets",
+        "parameters": [
+          {
+            "name": "recentOperations",
+            "in": "query",
+            "schema": {
+              "maximum": 20,
+              "minimum": 0,
+              "type": "integer",
+              "format": "int32",
+              "default": 5
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BffWalletsResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -152,6 +242,128 @@
           },
           "identity": {
             "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "BffWalletCurrencyTotalResult": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "available": {
+            "type": "number",
+            "format": "double"
+          },
+          "held": {
+            "type": "number",
+            "format": "double"
+          },
+          "total": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BffWalletOperationResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "referenceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "amount": {
+            "type": "number",
+            "format": "double"
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "balanceBefore": {
+            "type": "number",
+            "format": "double"
+          },
+          "balanceAfter": {
+            "type": "number",
+            "format": "double"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BffWalletResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "available": {
+            "type": "number",
+            "format": "double"
+          },
+          "held": {
+            "type": "number",
+            "format": "double"
+          },
+          "total": {
+            "type": "number",
+            "format": "double"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "recentOperations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BffWalletOperationResult"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "BffWalletsResult": {
+        "type": "object",
+        "properties": {
+          "wallets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BffWalletResult"
+            },
+            "nullable": true
+          },
+          "totals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BffWalletCurrencyTotalResult"
+            },
             "nullable": true
           }
         },

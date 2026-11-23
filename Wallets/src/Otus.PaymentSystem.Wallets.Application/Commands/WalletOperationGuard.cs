@@ -18,4 +18,14 @@ internal static class WalletOperationGuard
                 DomainError.Conflict);
         }
     }
+
+    public static void EnsureSameHoldParameters(Hold existing, decimal amount, Guid recipientUserId)
+    {
+        if (existing.Amount != amount || existing.RecipientUserId != recipientUserId)
+        {
+            throw new DomainException(
+                "TransferId уже использован для другой операции.",
+                DomainError.Conflict);
+        }
+    }
 }

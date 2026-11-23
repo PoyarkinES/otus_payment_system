@@ -12,6 +12,8 @@ API Gateway / BFF для Otus Payment System. Это **edge-сервис**, а �
 - добавляет `X-User-Id` из claim `sub` и удаляет клиентский `X-User-Id`;
 - настраивает CORS для фронтенда;
 - прокидывает `X-Correlation-Id`;
+- предоставляет read-only BFF-эндпоинты `/bff/me`, `/bff/health` и `/bff/wallets`;
+- aggregates `/bff/wallets` from the user's wallet list, per-currency totals, and recent Wallets operations;
 - отдаёт `/health` самого Gateway.
 
 ## Локальный запуск
@@ -43,9 +45,15 @@ curl.exe -i http://localhost:8080/health
 | `/api/identity/auth/me` | Identity `/auth/me` | JWT обязателен |
 | `/api/identity/users/**` | Identity `/users/**` | JWT обязателен |
 | `/api/identity/**` | Identity `/**` | без политики на Gateway (login/register анонимны) |
+| `/api/wallets/**` | Wallets `/wallets/**` | JWT обязателен |
+| `/bff/me` | Gateway claims | JWT обязателен |
+| `/bff/health` | Gateway + Identity | анонимно |
+| `/bff/wallets` | Gateway + Wallets | JWT обязателен |
 | `/health` | Gateway | анонимно |
 
-Маршруты Wallets и Payments появятся в M2–M3.
+Маршруты Payments появятся в M3.
+
+`GET /bff/wallets?recentOperations=5` принимает `recentOperations` в диапазоне `0..20` (по умолчанию `5`). Значение `0` возвращает кошельки и totals без запросов истории. Upstream non-2xx преобразуется в `502`, недоступность и таймаут Wallets — в `503`; частичный агрегат не возвращается.
 
 ## Конфигурация
 
@@ -72,6 +80,8 @@ dotnet test Gateway/Otus.PaymentSystem.Gateway.sln --arch x64
 - `UserIdHeaderMiddleware`: удаление клиентского заголовка, подстановка `sub`,
   невалидный/отсутствующий `sub`;
 - `CorrelationIdMiddleware`: сохранение, генерация, невалидные и слишком длинные значения.
+- `/bff/wallets`: валидация параметра, валютные totals, операции, forwarded headers и ошибки upstream;
+- Gateway E2E: BFF получает настоящие кошельки и историю через in-process Wallets Host и PostgreSQL.
 
 ### Почему `--arch x64`
 

@@ -120,7 +120,7 @@ Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 
 `Client/` — SPA на React + TypeScript с компонентами MUI. Ходит только через Gateway, клиент API
 генерируется из `openapi/gateway.v1.json`. Сейчас есть каркас и страница «Статус системы»
-(`/bff/health`); вход, профиль и кошельки — дальше по эпику #80.
+(`/bff/health`); BFF API-сводка кошельков доступна через `/bff/wallets`, но экран кошельков ещё не реализован.
 
 ```bash
 cd Client
@@ -156,12 +156,13 @@ Gateway → PostgreSQL → Wallets (+ holds) → Transfers (Redis, hold, Fraud s
 
 - **M1 закрыт (эпик #40):**
   - Identity: регистрация, логин, профиль, роли, block/unblock, refresh/logout с ротацией и reuse-детектом, RS256 + JWKS, PostgreSQL + миграции.
-  - Gateway: YARP, валидация JWT по JWKS, `X-User-Id`, CORS, rate limiting (429 + `Retry-After`), BFF `/bff/me` и `/bff/health`.
+  - Gateway: YARP, валидация JWT по JWKS, `X-User-Id`, CORS, rate limiting (429 + `Retry-After`), BFF `/bff/me`, `/bff/health` и `/bff/wallets`.
   - Инфраструктура: Serilog + correlation ID, единый ProblemDetails, валидация DTO, Docker Compose полного стека.
-- **Тесты:** 101 в Identity, 17 в Gateway, отдельно `Shared`; тесты с PostgreSQL — отдельным job.
-- **CI** собирает 8 решений, запускает тесты Shared/Gateway/Identity, интеграцию с PostgreSQL и проверяет контракт OpenAPI (`openapi-drift`).
+- **Wallets (#52):** реализованы балансы, holds, история операций и список кошельков; Gateway агрегирует список, totals по валютам и последние операции.
+- **Проверенные Gateway-тесты:** 34 Host/unit/web и 11 E2E через in-process Wallets + PostgreSQL.
+- **CI** собирает решения, запускает тесты и проверяет OpenAPI drift; Gateway E2E проверены локально с `WALLETS_API_TEST_DB`.
 - **Веб-клиент (#82):** каркас на React + MUI, клиент из OpenAPI Gateway, страница статуса системы, job `client` в CI.
-- **Не сделано (M2+):** Wallets, Transfers, RabbitMQ, Redis, Fraud, Merchant Payments, экраны веб-клиента. Wallets/Payments/Fraud/Notifications/Audit пока содержат только доменные события.
+- **Дальше:** Payments/Transfers и UI-экраны; RabbitMQ, Redis, Fraud и Merchant Payments остаются будущими этапами.
 - **Post-1.0:** KYC/Onboarding (MongoDB + MinIO + gRPC), не блокирует 1.0.
 
 Актуальный статус и порядок задач — в pinned issue [#70](https://github.com/PoyarkinES/otus_payment_system/issues/70).

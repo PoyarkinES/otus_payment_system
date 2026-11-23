@@ -1,4 +1,5 @@
 using Otus.PaymentSystem.Wallets.Domain.Aggregates;
+using Otus.PaymentSystem.Wallets.Domain.Errors;
 using Otus.PaymentSystem.Wallets.Domain.Events;
 using Otus.PaymentSystem.Wallets.Domain.Exceptions;
 using Otus.PaymentSystem.Wallets.Domain.ValueObjects;
@@ -9,7 +10,7 @@ namespace Otus.PaymentSystem.Wallets.Domain.Tests;
 public class WalletTests
 {
     private static readonly Guid UserId = Guid.NewGuid();
-
+    private static readonly Guid RecipientId = Guid.NewGuid();
     private static Wallet CreateWallet() => Wallet.Create(UserId, Currency.Rub);
 
     [Fact]
@@ -90,14 +91,37 @@ public class WalletTests
         wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
         var transferId = Guid.NewGuid();
 
-        var hold = wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), UserId);
+        var hold = wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), UserId, RecipientId);
 
         Assert.Equal(70m, wallet.Available);
         Assert.Equal(30m, wallet.Held);
         Assert.Equal(HoldStatus.Active, hold.Status);
         Assert.Equal(transferId, hold.TransferId);
+        Assert.Equal(RecipientId, hold.RecipientUserId);
         Assert.Single(wallet.Holds);
         Assert.Single(wallet.Transactions); // только TopUp: hold ledger не пишет
+    }
+
+    [Fact]
+    public void PlaceHold_WithEmptyRecipient_ThrowsValidation()
+    {
+        var wallet = CreateWallet();
+        wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
+
+        var exception = Assert.Throws<DomainException>(() =>
+            wallet.PlaceHold(Guid.NewGuid(), Money.Create(30m, Currency.Rub), UserId, Guid.Empty));
+
+        Assert.Equal(DomainError.Validation, exception.Error);
+    }
+
+    [Fact]
+    public void PlaceHold_WhenRecipientIsSender_Throws()
+    {
+        var wallet = CreateWallet();
+        wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
+
+        Assert.Throws<DomainException>(() =>
+            wallet.PlaceHold(Guid.NewGuid(), Money.Create(30m, Currency.Rub), UserId, UserId));
     }
 
     [Fact]
@@ -107,13 +131,41 @@ public class WalletTests
         wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
         var transferId = Guid.NewGuid();
 
-        var first = wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), UserId);
-        var second = wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), UserId);
+        var first = wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), UserId, RecipientId);
+        var second = wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), UserId, RecipientId);
 
         Assert.Same(first, second);
         Assert.Single(wallet.Holds);
         Assert.Equal(70m, wallet.Available);
         Assert.Equal(30m, wallet.Held);
+    }
+
+    [Fact]
+    public void PlaceHold_SameTransferIdDifferentAmount_ThrowsConflict()
+    {
+        var wallet = CreateWallet();
+        wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
+        var transferId = Guid.NewGuid();
+        wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), UserId, RecipientId);
+
+        var exception = Assert.Throws<DomainException>(() =>
+            wallet.PlaceHold(transferId, Money.Create(40m, Currency.Rub), UserId, RecipientId));
+
+        Assert.Equal(DomainError.Conflict, exception.Error);
+    }
+
+    [Fact]
+    public void PlaceHold_SameTransferIdDifferentRecipient_ThrowsConflict()
+    {
+        var wallet = CreateWallet();
+        wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
+        var transferId = Guid.NewGuid();
+        wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), UserId, RecipientId);
+
+        var exception = Assert.Throws<DomainException>(() =>
+            wallet.PlaceHold(transferId, Money.Create(30m, Currency.Rub), UserId, Guid.NewGuid()));
+
+        Assert.Equal(DomainError.Conflict, exception.Error);
     }
 
     [Fact]
@@ -123,7 +175,7 @@ public class WalletTests
         wallet.Deposit(Money.Create(10m, Currency.Rub), Guid.NewGuid());
 
         Assert.Throws<DomainException>(() =>
-            wallet.PlaceHold(Guid.NewGuid(), Money.Create(30m, Currency.Rub), UserId));
+            wallet.PlaceHold(Guid.NewGuid(), Money.Create(30m, Currency.Rub), UserId, RecipientId));
     }
 
     [Fact]
@@ -131,9 +183,9 @@ public class WalletTests
     {
         var wallet = CreateWallet();
         wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
-        var hold = wallet.PlaceHold(Guid.NewGuid(), Money.Create(30m, Currency.Rub), UserId);
+        var hold = wallet.PlaceHold(Guid.NewGuid(), Money.Create(30m, Currency.Rub), UserId, RecipientId);
 
-        wallet.ReleaseHold(hold.Id);
+        Assert.True(wallet.ReleaseHold(hold.Id));
 
         Assert.Equal(100m, wallet.Available);
         Assert.Equal(0m, wallet.Held);
@@ -142,13 +194,24 @@ public class WalletTests
     }
 
     [Fact]
+    public void ReleaseHold_FirstTime_ReturnsTrue_SecondTime_ReturnsFalse()
+    {
+        var wallet = CreateWallet();
+        wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
+        var hold = wallet.PlaceHold(Guid.NewGuid(), Money.Create(30m, Currency.Rub), UserId, RecipientId);
+
+        Assert.True(wallet.ReleaseHold(hold.Id));
+        Assert.False(wallet.ReleaseHold(hold.Id));
+    }
+
+    [Fact]
     public void ConfirmHold_MovesHeldOut_AndWritesTransferOutLedger()
     {
         var wallet = CreateWallet();
         wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
-        var hold = wallet.PlaceHold(Guid.NewGuid(), Money.Create(30m, Currency.Rub), UserId);
+        var hold = wallet.PlaceHold(Guid.NewGuid(), Money.Create(30m, Currency.Rub), UserId, RecipientId);
 
-        wallet.ConfirmHold(hold.Id);
+        Assert.True(wallet.ConfirmHold(hold.Id));
 
         Assert.Equal(70m, wallet.Available);
         Assert.Equal(0m, wallet.Held);
@@ -157,18 +220,41 @@ public class WalletTests
     }
 
     [Fact]
-    public void ConfirmHold_AlreadyCompleted_IsIdempotent()
+    public void ConfirmHold_FirstTime_ReturnsTrue_SecondTime_ReturnsFalse()
     {
         var wallet = CreateWallet();
         wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
-        var hold = wallet.PlaceHold(Guid.NewGuid(), Money.Create(30m, Currency.Rub), UserId);
-        wallet.ConfirmHold(hold.Id);
-        var txCount = wallet.Transactions.Count;
+        var hold = wallet.PlaceHold(Guid.NewGuid(), Money.Create(30m, Currency.Rub), UserId, RecipientId);
 
-        wallet.ConfirmHold(hold.Id);
-
-        Assert.Equal(txCount, wallet.Transactions.Count);
+        Assert.True(wallet.ConfirmHold(hold.Id));
+        Assert.False(wallet.ConfirmHold(hold.Id));
         Assert.Equal(70m, wallet.Available);
+    }
+
+    [Fact]
+    public void ConfirmHold_AfterRelease_ThrowsConflict()
+    {
+        var wallet = CreateWallet();
+        wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
+        var hold = wallet.PlaceHold(Guid.NewGuid(), Money.Create(30m, Currency.Rub), UserId, RecipientId);
+        wallet.ReleaseHold(hold.Id);
+
+        var exception = Assert.Throws<DomainException>(() => wallet.ConfirmHold(hold.Id));
+
+        Assert.Equal(DomainError.Conflict, exception.Error);
+    }
+
+    [Fact]
+    public void ReleaseHold_AfterConfirm_ThrowsConflict()
+    {
+        var wallet = CreateWallet();
+        wallet.Deposit(Money.Create(100m, Currency.Rub), Guid.NewGuid());
+        var hold = wallet.PlaceHold(Guid.NewGuid(), Money.Create(30m, Currency.Rub), UserId, RecipientId);
+        wallet.ConfirmHold(hold.Id);
+
+        var exception = Assert.Throws<DomainException>(() => wallet.ReleaseHold(hold.Id));
+
+        Assert.Equal(DomainError.Conflict, exception.Error);
     }
 
     [Fact]

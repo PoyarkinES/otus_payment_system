@@ -7,7 +7,7 @@
  */
 import { faker } from '@faker-js/faker';
 
-import type { BffHealthResult, BffMeResult } from '../../model';
+import type { BffHealthResult, BffMeResult, BffWalletsResult } from '../../model';
 
 export const getBffMeResponseMock = (
     overrideResponse: Partial<Extract<BffMeResult, object>> = {},
@@ -37,6 +37,96 @@ export const getBffHealthResponseMock = (
             ]),
         },
         undefined,
+    ]),
+    ...overrideResponse,
+});
+
+export const getBffWalletsResponseMock = (
+    overrideResponse: Partial<Extract<BffWalletsResult, object>> = {},
+): BffWalletsResult => ({
+    wallets: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+            id: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+            currency: faker.helpers.arrayElement([
+                faker.string.alpha({ length: { min: 10, max: 20 } }),
+                null,
+            ]),
+            available: faker.helpers.arrayElement([
+                faker.number.float({ fractionDigits: 2 }),
+                undefined,
+            ]),
+            held: faker.helpers.arrayElement([
+                faker.number.float({ fractionDigits: 2 }),
+                undefined,
+            ]),
+            total: faker.helpers.arrayElement([
+                faker.number.float({ fractionDigits: 2 }),
+                undefined,
+            ]),
+            status: faker.helpers.arrayElement([
+                faker.string.alpha({ length: { min: 10, max: 20 } }),
+                null,
+            ]),
+            recentOperations: faker.helpers.arrayElement([
+                Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(
+                    () => ({
+                        id: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+                        referenceId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+                        type: faker.helpers.arrayElement([
+                            faker.string.alpha({ length: { min: 10, max: 20 } }),
+                            null,
+                        ]),
+                        amount: faker.helpers.arrayElement([
+                            faker.number.float({ fractionDigits: 2 }),
+                            undefined,
+                        ]),
+                        currency: faker.helpers.arrayElement([
+                            faker.string.alpha({ length: { min: 10, max: 20 } }),
+                            null,
+                        ]),
+                        balanceBefore: faker.helpers.arrayElement([
+                            faker.number.float({ fractionDigits: 2 }),
+                            undefined,
+                        ]),
+                        balanceAfter: faker.helpers.arrayElement([
+                            faker.number.float({ fractionDigits: 2 }),
+                            undefined,
+                        ]),
+                        description: faker.helpers.arrayElement([
+                            faker.string.alpha({ length: { min: 10, max: 20 } }),
+                            null,
+                        ]),
+                        createdAt: faker.helpers.arrayElement([
+                            faker.date.past().toISOString().slice(0, 19) + 'Z',
+                            undefined,
+                        ]),
+                    }),
+                ),
+                null,
+            ]),
+        })),
+        null,
+    ]),
+    totals: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+            currency: faker.helpers.arrayElement([
+                faker.string.alpha({ length: { min: 10, max: 20 } }),
+                null,
+            ]),
+            available: faker.helpers.arrayElement([
+                faker.number.float({ fractionDigits: 2 }),
+                undefined,
+            ]),
+            held: faker.helpers.arrayElement([
+                faker.number.float({ fractionDigits: 2 }),
+                undefined,
+            ]),
+            total: faker.helpers.arrayElement([
+                faker.number.float({ fractionDigits: 2 }),
+                undefined,
+            ]),
+        })),
+        null,
     ]),
     ...overrideResponse,
 });

@@ -8,11 +8,19 @@
 import { HttpResponse, http } from 'msw';
 import type { HttpResponseResolver, RequestHandlerOptions } from 'msw';
 
-import type { BffHealthResult, BffMeResult } from '../../model';
+import type { BffHealthResult, BffMeResult, BffWalletsResult } from '../../model';
 
-import { getBffHealthResponseMock, getBffMeResponseMock } from './bff.faker';
+import {
+    getBffHealthResponseMock,
+    getBffMeResponseMock,
+    getBffWalletsResponseMock,
+} from './bff.faker';
 
-export { getBffMeResponseMock, getBffHealthResponseMock } from './bff.faker';
+export {
+    getBffMeResponseMock,
+    getBffHealthResponseMock,
+    getBffWalletsResponseMock,
+} from './bff.faker';
 
 export const getBffMeMockHandler = (
     overrideResponse?:
@@ -59,4 +67,32 @@ export const getBffHealthMockHandler = (
         options,
     );
 };
-export const getBffMock = () => [getBffMeMockHandler(), getBffHealthMockHandler()];
+
+export const getBffWalletsMockHandler = (
+    overrideResponse?:
+        | BffWalletsResult
+        | ((
+              info: Parameters<HttpResponseResolver>[0],
+          ) => Promise<BffWalletsResult> | BffWalletsResult),
+    options?: RequestHandlerOptions,
+) => {
+    return http.get(
+        '*/bff/wallets',
+        async (info: Parameters<HttpResponseResolver>[0]) => {
+            return HttpResponse.json(
+                overrideResponse !== undefined
+                    ? typeof overrideResponse === 'function'
+                        ? await overrideResponse(info)
+                        : overrideResponse
+                    : getBffWalletsResponseMock(),
+                { status: 200 },
+            );
+        },
+        options,
+    );
+};
+export const getBffMock = () => [
+    getBffMeMockHandler(),
+    getBffHealthMockHandler(),
+    getBffWalletsMockHandler(),
+];
