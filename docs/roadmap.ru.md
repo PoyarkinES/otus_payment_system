@@ -129,7 +129,7 @@ Gateway → PostgreSQL → Wallets → Transfers → Outbox/RabbitMQ → Audit/N
 | W1 | 2–8 ноября | Каркас Gateway, маршруты, JWT, `X-User-Id`, CORS | [#46](https://github.com/PoyarkinES/otus_payment_system/issues/46) | ✅ |
 | W2 | 9–15 ноября | PostgreSQL для Identity, миграции, docker-compose, Testcontainers | [#47](https://github.com/PoyarkinES/otus_payment_system/issues/47), [#10](https://github.com/PoyarkinES/otus_payment_system/issues/10) | ✅ |
 | W3 | 16–22 ноября | Refresh/logout, RSA/JWKS для Gateway, rate limiting, ProblemDetails, Serilog | [#48](https://github.com/PoyarkinES/otus_payment_system/issues/48), [#20](https://github.com/PoyarkinES/otus_payment_system/issues/20), [#21](https://github.com/PoyarkinES/otus_payment_system/issues/21), [#22](https://github.com/PoyarkinES/otus_payment_system/issues/22) | ✅ |
-| W4 | 23–29 ноября | BFF `/bff/me`, `GET /users/{id}` для ACL, health, тесты в CI, Docker, ретро | [#49](https://github.com/PoyarkinES/otus_payment_system/issues/49), [#16](https://github.com/PoyarkinES/otus_payment_system/issues/16), [#19](https://github.com/PoyarkinES/otus_payment_system/issues/19) | ✅ |
+| W4 | 23–29 ноября | BFF `/bff/me`, `GET /users/{id}` для ACL, health, тесты в CI ([стратегия](./testing-strategy.ru.md)), Docker, ретро | [#49](https://github.com/PoyarkinES/otus_payment_system/issues/49), [#16](https://github.com/PoyarkinES/otus_payment_system/issues/16), [#19](https://github.com/PoyarkinES/otus_payment_system/issues/19) | ✅ |
 
 **Exit criteria месяца** — все выполнены 04.11.2026 (проверено на стеке в Docker, см. [demo-m1.ru.md](./demo-m1.ru.md)):
 
