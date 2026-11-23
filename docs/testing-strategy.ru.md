@@ -1,90 +1,161 @@
 # Стратегия тестирования
 
-Документ закрывает issue #16: какие тесты есть, где они живут, что проверяет CI и где мы сознательно недокрыты.
+Документ закрывает issue #16: какие тесты есть, где они живут, что обязательно для PR и где мы сознательно недокрыты.
 
 Принцип: **тест живёт в проекте того слоя, который он проверяет.** Доменный инвариант не должен проверяться из `Host.Tests`, а middleware — из `Domain.Tests`. Иначе тесты начинают зависеть от инфраструктуры и перестают быть быстрыми.
 
-## Уровни и где они лежат
+## Уровни и где лежат тесты
 
-| Уровень | Проект | Что проверяется | Зависимости |
+| Уровень | Проект | Что проверяет | Зависимости |
 |---|---|---|---|
-| Доменные инварианты | `Identity/test/Otus.PaymentSystem.Identity.Domain.Tests` | агрегаты `User`, `RefreshToken`, value objects: переходы статусов, ротация и reuse-детект, запреты | нет |
-| Сценарии приложения | `Identity/test/Otus.PaymentSystem.Identity.Application.Tests` | хендлеры MediatR: login/refresh/logout/register/block/update, отзыв цепочки при смене пароля | фейковые репозитории и `ITokenService` |
-| Host-уровень | `Identity/test/Otus.PaymentSystem.Identity.Host.Tests` | middleware (`CorrelationId`, `DomainException`), валидаторы контрактов, `ClaimsPrincipalExtensions` | `DefaultHttpContext` |
-| Инфраструктура | `Identity/test/Otus.PaymentSystem.Identity.Infrastructure.Tests` | EF-маппинг, репозитории, формат refresh-токена, `JwtTokenService` на RS256 | PostgreSQL для части тестов |
-| Edge / BFF | `Gateway/test/Otus.PaymentSystem.Gateway.Host.Tests` | `/bff/me`, `/bff/health`, `/bff/wallets`, суммы/операции, upstream-заголовки и 502/503 | подменённый `HttpMessageHandler` |
-| HTTP-конвейер хоста | Gateway и Identity (`WebApplicationFactory`) | auth-политики, BFF route и формат ProblemDetails | TestServer, тестовая auth-схема, подменённый Wallets handler |
-| Общая библиотека | `Shared/test/Otus.PaymentSystem.AspNetCore.Tests` | `ApiProblems`, `ValidationFilter`, middleware ответов | нет |
-| Контракт | `openapi/*.v1.json` + jobs `openapi-drift`, `openapi-gateway-drift` | спеки соответствуют коду | запуск Host |
+| Доменные инварианты | `Identity.Domain.Tests` | агрегаты `User`, `RefreshToken`, value objects: переходы статусов, ротация и reuse-детект, запреты | нет |
+| Доменные инварианты | `Wallets.Domain.Tests` | `Wallet`, `Hold`, `Money`: переходы статусов, лимиты, балансы, идемпотентность холда | нет |
+| Сценарии приложения | `Identity.Application.Tests` | хендлеры MediatR: login/refresh/logout/register/block/update, отзыв цепочки при смене пароля | фейковые репозитории, `NSubstitute` для `ITokenService` |
+| Host-уровень | `Identity.Host.Tests` | middleware (`CorrelationId`, `DomainException`), валидаторы контрактов, `ClaimsPrincipalExtensions` | `DefaultHttpContext` |
+| HTTP-конвейер | `Wallets.Host.IntegrationTests` | эндпоинты кошелька, ownership, hold/confirm/release, история операций, пагинация | `WebApplicationFactory`, тестовая auth-схема, PostgreSQL |
+| Middleware | `Wallets.Host.Tests` | `DomainExceptionMiddleware`, маппинг кодов ошибок | `DefaultHttpContext` |
+| Инфраструктура | `Identity.Infrastructure.Tests` | EF-маппинг, репозитории, формат refresh-токена, `JwtTokenService` на RS256 | PostgreSQL для части тестов |
+| Инфраструктура | `Wallets.Infrastructure.Tests` | EF-маппинг, ограничения БД, версионирование, пагинация, маппинг ошибок уникальности | PostgreSQL |
+| Edge / BFF | `Gateway.Host.Tests` | `/bff/me`, `/bff/health`, `/bff/wallets`, суммы/операции, upstream-заголовки, 502/503 | подменённый `HttpMessageHandler` |
+| E2E через Gateway | `Gateway.Host.IntegrationTests` | YARP и BFF поверх реальных `Wallets.Host`/`Identity.Host` через TestServer | PostgreSQL |
+| Общая библиотека | `Shared.AspNetCore.Tests` | `ApiProblems`, `ValidationFilter`, middleware ответов | нет |
+| UI | `Client` (`Vitest` + Testing Library) | компоненты, роутер, `apiFetch`, обработка ProblemDetails | `jsdom`, MSW |
+| Контракт | `openapi/*.v1.json` + drift-джобы | спеки соответствуют коду | запуск Host |
 | Смоук | [demo-m1.ru.md](./demo-m1.ru.md) | стек в Docker: логин, BFF, админский `GET /users/{id}` | docker compose |
 
-Проверенные числа на 2026-11-22: Gateway — **34 Host/unit/web-теста** и **11 Gateway E2E-тестов** (последние требуют PostgreSQL). Историческое число Identity — 106 тестов без Postgres-тестов; оно не пересчитывалось в рамках этой задачи.
+Отдельного `Wallets.Application.Tests` нет: логика команд проверяется HTTP-тестами через `Host.IntegrationTests`. Это осознанная экономия, а не образец — см. «Пробелы».
 
 ## Правила размещения новых тестов
 
 - Инвариант сущности или value object → `Domain.Tests`. Без БД, без HTTP.
 - Логика команды/запроса → `Application.Tests`, зависимости — через интерфейсы и фейки.
-- Маппинг EF, миграции, SQL-специфика → `Infrastructure.Tests`, имя теста содержит `Postgres`, если нужна реальная БД.
-- Middleware, валидаторы, хендлеры эндпоинтов → `Host.Tests`; сеть подменяется `HttpMessageHandler`, не мокается `IHttpClientFactory` целиком.
-- Новый публичный сценарий без теста **не проходит ревью**. Исключение — только с явной записью в разделе «Пробелы» ниже.
+- Маппинг EF, миграции, SQL-специфика → `Infrastructure.Tests`; имя теста содержит `Postgres`, если нужна реальная БД.
+- Middleware, валидаторы, хендлеры эндпоинтов → `Host.Tests`; сеть подменяется `HttpMessageHandler`, а не мокается `IHttpClientFactory` целиком.
+- Сквозной сценарий через Gateway → `Gateway.Host.IntegrationTests`; Wallets поднимается in-process, но сохраняются реальные HTTP-конвейеры.
+- Тест на конкурентность не использует `Thread.Sleep` и не зависит от порядка запуска: результат проверяется по состоянию в БД и коду ответа.
+- Классы `Wallets.Host.IntegrationTests` выполняются последовательно (`AssemblyInfo.cs`): они делят одну тестовую БД, и параллельное применение миграций даёт гонку `42P07`/`42710`.
+- Новый публичный сценарий без теста **не проходит ревью**. Исключение — только с явной записью в разделе «Пробелы».
 
-## Тесты с PostgreSQL
+## Критические сценарии
 
-Тесты инфраструктуры и пользовательские интеграционные сценарии требуют реальной БД: `EfUserRepositoryPostgresTests`, Wallets Host integration tests и Gateway E2E.
-
-- Локально: поднять `otus-postgres`, задать `IDENTITY_TEST_DB` и запустить точечно.
-
-  ```powershell
-  $env:IDENTITY_TEST_DB = 'Host=localhost;Port=5434;Database=otus_identity_test;Username=otus;Password=otus'
-  dotnet test Identity\test\Otus.PaymentSystem.Identity.Infrastructure.Tests `
-      --filter "FullyQualifiedName~EfUserRepositoryPostgresTests"
-  ```
-
-- Для Wallets Host и Gateway E2E задайте `WALLETS_API_TEST_DB` на тестовую PostgreSQL-базу `otus_wallets_api_test`; Gateway вызывает Wallets in-process, но сохраняет реальные HTTP-конвейеры обоих Host.
-
-- В CI это отдельный job `identity-integration-tests` с сервис-контейнером `postgres:17`; остальные job гоняют фильтр `FullyQualifiedName!~Postgres`, чтобы не требовать БД.
-
-## Контракт OpenAPI
-
-`openapi/identity.v1.json` — артефакт, а не ручная правка. Любое изменение DTO, кодов ответа или маршрутов требует перегенерации, иначе job `openapi-drift` падает на `git diff --exit-code -- openapi`. Процедура — в [api-contracts.ru.md](./api-contracts.ru.md), шаг 2.
-
-## Что проверяет CI
-
-| Job | Что делает | Что ловит |
+| Сценарий | Где проверяется | Джоба CI |
 |---|---|---|
-| `pack-shared` | `dotnet pack` двух Shared-проектов + artifact | версии/состав NuGet-пакетов |
-| `Build` (матрица 8 решений) | `dotnet build -c Release` | ошибки компиляции в любом контексте |
-| `Test (Shared/Gateway/Identity)` | `dotnet test` + coverage | регрессии юнит- и host-тестов |
-| `identity-integration-tests` | тесты с реальным PostgreSQL | расхождения EF-маппинга и SQL |
-| `openapi-drift` | генерация спеки Identity и `git diff` | контракт Identity разошёлся с кодом |
-| `openapi-gateway-drift` | генерация спеки Gateway и `git diff` | контракт BFF разошёлся с кодом |
-| `Docker build (Identity/Gateway)` | `docker build -f <Dockerfile> .` | Dockerfile и контекст сборки разъехались с кодом |
+| Аутентификация: логин, refresh, ротация, reuse, block/unblock | `Identity.Application.Tests`, `Identity.Domain.Tests`, `Identity.Host.Tests` | `Test (Identity)`, `Identity integration tests` |
+| Ownership кошелька: чужой → 403, несуществующий → 404 | `WalletsApiTests` | `Wallets integration tests` |
+| Баланс после deposit/withdraw и идемпотентность по `Idempotency-Key` | `WalletsApiTests` | `Wallets integration tests` |
+| Hold/confirm/release: балансы, повторный вызов, конкурентность | `WalletHoldsApiTests` | `Wallets integration tests` |
+| Откат перевода: `confirm` после `release` и наоборот → 409 | `WalletHoldsApiTests` | `Wallets integration tests` |
+| История операций: порядок, страницы, `pageSize`, 400 на невалидных параметрах | `WalletOperationsApiTests`, `EfWalletRepositoryPostgresTests` | `Wallets integration tests` |
+| BFF: агрегация кошельков и операций, `recentOperations` 0..20, 502/503 | `BffWalletsEndpointTests`, `WalletsGatewayE2ETests` | `Test (Gateway)`, `Gateway E2E` |
+| Fraud block | не реализовано (M5), тестов нет | — |
+| Rate limiting | ручная проверка 429 | — |
 
-## Команды локально
+## Инструменты
+
+| Инструмент | Где используется | Комментарий |
+|---|---|---|
+| xUnit 2.9 + `Assert` | все .NET-тесты | базовый раннер и утверждения |
+| `NSubstitute` | `Identity.Application.Tests` | подмена `ITokenService` и внешних зависимостей |
+| `WebApplicationFactory` / TestServer | `Wallets.Host.IntegrationTests`, `Gateway.Host.IntegrationTests` | реальный HTTP-конвейер без сети |
+| PostgreSQL 17 | инфраструктурные тесты, Wallets Host, Gateway E2E | локально — docker compose, в CI — service container |
+| `coverlet.collector` | job `Test (...)`, артефакт `coverage-*` | cobertura, без гейта |
+| `Vitest` + Testing Library + MSW | `Client` | компонентные тесты, API мокается на уровне fetch |
+| `Orval` | `Client` | генерация клиента из `openapi/gateway.v1.json` |
+
+Осознанно **не используем**:
+
+- `FluentAssertions` — стандартного `Assert` достаточно, лишняя зависимость в каждом тестовом проекте;
+- `Testcontainers` — в CI уже есть service-контейнер PostgreSQL, а локально тот же контейнер поднимает docker compose; Testcontainers добавит время старта и вторую конфигурацию БД;
+- `Moq` — в Identity используется `NSubstitute`, в остальных местах хватает ручных фейков.
+
+Решение пересматривается, если появится матрица из нескольких СУБД или понадобится поднимать брокер сообщений в тестах.
+
+## Покрытие
+
+Цели по слоям — ориентир для ревью, а не жёсткий гейт: CI собирает cobertura и складывает артефакты `coverage-*`, но порог не проверяет.
+
+| Слой | Цель |
+|---|---|
+| Domain | ≥ 90% |
+| Application | ≥ 85% |
+| Infrastructure | ≥ 70% |
+| Host / API | ≥ 70% |
+| Client | не измеряется |
+
+Порог в CI включим после стабилизации M3, когда появятся Payments и Fraud. До этого покрытие смотрим глазами на ревью: падение покрытия в затронутом слое — повод для вопроса, а не для блокировки.
+
+## Что запускает CI
+
+| Джоба | Что делает | Что ловит |
+|---|---|---|
+| `Pack Shared NuGet packages` | `dotnet pack` двух Shared-проектов + artifact | версии и состав NuGet-пакетов |
+| `Build` (матрица 8 решений) | `dotnet build -c Release` | ошибки компиляции в любом контексте |
+| `Test (Shared/Gateway/Identity/Wallets)` | `dotnet test` + coverage | регрессии unit/host-тестов |
+| `Identity integration tests (PostgreSQL)` | тесты с реальным PostgreSQL | расхождения EF-маппинга и SQL |
+| `Wallets integration tests (PostgreSQL)` | Host HTTP-тесты Wallets и Postgres-тесты репозитория | гонки, ограничения БД, ownership, holds, история |
+| `Gateway E2E (Wallets through Gateway)` | YARP + BFF через TestServer | сквозной сценарий через Gateway |
+| `OpenAPI contract drift` | генерация спеки Identity и `git diff` | контракт Identity разошёлся с кодом |
+| `OpenAPI gateway drift` | генерация спеки Gateway и `git diff` | контракт BFF разошёлся с кодом |
+| `Docker build (Identity/Gateway)` | `docker build -f <Dockerfile> .` | Dockerfile и контекст сборки разъехались с кодом |
+| `Client (lint, test, build)` | генерация клиента, lint, format, typecheck, Vitest, `vite build` | устаревший сгенерированный клиент, ошибки типов, регрессии UI |
+
+Фильтры в матрице `Test`:
+
+- Shared — без фильтра;
+- Gateway — `FullyQualifiedName!~IntegrationTests`;
+- Identity — `FullyQualifiedName!~Postgres`;
+- Wallets — `FullyQualifiedName!~Postgres & FullyQualifiedName!~IntegrationTests`.
+
+Что обязательно для PR: все перечисленные джобы. Мерж блокируется, если хотя бы одна красная: branch protection требует все обязательные чеки, включая drift, интеграционные тесты и клиент.
+
+Nightly-воркфлоу пока нет. Кандидаты на него: полный прогон всех Postgres-тестов, пятикратный повтор конкурентных тестов (`hold`/`confirm`/`deposit`/`withdraw`), смоук `docker compose` и проверка уязвимостей зависимостей. Заведём отдельной задачей, когда появится первый платный раннер или вырастет время PR-прогона.
+
+## Локальный запуск
 
 ```powershell
 .\scripts\pack-shared.ps1
 dotnet test Shared\Otus.PaymentSystem.Shared.sln
 dotnet test Gateway\Otus.PaymentSystem.Gateway.sln
 dotnet test Identity\Otus.PaymentSystem.Identity.sln --filter "FullyQualifiedName!~Postgres"
+dotnet test Wallets\Otus.PaymentSystem.Wallets.sln --filter "FullyQualifiedName!~Postgres & FullyQualifiedName!~IntegrationTests"
 ```
 
-Перед сборкой сервисов выполните `scripts/pack-shared.ps1`; CI делает это в job `pack-shared` и раздаёт artifact.
-
-Сборка всех решений — то же, что делает `Build`:
+Postgres-тесты:
 
 ```powershell
-Get-ChildItem -Recurse -Filter *.sln | ForEach-Object { dotnet build $_.FullName -c Release }
+$env:IDENTITY_TEST_DB  = 'Host=localhost;Port=5434;Database=otus_identity_test;Username=otus;Password=payments'
+$env:WALLETS_API_TEST_DB  = 'Host=localhost;Port=5433;Database=otus_wallets_api_test;Username=otus;Password=payments'
+$env:WALLETS_REPO_TEST_DB = 'Host=localhost;Port=5433;Database=otus_wallets_repo_test;Username=otus;Password=payments'
+
+dotnet test Identity\test\Otus.PaymentSystem.Identity.Infrastructure.Tests --filter "FullyQualifiedName~EfUserRepositoryPostgresTests"
+dotnet test Wallets\test\Otus.PaymentSystem.Wallets.Infrastructure.Tests --filter "FullyQualifiedName~Postgres"
+dotnet test Wallets\test\Otus.PaymentSystem.Wallets.Host.IntegrationTests
+dotnet test Gateway\test\Otus.PaymentSystem.Gateway.Host.IntegrationTests
 ```
+
+Клиент:
+
+```powershell
+cd Client
+npm ci
+npm run api:generate
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+Перед сборкой сервисов выполните `scripts/pack-shared.ps1`; CI делает это в джобе `Pack Shared NuGet packages` и раздаёт artifact.
 
 ## Пробелы (осознанные)
 
-1. **Wallets: Host HTTP-тесты и Gateway E2E** — 13 тестов `WebApplicationFactory` (Host) + 11 E2E через Gateway (YARP и BFF используют in-process `WebApplicationFactory<Wallets.Host>`). HTTP-тесты остальных сервисов — нет.
-2. **Нет E2E через UI** — фронтенда пока нет.
-3. **Wallets** — домен, Host, PostgreSQL-репозиторные тесты и API/E2E тесты; **Payments/Fraud/Notifications/Audit** пока каркас, их тесты появятся в M3–M5.
-4. **Нет тестов на rate limiting** кроме ручной проверки 429 — лимитер живёт в конфигурации Gateway, а не в коде.
-5. **Wallets: тестовые БД разведены** — `otus_wallets_api_test` (Host.IntegrationTests + Gateway E2E) и `otus_wallets_repo_test` (Infrastructure.Tests).
-6. **HTTP-тесты Identity используют фейковый репозиторий**, а не реальную БД: EF-путь проверяется отдельно в `Infrastructure.Tests` (Postgres).
+1. **`Wallets.Application.Tests` отсутствует.** Логика `PlaceHold`/`ConfirmHold`/`ReleaseHold` (ретраи, автосоздание кошелька получателя) проверяется только HTTP-тестами. При усложнении сценариев — завести проект.
+2. **Нет UI E2E.** Компонентные тесты Client есть, сквозного сценария в браузере (Playwright) нет.
+3. **Payments/Fraud/Notifications/Audit — каркас.** Их тесты появятся в M3–M5; `Audit` пока содержит только заготовки проектов.
+4. **Rate limiting не покрыт тестами** — лимитер живёт в конфигурации Gateway, проверяется руками.
+5. **Identity HTTP-тесты используют фейковый репозиторий**, а не реальную БД; EF-путь проверяется отдельно в `Identity.Infrastructure.Tests`.
+6. **Нет nightly-прогона** — конкурентные тесты выполняются один раз на PR.
+7. **Wallets Host integration-классы последовательны** из-за общей БД; при росте числа классов стоит развести базы по коллекциям, чтобы вернуть параллельность.
 
 ## Definition of Done для теста
 
@@ -92,3 +163,4 @@ Get-ChildItem -Recurse -Filter *.sln | ForEach-Object { dotnet build $_.FullName
 - Имя теста читается как утверждение: `GetMe_NoRole_ReturnsUnauthorized`.
 - Нет `Thread.Sleep`, нет обращений во внешнюю сеть, время не зависит от часов машины.
 - Тест не требует порядка запуска: любой тест можно запустить отдельно.
+- Тест с БД убирает за собой данные или использует уникальные идентификаторы, чтобы не влиять на соседние тесты.
