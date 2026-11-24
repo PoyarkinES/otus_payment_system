@@ -1,5 +1,12 @@
 import { env } from '@/shared/config/env';
 import { ApiNetworkError, ApiProblem } from '@/shared/api/problem';
+import {
+    getAccessToken,
+    getRefreshToken,
+    setTokensStorage,
+    clearTokens,
+} from '@/shared/api/auth/storage';
+import type { AuthTokens } from '@/shared/api/generated/identity/model';
 
 /**
  * Тип ошибки для сгенерированных хуков: orval подставляет его вместо типов ошибок из спеки,
@@ -19,11 +26,23 @@ export type ApiFetchOptions = RequestInit & {
 /** Заголовок, по которому один запрос прослеживается от браузера до логов всех сервисов. */
 export const CORRELATION_HEADER = 'X-Correlation-Id';
 
+/** Путь refresh эндпоинта — не требует авторизации. */
+export const REFRESH_URL = '/api/identity/auth/refresh';
+
+/**
+ * Single-flight refresh: один общий Promise на все параллельные 401.
+ * При первом 401 создаётся promise, все последующие 401 ждут его завершения.
+ * После завершения — сброс в null.
+ */
+let refreshPromise: Promise<boolean> | null = null;
+
 /**
  * Единая точка всех HTTP-запросов. Её вызывает сгенерированный orval клиент (`generated/`).
  *
  * - добавляет адрес Gateway из env к пути запроса;
  * - ставит каждому запросу новый `X-Correlation-Id`;
+ * - прикрепляет `Authorization: Bearer` из текущего access-токена;
+ * - при 401 автоматически пробует refresh (single-flight); если refresh удался — повторяет запрос;
  * - `application/problem+json` и ответы с ошибкой без тела превращает в `ApiProblem`,
  *   недоступность сервера — в `ApiNetworkError`;
  * - любой другой ответ вне 2xx — тоже `ApiProblem`, кроме статусов из `acceptStatus`;
@@ -36,6 +55,12 @@ export async function apiFetch<T>(url: string, options: ApiFetchOptions = {}): P
     const headers = new Headers(init.headers);
     headers.set(CORRELATION_HEADER, correlationId);
 
+    // Прикрепляем access-токен, если он есть.
+    const at = getAccessToken();
+    if (at !== null) {
+        headers.set('Authorization', `Bearer ${at}`);
+    }
+
     let response: Response;
     try {
         response = await fetch(`${env.apiBaseUrl}${url}`, { ...init, headers });
@@ -47,7 +72,20 @@ export async function apiFetch<T>(url: string, options: ApiFetchOptions = {}): P
 
     const traceId = response.headers.get(CORRELATION_HEADER) ?? correlationId;
     const contentType = response.headers.get('Content-Type') ?? '';
-    const body = parseJson(await response.text());
+    const bodyText = await response.text();
+    const body = parseJson(bodyText);
+
+    // 401 обрабатывается ДО throw по problem+json — иначе refresh недостижим,
+    // так как все 401 в системе приходят как ProblemDetails.
+    if (response.status === 401 && at !== null && url !== REFRESH_URL) {
+        const refreshed = await tryRefresh();
+        if (refreshed) {
+            // Повторяем запрос с новым токеном.
+            return retryRequest(url, init, acceptStatus);
+        }
+        // Refresh не удался — токены очищены, клиент должен перейти на login.
+        // Продолжаем ниже для бросания ошибки.
+    }
 
     if (contentType.includes('application/problem+json') && isObject(body)) {
         throw problemFromBody(body, response, traceId);
@@ -64,6 +102,103 @@ export async function apiFetch<T>(url: string, options: ApiFetchOptions = {}): P
 
     const data = contentType.includes('json') ? body : undefined;
     return { data, status: response.status, headers: response.headers } as T;
+}
+
+/** Повторяет запрос с новым токеном после успешного refresh. */
+async function retryRequest<T>(url: string, init: RequestInit, acceptStatus: number[]): Promise<T> {
+    const retryHeaders = new Headers(init.headers);
+    retryHeaders.set(CORRELATION_HEADER, newCorrelationId());
+    const newAt = getAccessToken();
+    if (newAt !== null) {
+        retryHeaders.set('Authorization', `Bearer ${newAt}`);
+    }
+
+    const retryResponse = await fetch(`${env.apiBaseUrl}${url}`, {
+        ...init,
+        headers: retryHeaders,
+    });
+    const retryContentType = retryResponse.headers.get('Content-Type') ?? '';
+    const retryBodyText = await retryResponse.text();
+    const retryBody = parseJson(retryBodyText);
+    const retryTraceId = retryResponse.headers.get(CORRELATION_HEADER) ?? '';
+
+    if (retryContentType.includes('application/problem+json') && isObject(retryBody)) {
+        throw problemFromBody(retryBody, retryResponse, retryTraceId);
+    }
+
+    if (retryResponse.ok || acceptStatus.includes(retryResponse.status)) {
+        const retryData = retryContentType.includes('json') ? retryBody : undefined;
+        return {
+            data: retryData,
+            status: retryResponse.status,
+            headers: retryResponse.headers,
+        } as T;
+    }
+
+    throw new ApiProblem({
+        status: retryResponse.status,
+        title: retryResponse.statusText || `HTTP ${retryResponse.status}`,
+        traceId: retryTraceId,
+    });
+}
+
+/**
+ * Пробует обновить токены через /auth/refresh.
+ * Использует single-flight pattern: только один refresh за раз.
+ *
+ * Возвращает true, если refresh удался и токены обновлены.
+ * При неудаче очищает токены только при невалидном refresh (400/401),
+ * а не при сетевых ошибках, 429 или 5xx — чтобы не выкидывать пользователя
+ * из-за моргнувшей сети или rate limit.
+ */
+async function tryRefresh(): Promise<boolean> {
+    // Single-flight: если refresh уже идёт, ждём его результат.
+    if (refreshPromise !== null) {
+        return refreshPromise;
+    }
+
+    const rt = getRefreshToken();
+    if (rt === null) return false;
+
+    // Создаём общий promise для всех параллельных 401.
+    // Вызываем refresh напрямую через apiFetch, чтобы не зависеть от сгенерированных endpoints
+    // и избежать цикла импортов (http.ts ↔ generated/identity/auth.ts).
+    refreshPromise = (async () => {
+        try {
+            const response = await apiFetch<{
+                data: AuthTokens;
+                status: number;
+                headers: Headers;
+            }>(REFRESH_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken: rt }),
+            });
+
+            const tokens = response.data;
+            setTokensStorage(
+                tokens.accessToken,
+                tokens.refreshToken,
+                tokens.expiresAt,
+                tokens.refreshExpiresAt,
+            );
+            return true;
+        } catch (error) {
+            // Очищаем токены только при невалидном refresh (400/401).
+            // При сети, 429, 5xx — не чистим, даём приложению продолжить.
+            if (error instanceof ApiProblem && (error.status === 400 || error.status === 401)) {
+                clearTokens();
+            }
+            // При ApiNetworkError или других статусах — не чистим токены.
+            return false;
+        } finally {
+            refreshPromise = null;
+        }
+    })();
+
+    const result = await refreshPromise;
+    refreshPromise = null;
+    return result;
 }
 
 /**

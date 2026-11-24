@@ -3,15 +3,18 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { RouteError } from '@/app/RouteError';
+import { clearTokens } from '@/shared/api/auth/storage';
 import { renderRoute, renderWithProviders } from '@/shared/testing/render';
 
 describe('router', () => {
     afterEach(() => {
         vi.restoreAllMocks();
+        // Очищаем токены после каждого теста, чтобы не影响了 другие тесты.
+        clearTokens();
     });
 
     it('renders layout title on index route', () => {
-        renderRoute('/');
+        renderRoute('/', true);
 
         expect(screen.getByText('Otus Payment System')).toBeInTheDocument();
         expect(
@@ -20,7 +23,7 @@ describe('router', () => {
     });
 
     it('renders 404 for unknown route', () => {
-        renderRoute('/no-such-page');
+        renderRoute('/no-such-page', true);
 
         expect(screen.getByRole('heading', { name: 'Страница не найдена' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'На главную' })).toHaveAttribute('href', '/');

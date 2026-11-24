@@ -10,7 +10,7 @@ async function enableMocks(): Promise<void> {
     // выкидывает эту ветку — без флага MSW и faker не попадают в сборку вовсе.
     if (import.meta.env.VITE_API_MOCKS !== 'true') return;
     const { worker } = await import('@/shared/testing/browser');
-    await worker.start({ onUnhandledFrame: 'bypass' });
+    await worker.start();
 }
 
 await enableMocks();
