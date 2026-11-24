@@ -528,7 +528,7 @@ Postgres-тесты Identity запускаются с `IDENTITY_TEST_DB`; Walle
 | [api-contracts.ru.md](./api-contracts.ru.md) | OpenAPI-артефакты, contract-first |
 | [api-errors.ru.md](./api-errors.ru.md) | ProblemDetails, коды, traceId |
 | [auth-requirements.ru.md](./auth-requirements.ru.md) | JWT, роли, ownership, политики |
-| [testing-strategy.ru.md](./testing-strategy.ru.md) | уровни тестов, CI, Postgres |
+| [testing-strategy.ru.md](./testing-strategy.ru.md) / [EN](./testing-strategy.en.md) | уровни тестов, CI, Postgres |
 | [roadmap.ru.md](./roadmap.ru.md) | месяцы, недели, issue, exit criteria |
 | [identity-entity-interactions.ru.md](./identity-entity-interactions.ru.md) | кто создаёт/вызывает сущности Identity |
 | [wallets-entity-interactions.ru.md](./wallets-entity-interactions.ru.md) | кто создаёт/вызывает сущности Wallets |

@@ -63,8 +63,12 @@ The repository is organized as a set of independent microservice solutions. Each
     ├── api-contracts.ru.md
     ├── api-errors.ru.md
     ├── bounded-contexts.md
+    ├── testing-strategy.ru.md
+    ├── testing-strategy.en.md
     └── adr/0001-api-gateway.md
 ```
+
+Documentation is maintained in Russian and English: whenever a document is added or updated, both language versions are kept in sync. A few older documents still exist in a single language.
 
 Each context follows Clean Architecture with the following layers:
 
