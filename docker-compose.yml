@@ -26,11 +26,7 @@ services:
       retries: 10
 
   identity:
-    build:
-      context: .
-      dockerfile: Identity/Dockerfile
-      secrets:
-        - github_token
+    image: ghcr.io/poyarkines/otus-payment-system-identity:sha-fd5a34840dab02c4ba6d8a77f69d7355d567e334
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -51,11 +47,7 @@ services:
       start_period: 20s
 
   gateway:
-    build:
-      context: .
-      dockerfile: Gateway/Dockerfile
-      secrets:
-        - github_token
+    image: ghcr.io/poyarkines/otus-payment-system-gateway:sha-fd5a34840dab02c4ba6d8a77f69d7355d567e334
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -73,10 +65,6 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
-
-secrets:
-  github_token:
-    environment: GITHUB_TOKEN
 
 volumes:
   identity-db:
