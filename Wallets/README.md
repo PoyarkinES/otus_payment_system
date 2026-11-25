@@ -23,7 +23,7 @@ Wallets/
 - .NET SDK из `global.json` (сейчас .NET 10).
 - PostgreSQL 17.
 - Docker Desktop / Docker Engine для локальной БД.
-- Shared-пакеты: перед сборкой выполните `scripts/pack-shared.ps1` из корня репозитория.
+- Shared-пакеты: доступ к GitHub Packages (токен с `read:packages`), см. ниже.
 
 ## Локальный запуск
 
@@ -45,11 +45,22 @@ docker exec -e PGPASSWORD=payments -it otus-postgres psql -U otus -d postgres -c
 
 ### 2. Shared NuGet
 
-```powershell
-.\scripts\pack-shared.ps1
+Один раз на ПК:
+
+```bash
+gh auth login
+gh auth refresh -s read:packages
 ```
 
-Без этого `dotnet build` не найдёт `Otus.PaymentSystem.SharedKernel` и `Otus.PaymentSystem.AspNetCore` в локальном feed.
+Перед сборкой в PowerShell:
+
+```powershell
+$user = gh api user --jq .login
+$token = gh auth token
+$env:NuGetPackageSourceCredentials_github = "Username=$user;Password=$token;ValidAuthenticationTypes=Basic"
+```
+
+Пакеты `Otus.PaymentSystem.SharedKernel` и `Otus.PaymentSystem.AspNetCore` восстанавливаются из GitHub Packages. `scripts/pack-shared.ps1` для restore не нужен.
 
 ### 3. Переменные окружения
 

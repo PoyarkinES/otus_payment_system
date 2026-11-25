@@ -88,7 +88,7 @@
 
 | Джоба | Что делает | Что ловит |
 |---|---|---|
-| `Pack Shared NuGet packages` | `dotnet pack` двух Shared-проектов + artifact | версии и состав NuGet-пакетов |
+| `Pack Shared NuGet packages` | legacy: `dotnet pack` двух Shared-проектов + artifact; restore идёт из GitHub Packages | версии и состав NuGet-пакетов |
 | `Build` (матрица 8 решений) | `dotnet build -c Release` | ошибки компиляции в любом контексте |
 | `Test (Shared/Gateway/Identity/Wallets)` | `dotnet test` + coverage | регрессии unit/host-тестов |
 | `Identity integration tests (PostgreSQL)` | тесты с реальным PostgreSQL | расхождения EF-маппинга и SQL |
@@ -96,7 +96,7 @@
 | `Gateway E2E (Wallets through Gateway)` | YARP + BFF через TestServer | сквозной сценарий через Gateway |
 | `OpenAPI contract drift` | генерация спеки Identity и `git diff` | контракт Identity разошёлся с кодом |
 | `OpenAPI gateway drift` | генерация спеки Gateway и `git diff` | контракт BFF разошёлся с кодом |
-| `Docker build (Identity/Gateway)` | `docker build -f <Dockerfile> .` | Dockerfile и контекст сборки разъехались с кодом |
+| `Docker build (Identity/Gateway)` | `docker build` с BuildKit secret для GitHub Packages | Dockerfile, контекст и токен сборки разъехались с кодом |
 | `Client (lint, test, build)` | генерация клиента, lint, format, typecheck, Vitest, `vite build` | устаревший сгенерированный клиент, ошибки типов, регрессии UI |
 
 Фильтры в матрице `Test`:
@@ -113,7 +113,10 @@ Nightly-воркфлоу пока нет. Кандидаты на него: по
 ## Локальный запуск
 
 ```powershell
-.\scripts\pack-shared.ps1
+$user = gh api user --jq .login
+$token = gh auth token
+$env:NuGetPackageSourceCredentials_github = "Username=$user;Password=$token;ValidAuthenticationTypes=Basic"
+
 dotnet test Shared\Otus.PaymentSystem.Shared.sln
 dotnet test Gateway\Otus.PaymentSystem.Gateway.sln
 dotnet test Identity\Otus.PaymentSystem.Identity.sln --filter "FullyQualifiedName!~Postgres"
@@ -145,7 +148,7 @@ npm run test
 npm run build
 ```
 
-Перед сборкой сервисов выполните `scripts/pack-shared.ps1`; CI делает это в джобе `Pack Shared NuGet packages` и раздаёт artifact.
+Перед локальной сборкой нужен GitHub-токен с `read:packages` и переменная `NuGetPackageSourceCredentials_github` (см. блок выше). `scripts/pack-shared.ps1` для restore больше не нужен: пакеты берутся из GitHub Packages.
 
 ## Пробелы (осознанные)
 

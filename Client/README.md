@@ -44,8 +44,8 @@ npm run dev         # открыть http://localhost:5173
 
 Есть два режима:
 
-- **С настоящим бэком.** В корне репо `docker compose up --build -d`, затем `npm run dev`.
-  Фронт пойдёт в Gateway на `http://localhost:8080`.
+- **С настоящим бэком.** В корне репо `docker compose pull && docker compose up -d`, затем `npm run dev`.
+  Образы Identity/Gateway публичные, токены GitHub/NuGet не нужны. Фронт пойдёт в Gateway на `http://localhost:8080`.
 - **Без бэка.** `npm run dev:mocks` — на запросы отвечают моки, Docker не нужен. Удобно, когда
   бэк ещё не готов или не хочется его поднимать.
 

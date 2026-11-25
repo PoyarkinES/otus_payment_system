@@ -38,7 +38,7 @@
 .
 ├── Directory.Build.props        # общие настройки MSBuild (TFM, nullable, анализаторы)
 ├── global.json                  # зафиксированная версия .NET SDK
-├── docker-compose.yml           # полный стек M1: postgres + identity + gateway
+├── docker-compose.yml           # демо-стек M1 из публичных GHCR-образов
 ├── .dockerignore
 ├── openapi/                     # OpenAPI-контракты Identity и Gateway (генерируются, не правятся руками)
 ├── Client/                      # веб-клиент: React SPA, ходит только через Gateway (см. Client/README.md)
@@ -100,19 +100,25 @@
 
 Подробнее: [ADR 0001](./docs/adr/0001-api-gateway.md).
 
-## Полный стек (Docker Compose)
+## Демо-стек (Docker Compose, GHCR)
 
-Один `docker compose up` поднимает PostgreSQL, Identity и Gateway. Наружу открыт только Gateway — Identity и БД доступны лишь внутри сети compose.
+`docker-compose.yml` запускает PostgreSQL, Identity и Gateway из **публичных образов GHCR**, закреплённых по commit SHA. Локальный код при этом не собирается; токены GitHub/NuGet для запуска не нужны. Наружу открыт только Gateway — Identity и БД доступны лишь внутри сети compose.
 
 ```powershell
-docker compose up --build -d
+# если .env ещё нет
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+
+docker compose pull
+docker compose up -d
 docker compose ps
 Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 ```
 
 - Вход: `http://localhost:8080`, демо-админ `admin@otus.local` / `AdminP@ssw0rd`.
 - Схема БД применяется на старте контейнера (`Database__AutoMigrate=true`); в обычном `dotnet run` миграции по-прежнему накатываются через `dotnet ef database update`.
-- Если в корне лежит локальный `docker-compose.override.yml`, запускай явно: `docker compose -f docker-compose.yml up --build`.
+- Если в корне лежит локальный `docker-compose.override.yml`, запускай явно: `docker compose -f docker-compose.yml up -d` (override публикует postgres на 5434 и конфликтует с dev-контейнером `otus-postgres`).
+- Для локальных изменений кода используй `docker compose -f docker-compose.dev.yml up -d` (только PostgreSQL) и `dotnet run`; `docker-compose.yml` — только готовые образы.
+- После изменения кода публикуется новый образ, тег `sha-…` в `docker-compose.yml` обновляется отдельным PR.
 
 Пошаговый сценарий с негативными проверками: [docs/demo-m1.ru.md](./docs/demo-m1.ru.md). Уровни тестов и что проверяет CI: [docs/testing-strategy.ru.md](./docs/testing-strategy.ru.md).
 

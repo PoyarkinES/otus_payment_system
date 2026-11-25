@@ -1,14 +1,14 @@
 # Shared как NuGet-пакеты
 
-> **Статус:** реализовано в #118 (P0). `SharedKernel` и `AspNetCore` упакованы, все сервисы переведены на `PackageReference`, локальный feed и CI `pack-shared` работают.
+> **Статус:** решение реализовано в #118; публикация вынесена в GitHub Packages в #133, Docker-сборка переведена на BuildKit secret в #134, демо-стек — на GHCR-образы в #135.
 >
 > Связанные: [project-guide.ru.md](./project-guide.ru.md) · [ADR 0004](./adr/0004-shared-nuget.md)
 
 ## 1. Решение
 
-`SharedKernel` и `AspNetCore` упаковываются в NuGet-пакеты. Сервисы подключают их через `PackageReference` с фиксированной версией. Монорепо остаётся: `Shared.sln` — источник пакетов и тестов, а не набор проектов внутри каждого сервисного `.sln`.
+`SharedKernel` и `AspNetCore` упаковываются в NuGet-пакеты и публикуются в **GitHub Packages**. Сервисы подключают их через `PackageReference` с фиксированной версией.
 
-Это убирает физическую зависимость сборки сервиса от соседней папки `Shared`: сервису нужен пакет из feed, а не исходники рядом.
+Монорепо остаётся: `Shared.sln` — источник пакетов и тестов, а не набор проектов внутри каждого сервисного `.sln`. Для Docker и сервисов папка `Shared` больше не нужна: они восстанавливают пакет из feed.
 
 ## 2. Пакеты
 
@@ -19,29 +19,30 @@
 
 Тестовые проекты не пакуются: `IsPackable=false`.
 
-Текущее состояние (после #118):
+Текущее состояние:
 
 - `AspNetCore.csproj`: `IsPackable=true`, `PackageId=Otus.PaymentSystem.AspNetCore`.
 - `SharedKernel.csproj`: `PackageId=Otus.PaymentSystem.SharedKernel`; версия — `Shared/Directory.Build.props`.
-- Есть `NuGet.config`, `scripts/pack-shared.ps1` и локальный `artifacts/packages`.
-- Identity, Gateway, Wallets, Payments, Fraud, Notifications, Audit используют `PackageReference` 1.0.0.
+- Identity, Gateway, Wallets, Payments, Fraud, Notifications, Audit используют `PackageReference 1.0.0`.
+- `NuGet.config` содержит только GitHub Packages и nuget.org; локального `artifacts/packages` в источниках нет.
 
-## 3. Метаданные
+## 3. Feed
 
-В `csproj` или `Shared/Directory.Build.props`:
+- Источник: `https://nuget.pkg.github.com/PoyarkinES/index.json`.
+- Пакеты версии `1.0.0` опубликованы по тегу `shared-v1.0.0`.
+- `NuGet.config` в корне:
 
 ```xml
-<PropertyGroup>
-  <IsPackable>true</IsPackable>
-  <PackageId>Otus.PaymentSystem.SharedKernel</PackageId>
-  <Version>1.0.0</Version>
-  <Authors>Otus Payment System</Authors>
-  <Description>Общие примитивы домена.</Description>
-  <RepositoryUrl>https://github.com/PoyarkinES/otus_payment_system</RepositoryUrl>
-</PropertyGroup>
+<configuration>
+    <packageSources>
+        <clear />
+        <add key="github" value="https://nuget.pkg.github.com/PoyarkinES/index.json" />
+        <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+    </packageSources>
+</configuration>
 ```
 
-Для `AspNetCore` — свой `PackageId` и описание. Общую версию удобно держать в `Shared/Directory.Build.props`.
+Пароль в `NuGet.config` не хранится. Учётные данные передаются через `NuGetPackageSourceCredentials_github` (локально и в CI) или через BuildKit secret (в Docker).
 
 ## 4. Версионирование
 
@@ -54,140 +55,146 @@ SemVer:
 
 Правила:
 
-1. Одна версия на оба пакета (проще для старта).
-2. Сервисы фиксируют точную версию, без `*` в production.
-3. Изменил Shared — подними версию, сделай `pack`, обнови `PackageReference`.
-4. В CI можно переопределить: `-p:PackageVersion=1.2.3-ci.42`.
-5. Опционально — Central Package Management (`Directory.Packages.props`).
+1. Одна версия на оба пакета.
+2. Сервисы фиксируют точную версию, без `*`.
+3. GitHub Packages **не перезаписывает** уже опубликованную версию.
+4. Изменил Shared — подними версию, обнови `PackageReference` во всех сервисах, собери и опубликуй пакеты. Для массового обновления есть `scripts/bump-shared.ps1`.
+5. Публикация — только по тегу `shared-v<version>`; версия тега должна совпадать с версией в `Shared/Directory.Build.props`.
+6. `Directory.Packages.props` **не используем**. Версия остаётся явной в каждом `PackageReference`; синхронность проверяет `scripts/bump-shared.ps1 -Check`.
 
 ## 5. Локальная разработка
 
-Собрать пакеты:
+### 5.1. Один раз на ПК
+
+```bash
+gh auth login
+gh auth refresh -s read:packages
+```
+
+Токен хранится в `gh` на машине. В проект его класть не нужно.
+
+### 5.2. Перед сборкой
+
+`NuGet.config` не содержит credentials, поэтому `dotnet restore` нужно передать их через переменную окружения:
 
 ```powershell
-.\scripts\pack-shared.ps1
+$user = gh api user --jq .login
+$token = gh auth token
+$env:NuGetPackageSourceCredentials_github = "Username=$user;Password=$token;ValidAuthenticationTypes=Basic"
+
+dotnet build Shared/Otus.PaymentSystem.Shared.sln
+dotnet build Gateway/Otus.PaymentSystem.Gateway.sln
+dotnet build Identity/Otus.PaymentSystem.Identity.sln
 ```
 
-`dotnet pack` запускается по двум проектам, а не по `Shared.sln`: у решения есть конфигурации x64/x86, и pack solution падает с ошибкой платформы.
+В новой сессии PowerShell переменную нужно выставить снова. Если не хочется повторять — добавьте эти строки в профиль PowerShell или в локальный скрипт, который не коммитится.
 
-Локальный feed — `NuGet.config` в корне:
+### 5.3. `scripts/pack-shared.ps1`
 
-```xml
-<configuration>
-  <packageSources>
-    <add key="local-shared" value="artifacts/packages" />
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-  </packageSources>
-</configuration>
+Скрипт собирает `.nupkg` в `artifacts/packages`. Для restore он **не нужен**: `NuGet.config` больше не смотрит в локальный feed. Используйте его только для проверки состава пакетов или ручной публикации.
+
+### 5.4. Docker
+
+`Identity/Dockerfile` и `Gateway/Dockerfile` восстанавливают Shared из GitHub Packages через BuildKit secret:
+
+```dockerfile
+RUN --mount=type=secret,id=github_token \
+    export NuGetPackageSourceCredentials_github="Username=${NUGET_USERNAME};Password=$(cat /run/secrets/github_token);ValidAuthenticationTypes=Basic" \
+    && dotnet restore ... --configfile NuGet.config
 ```
 
-`artifacts/packages` не коммитим.
+Локальная сборка образа:
 
-Цикл изменения Shared:
-
-1. Изменить код.
-2. Поднять версию.
-3. `dotnet pack`.
-4. Обновить `PackageReference` в сервисах.
-5. `dotnet restore/build/test`.
-
-NuGet кэширует пакеты по версии: при той же версии сервис может взять старый пакет из `~/.nuget/packages`. Правильно — поднять версию; очистка кэша — крайняя мера.
-
-## 6. Подключение в сервисах
-
-Было:
-
-```xml
-<ProjectReference Include="..\..\..\Shared\src\Otus.PaymentSystem.SharedKernel\Otus.PaymentSystem.SharedKernel.csproj" />
+```powershell
+$tokenFile = Join-Path $env:TEMP "github_token"
+Set-Content -NoNewline -Path $tokenFile -Value (gh auth token)
+docker build --secret id=github_token,src=$tokenFile -f Identity/Dockerfile -t otus-identity:local .
+Remove-Item $tokenFile
 ```
 
-Стало:
+В CI секрет передаёт `docker/build-push-action`.
 
-```xml
-<ItemGroup>
-  <PackageReference Include="Otus.PaymentSystem.SharedKernel" Version="1.0.0" />
-</ItemGroup>
+### 5.5. Демо-стек
+
+`docker-compose.yml` использует готовые публичные образы Identity/Gateway из GHCR. Для запуска токен не нужен:
+
+```powershell
+docker compose pull
+docker compose up -d
 ```
 
-Где менять:
+Образы закреплены по `sha-…`; после изменения кода публикуется новый образ и тег в compose обновляется отдельным PR.
 
-| Проект | Пакет |
-|---|---|
-| `Identity.Domain` | `SharedKernel` |
-| `Identity.Host` | `AspNetCore` |
-| `Gateway.Host` | `AspNetCore` |
-| `Wallets.Domain` | `SharedKernel` |
-| `Wallets.Host` | `AspNetCore` |
-| `Payments/Fraud/Notifications/Audit.Domain` | `SharedKernel` |
-| их `Host` (когда появятся) | `AspNetCore` |
+## 6. CI
 
-Правила:
+1. **Публикация пакетов** — `.github/workflows/publish-shared.yml`, триггер `shared-v*`:
+   - проверяет, что версия тега совпадает с версией пакетов;
+   - пакует два проекта;
+   - публикует в GitHub Packages с `packages: write`.
+2. **Build/test** — `permissions: packages: read`; jobs получают `NuGetPackageSourceCredentials_github` из `GITHUB_TOKEN` и восстанавливают пакеты из GitHub Packages.
+3. **Docker build** — job `docker` передаёт `GITHUB_TOKEN` в BuildKit secret; токен не попадает в образ.
+4. **Образы** — `.github/workflows/publish-images.yml` (ручной запуск) собирает Identity/Gateway и публикует в GHCR теги `latest` и `sha-<commit>`.
 
-- Не ставить `PrivateAssets=all` на runtime-библиотеки.
-- `Shared` не добавлять в `.sln` сервиса.
-- `Shared.sln` остаётся для сборки, тестов и `pack`.
+В CI остался legacy job `Pack Shared NuGet packages`, который пакует Shared и загружает artifact. Сейчас artifact не участвует в restore (в `NuGet.config` нет локального источника); это вынесено в техдолг #137.
 
-## 7. CI
+## 7. Изменение Shared
 
-Фактическая схема:
+1. Изменить код в `Shared/`.
+2. Обновить версию и все ссылки одной командой:
+   ```powershell
+   .\scripts\bump-shared.ps1 -Version 1.0.1
+   ```
+   Скрипт меняет `<Version>` в `Shared/Directory.Build.props` и `Version=` во всех `PackageReference`.
+3. Проверить синхронность:
+   ```powershell
+   .\scripts\bump-shared.ps1 -Check
+   ```
+4. Прогнать build/test.
+5. Смержить PR.
+6. Поставить тег `shared-v<version>` — workflow опубликует пакеты.
+7. Если менялся код сервисов — опубликовать новые GHCR-образы и обновить `sha-…` в `docker-compose.yml`.
 
-1. Job `pack-shared`: `dotnet pack` двух проектов и `upload-artifact` `shared-packages`.
-2. Job'ы build/test/integration/openapi: `needs: pack-shared`, composite action `shared-packages` скачивает артефакт в `artifacts/packages`; `NuGet.config` указывает на этот feed.
-3. Docker: `Identity/Dockerfile` и `Gateway/Dockerfile` пакуют Shared внутри build-стадии, поэтому не зависят от локального feed.
-
-Важно:
-
-- версия пакета в CI должна совпадать с `PackageReference`;
-- для PR — версия с суффиксом и обновление `PackageReference` в том же PR;
-- для GitHub Packages — `packages: write` и `GITHUB_TOKEN`;
-- кэш `~/.nuget/packages` использовать осторожно: при той же версии можно получить старый пакет.
-
-## 8. План миграции
+## 8. Миграция
 
 | Фаза | Что сделано | Проверка |
 |---|---|---|
 | 0 | ADR + этот документ | решение зафиксировано |
 | 1 | Метаданные, `IsPackable`, `NuGet.config` | `dotnet pack` создаёт `.nupkg` |
-| 2 | Identity → `PackageReference` | ✅ собирается без `ProjectReference` |
-| 3 | Gateway → `PackageReference` | ✅ собирается из пакета |
-| 4 | Wallets → `PackageReference` | ✅ собирается из пакета |
-| 5 | Payments/Fraud/Notifications/Audit | ✅ нет `ProjectReference` на Shared |
-| 6 | CI: `pack-shared` + feed/artifact | ✅ матрица зелёная |
-
-Правила:
-
-- один сервис — один PR; не смешивать с фичами (M2W5);
-- сначала Identity, потом Gateway, потом Wallets;
-- `Shared.sln` не удалять;
-- в `.sln` сервисов Shared-проектов быть не должно.
+| 2 | Identity → `PackageReference` | ✅ |
+| 3 | Gateway → `PackageReference` | ✅ |
+| 4 | Wallets → `PackageReference` | ✅ |
+| 5 | Payments/Fraud/Notifications/Audit | ✅ |
+| 6 | GitHub Packages + BuildKit secret + GHCR | ✅ для Identity/Gateway |
+| 7 | Wallets Docker/Compose | ⏳ #128 |
 
 ## 9. Риски и меры
 
 | Риск | Мера |
 |---|---|
 | Забыли поднять версию | версия в `Shared/Directory.Build.props`, checklist в PR |
-| Версии разъехались | Central Package Management, обновление в одном PR |
-| Локальный feed недоступен | `artifacts/packages` + `NuGet.config`; в CI — artifact |
-| Медленный inner loop | pack-скрипт; при активной разработке Shared — временно ProjectReference |
-| Секреты в feed | токены только в secrets; не коммитить `apiKey` |
+| Версии разъехались | `scripts/bump-shared.ps1 -Check` |
+| Нет токена локально | `gh auth login` + `gh auth refresh -s read:packages` |
+| Токен попал в образ | только BuildKit secret, не `ARG`/`--build-arg` |
+| CI проверяет не тот Shared | PR с изменением Shared требует bump/publish; текущий artifact не используется — техдолг #137 |
+| Образ устарел | после публикации обновить `sha-…` в compose; автоматизация — техдолг #139 |
 | Breaking change без major | SemVer + ревью публичного API |
 
 ## 10. FAQ
 
-**Монорепо и NuGet не противоречат?**
-Нет. Это internal packages: пакеты собираются из того же репозитория.
+**`pack-shared.ps1` всё ещё нужен?**
+Нет, для restore не нужен. Только для проверки пакетов или ручной публикации.
 
-**`.sln` можно упаковать?**
-Нет, упаковываются проекты. `Shared.sln` — точка входа для build/test; для pack используйте `scripts/pack-shared.ps1` или отдельные csproj (у solution есть x64/x86, pack падает).
+**Почему локальный feed убрали?**
+Чтобы сервисы и Docker не зависели от структуры папок монорепо. Единственный источник — GitHub Packages.
 
 **Можно одновременно `ProjectReference` и `PackageReference`?**
-На один проект — нет. Разные сервисы могут временно использовать разные способы.
+На один проект — нет. Все сервисы уже на `PackageReference`.
 
-**`dotnet pack` упакует тесты?**
-Поставь `IsPackable=false` у тестовых проектов.
+**Почему `dotnet restore` отвечает 401?**
+Нет `NuGetPackageSourceCredentials_github` или токен без `read:packages`. Выполните `gh auth refresh -s read:packages` и выставьте переменную.
 
-**Как обновить пакет с той же версией?**
-Лучше поднять версию; очистка `~/.nuget/packages/otus.paymentsystem.*` — крайняя мера.
+**Можно переопубликовать `1.0.0`?**
+Нет, GitHub Packages не перезаписывает версию. Поднимите версию и обновите `PackageReference`.
 
 ## 11. Ссылки
 
