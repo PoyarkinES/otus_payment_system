@@ -64,7 +64,7 @@
 - Локально — `gh auth login` + `gh auth refresh -s read:packages`.
 - В CI — `packages: read` и `GITHUB_TOKEN`; в Docker — BuildKit secret.
 - Версии фиксированные; обновление — отдельным PR.
-- Central Package Management — техдолг #138.
+- Массовый bump — `scripts/bump-shared.ps1`; `Directory.Packages.props` не используем.
 
 ## Обновление 2026-11-25
 
@@ -89,7 +89,7 @@
 
 ## Что этот ADR не решает
 
-- Автоматизация версий и Central Package Management — техдолг #138.
+- Автоматизация версий — `scripts/bump-shared.ps1`; `Directory.Packages.props` не вводим.
 - Двойной путь CI (legacy artifact vs GitHub Packages) — техдолг #137.
 - Автоматическое обновление `sha-…` тега в compose — техдолг #139.
 - Wallets Docker/Compose — #128.

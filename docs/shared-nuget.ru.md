@@ -58,9 +58,9 @@ SemVer:
 1. Одна версия на оба пакета.
 2. Сервисы фиксируют точную версию, без `*`.
 3. GitHub Packages **не перезаписывает** уже опубликованную версию.
-4. Изменил Shared — подними версию, обнови `PackageReference` во всех сервисах, собери и опубликуй пакеты.
+4. Изменил Shared — подними версию, обнови `PackageReference` во всех сервисах, собери и опубликуй пакеты. Для массового обновления есть `scripts/bump-shared.ps1`.
 5. Публикация — только по тегу `shared-v<version>`; версия тега должна совпадать с версией в `Shared/Directory.Build.props`.
-6. Central Package Management (`Directory.Packages.props`) пока не введён — это техдолг #138.
+6. `Directory.Packages.props` **не используем**. Версия остаётся явной в каждом `PackageReference`; синхронность проверяет `scripts/bump-shared.ps1 -Check`.
 
 ## 5. Локальная разработка
 
@@ -140,8 +140,15 @@ docker compose up -d
 ## 7. Изменение Shared
 
 1. Изменить код в `Shared/`.
-2. Поднять `<Version>` в `Shared/Directory.Build.props`.
-3. Обновить `PackageReference` во всех сервисах.
+2. Обновить версию и все ссылки одной командой:
+   ```powershell
+   .\scripts\bump-shared.ps1 -Version 1.0.1
+   ```
+   Скрипт меняет `<Version>` в `Shared/Directory.Build.props` и `Version=` во всех `PackageReference`.
+3. Проверить синхронность:
+   ```powershell
+   .\scripts\bump-shared.ps1 -Check
+   ```
 4. Прогнать build/test.
 5. Смержить PR.
 6. Поставить тег `shared-v<version>` — workflow опубликует пакеты.
@@ -165,7 +172,7 @@ docker compose up -d
 | Риск | Мера |
 |---|---|
 | Забыли поднять версию | версия в `Shared/Directory.Build.props`, checklist в PR |
-| Версии разъехались | Central Package Management — техдолг #138 |
+| Версии разъехались | `scripts/bump-shared.ps1 -Check` |
 | Нет токена локально | `gh auth login` + `gh auth refresh -s read:packages` |
 | Токен попал в образ | только BuildKit secret, не `ARG`/`--build-arg` |
 | CI проверяет не тот Shared | PR с изменением Shared требует bump/publish; текущий artifact не используется — техдолг #137 |
