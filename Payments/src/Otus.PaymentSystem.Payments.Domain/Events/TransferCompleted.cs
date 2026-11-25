@@ -1,11 +1,11 @@
-﻿using Otus.PaymentSystem.SharedKernel.Events;
+using Otus.PaymentSystem.SharedKernel.Events;
 
 namespace Otus.PaymentSystem.Payments.Domain.Events;
 
 public record TransferCompleted(
-    Guid TransferId,
-    Guid SourceWalletId,
-    Guid DestinationWalletId,
+    Guid UserId,
+    Guid SourceUserId,
+    Guid DestinationUserId,
     decimal Amount,
     string Currency,
     DateTimeOffset Timestamp
