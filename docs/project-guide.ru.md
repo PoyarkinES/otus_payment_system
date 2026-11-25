@@ -106,7 +106,7 @@
 
 > **Правило решения:** в `<Service>.sln` входят только проекты этого сервиса. Общие библиотеки `Shared/*` **не** добавляются в `.sln`; сервисы подключают их через `PackageReference` на NuGet-пакеты: [shared-nuget.ru.md](./shared-nuget.ru.md).
 
-> **Что это значит на практике:** `.sln` — список проектов для IDE и `dotnet build`, а не механизм зависимостей. Сервис собирается из NuGet-пакетов, а не из исходников `Shared`; перед локальной сборкой выполните `scripts/pack-shared.ps1`. Решение о NuGet реализовано ([ADR 0004](./adr/0004-shared-nuget.md), issue #118). `Shared.sln` остаётся источником пакетов и тестов.
+> **Что это значит на практике:** `.sln` — список проектов для IDE и `dotnet build`, а не механизм зависимостей. Сервис собирается из NuGet-пакетов, а не из исходников `Shared`; пакеты лежат в GitHub Packages. Для локального restore нужен GitHub-токен с `read:packages` (см. ниже). Решение о NuGet реализовано ([ADR 0004](./adr/0004-shared-nuget.md), issue #118). `Shared.sln` остаётся источником пакетов и тестов.
 
 ## 3. Запуск и конфигурация
 
@@ -137,17 +137,31 @@ docker compose -f docker-compose.dev.yml up -d
 
 Для локальных изменений кода запускай сервисы через `dotnet run`; `docker-compose.yml` предназначен только для готовых образов.
 
+Перед локальной сборкой нужен доступ к GitHub Packages. Один раз на ПК:
+
+```bash
+gh auth login
+gh auth refresh -s read:packages
+```
+
+В сессии PowerShell:
+
+```powershell
+$user = gh api user --jq .login
+$token = gh auth token
+$env:NuGetPackageSourceCredentials_github = "Username=$user;Password=$token;ValidAuthenticationTypes=Basic"
+```
+
 Сборка и тесты:
 
 ```powershell
-.\scripts\pack-shared.ps1
 dotnet build Shared/Otus.PaymentSystem.Shared.sln
 dotnet build Gateway/Otus.PaymentSystem.Gateway.sln
 dotnet build Identity/Otus.PaymentSystem.Identity.sln
 dotnet test Identity/Otus.PaymentSystem.Identity.sln --filter "FullyQualifiedName!~Postgres"
 ```
 
-`pack-shared.ps1` создаёт `artifacts/packages`; без него сервисы не восстановят `Otus.PaymentSystem.*` из локального feed.
+`scripts/pack-shared.ps1` для restore больше не нужен: пакеты берутся из GitHub Packages, локальный feed в `NuGet.config` не подключён. Скрипт остаётся только для проверки состава пакетов или ручной публикации.
 
 ### 3.3. Порты
 
