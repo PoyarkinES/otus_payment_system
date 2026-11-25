@@ -1,17 +1,17 @@
+# syntax=docker/dockerfile:1
 # Сборка Gateway (YARP + JWT). Контекст — корень репозитория.
-# Shared пакуется внутри build-стадии, чтобы образ не зависел от локального feed.
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 COPY Directory.Build.props NuGet.config ./
-COPY Shared/ Shared/
-
-RUN mkdir -p /src/artifacts/packages \
-    && dotnet pack Shared/src/Otus.PaymentSystem.AspNetCore/Otus.PaymentSystem.AspNetCore.csproj -c Release -o /src/artifacts/packages
 
 COPY Gateway/src/Otus.PaymentSystem.Gateway.Host/Otus.PaymentSystem.Gateway.Host.csproj Gateway/src/Otus.PaymentSystem.Gateway.Host/
 
-RUN dotnet restore Gateway/src/Otus.PaymentSystem.Gateway.Host/Otus.PaymentSystem.Gateway.Host.csproj
+RUN --mount=type=secret,id=github_token \
+    export NuGetPackageSourceCredentials_github="Username=PoyarkinES;Password=$(cat /run/secrets/github_token);ValidAuthenticationTypes=Basic" \
+    && dotnet restore Gateway/src/Otus.PaymentSystem.Gateway.Host/Otus.PaymentSystem.Gateway.Host.csproj \
+        --configfile NuGet.config \
+    && unset NuGetPackageSourceCredentials_github
 
 COPY Gateway/src/ Gateway/src/
 

@@ -29,6 +29,8 @@ services:
     build:
       context: .
       dockerfile: Identity/Dockerfile
+      secrets:
+        - github_token
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -52,6 +54,8 @@ services:
     build:
       context: .
       dockerfile: Gateway/Dockerfile
+      secrets:
+        - github_token
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -69,6 +73,10 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+
+secrets:
+  github_token:
+    environment: GITHUB_TOKEN
 
 volumes:
   identity-db:
