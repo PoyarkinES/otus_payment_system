@@ -119,10 +119,12 @@
 
 ### 3.2. Быстрый старт
 
-Полный стек M1:
+Демо-стек M1 из публичных GHCR-образов (локальный код не собирается, токены GitHub/NuGet не нужны):
 
 ```powershell
-docker compose up --build -d
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+docker compose pull
+docker compose up -d
 docker compose ps
 Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 ```
@@ -132,6 +134,8 @@ Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 ```powershell
 docker compose -f docker-compose.dev.yml up -d
 ```
+
+Для локальных изменений кода запускай сервисы через `dotnet run`; `docker-compose.yml` предназначен только для готовых образов.
 
 Сборка и тесты:
 
