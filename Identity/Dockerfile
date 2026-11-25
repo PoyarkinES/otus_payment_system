@@ -10,8 +10,10 @@ COPY Identity/src/Otus.PaymentSystem.Identity.Application/Otus.PaymentSystem.Ide
 COPY Identity/src/Otus.PaymentSystem.Identity.Infrastructure/Otus.PaymentSystem.Identity.Infrastructure.csproj Identity/src/Otus.PaymentSystem.Identity.Infrastructure/
 COPY Identity/src/Otus.PaymentSystem.Identity.Host/Otus.PaymentSystem.Identity.Host.csproj Identity/src/Otus.PaymentSystem.Identity.Host/
 
+ARG NUGET_USERNAME=PoyarkinES
+
 RUN --mount=type=secret,id=github_token \
-    export NuGetPackageSourceCredentials_github="Username=PoyarkinES;Password=$(cat /run/secrets/github_token);ValidAuthenticationTypes=Basic" \
+    export NuGetPackageSourceCredentials_github="Username=${NUGET_USERNAME};Password=$(cat /run/secrets/github_token);ValidAuthenticationTypes=Basic" \
     && dotnet restore Identity/src/Otus.PaymentSystem.Identity.Host/Otus.PaymentSystem.Identity.Host.csproj \
         --configfile NuGet.config \
     && unset NuGetPackageSourceCredentials_github

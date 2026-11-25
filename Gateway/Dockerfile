@@ -7,8 +7,10 @@ COPY Directory.Build.props NuGet.config ./
 
 COPY Gateway/src/Otus.PaymentSystem.Gateway.Host/Otus.PaymentSystem.Gateway.Host.csproj Gateway/src/Otus.PaymentSystem.Gateway.Host/
 
+ARG NUGET_USERNAME=PoyarkinES
+
 RUN --mount=type=secret,id=github_token \
-    export NuGetPackageSourceCredentials_github="Username=PoyarkinES;Password=$(cat /run/secrets/github_token);ValidAuthenticationTypes=Basic" \
+    export NuGetPackageSourceCredentials_github="Username=${NUGET_USERNAME};Password=$(cat /run/secrets/github_token);ValidAuthenticationTypes=Basic" \
     && dotnet restore Gateway/src/Otus.PaymentSystem.Gateway.Host/Otus.PaymentSystem.Gateway.Host.csproj \
         --configfile NuGet.config \
     && unset NuGetPackageSourceCredentials_github

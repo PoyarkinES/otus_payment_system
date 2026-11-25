@@ -48,3 +48,5 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.image }}:sha-${{ github.sha }}
           secrets: |
             github_token=${{ secrets.GITHUB_TOKEN }}
+          build-args: |
+            NUGET_USERNAME=${{ github.actor }}
