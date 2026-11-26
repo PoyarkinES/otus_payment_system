@@ -5,6 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { AppProviders } from '@/app/providers';
 import { createQueryClient } from '@/app/queryClient';
 import { routes } from '@/app/router';
+import { setTokens as setStorageTokens } from '@/shared/api/auth/storage';
 
 /** Рендерит элемент внутри всех провайдеров приложения; повторы запросов в тестах выключены. */
 export function renderWithProviders(ui: ReactElement): RenderResult {
@@ -15,8 +16,13 @@ export function renderWithProviders(ui: ReactElement): RenderResult {
 }
 
 /** Рендерит приложение целиком, открытое на `path`, — как если бы пользователь зашёл по ссылке. */
-export function renderRoute(path = '/'): RenderResult {
+export function renderRoute(path = '/', authenticated = false): RenderResult {
     const router = createMemoryRouter(routes, { initialEntries: [path] });
+
+    // Если тест требует авторизации, ставим фейковые токены в storage.
+    if (authenticated) {
+        setStorageTokens('fake-at', 'fake-rt');
+    }
 
     return renderWithProviders(<RouterProvider router={router} />);
 }

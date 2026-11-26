@@ -1,9 +1,12 @@
-# Полный стек M1: PostgreSQL + Identity + Gateway.
+# Демо-стек M1: PostgreSQL + Identity + Gateway из публичных GHCR-образов.
 # Наружу открыт только Gateway (8080) — единая точка входа, как в architecture.md.
 #
-# Запуск:      docker compose up --build
+# Запуск:      docker compose pull
+#              docker compose up -d
 # Демо:        http://localhost:8080/health, http://localhost:8080/bff/health
-# Локально с docker-compose.override.yml: docker compose -f docker-compose.yml up --build
+# Локальная разработка: docker-compose.dev.yml (PostgreSQL) + dotnet run;
+# этот файл локальный код не собирает.
+# С docker-compose.override.yml: docker compose -f docker-compose.yml up -d
 # (override публикует postgres на 5434 и конфликтует с dev-контейнером otus-postgres).
 
 name: otus-payment-system
@@ -26,9 +29,7 @@ services:
       retries: 10
 
   identity:
-    build:
-      context: .
-      dockerfile: Identity/Dockerfile
+    image: ghcr.io/poyarkines/otus-payment-system-identity:sha-fd5a34840dab02c4ba6d8a77f69d7355d567e334
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -49,9 +50,7 @@ services:
       start_period: 20s
 
   gateway:
-    build:
-      context: .
-      dockerfile: Gateway/Dockerfile
+    image: ghcr.io/poyarkines/otus-payment-system-gateway:sha-fd5a34840dab02c4ba6d8a77f69d7355d567e334
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Development

@@ -5,7 +5,7 @@
 ## Предусловия
 
 - Docker Desktop запущен, `docker compose version` отвечает.
-- В корне репозитория есть `.env` (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`) — compose читает его автоматически.
+- В корне репозитория есть `.env` (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`) — compose читает его автоматически. Если `.env` ещё нет, скопируй `.env.example`: `Copy-Item .env.example .env`.
 - Порт `8080` свободен. Локально запущенные `Otus.PaymentSystem.*` процессы остановлены:
 
   ```powershell
@@ -18,7 +18,8 @@
 ## Шаг 1. Подъём стека
 
 ```powershell
-docker compose -f docker-compose.yml up --build -d
+docker compose -f docker-compose.yml pull
+docker compose -f docker-compose.yml up -d
 docker compose -f docker-compose.yml ps
 ```
 
@@ -30,7 +31,7 @@ otus-payment-system-identity-1    ...identity    (healthy)   8080/tcp
 otus-payment-system-gateway-1     ...gateway     (healthy)   0.0.0.0:8080->8080/tcp
 ```
 
-Первый запуск 2–5 минут: собираются два образа. Наружу открыт только Gateway, БД и Identity доступны лишь внутри сети compose.
+Первый запуск 2–5 минут: скачиваются два публичных образа, локально ничего не собирается. Токены GitHub/NuGet не нужны. Наружу открыт только Gateway, БД и Identity доступны лишь внутри сети compose.
 
 ## Шаг 2. Healthcheck
 

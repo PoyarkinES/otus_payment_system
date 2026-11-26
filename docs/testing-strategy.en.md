@@ -88,7 +88,7 @@ We will enable a CI threshold after M3 stabilizes, when Payments and Fraud exist
 
 | Job | What it does | What it catches |
 |---|---|---|
-| `Pack Shared NuGet packages` | `dotnet pack` for two Shared projects + artifact | NuGet package versions and contents |
+| `Pack Shared NuGet packages` | legacy: `dotnet pack` for two Shared projects + artifact; restore uses GitHub Packages | NuGet package versions and contents |
 | `Build` (matrix of 8 solutions) | `dotnet build -c Release` | compilation errors in any context |
 | `Test (Shared/Gateway/Identity/Wallets)` | `dotnet test` + coverage | regressions in unit/host tests |
 | `Identity integration tests (PostgreSQL)` | tests against real PostgreSQL | EF mapping and SQL discrepancies |
@@ -96,7 +96,7 @@ We will enable a CI threshold after M3 stabilizes, when Payments and Fraud exist
 | `Gateway E2E (Wallets through Gateway)` | YARP + BFF through TestServer | end-to-end scenario through Gateway |
 | `OpenAPI contract drift` | Identity spec generation and `git diff` | Identity contract diverged from code |
 | `OpenAPI gateway drift` | Gateway spec generation and `git diff` | BFF contract diverged from code |
-| `Docker build (Identity/Gateway)` | `docker build -f <Dockerfile> .` | Dockerfile and build context diverged from code |
+| `Docker build (Identity/Gateway)` | `docker build` with a BuildKit secret for GitHub Packages | Dockerfile, build context, and build token diverged from code |
 | `Client (lint, test, build)` | client generation, lint, format, typecheck, Vitest, `vite build` | stale generated client, type errors, UI regressions |
 
 Filters in the `Test` matrix:
@@ -113,7 +113,10 @@ There is no nightly workflow yet. Candidates for it: a full run of all Postgres 
 ## Running locally
 
 ```powershell
-.\scripts\pack-shared.ps1
+$user = gh api user --jq .login
+$token = gh auth token
+$env:NuGetPackageSourceCredentials_github = "Username=$user;Password=$token;ValidAuthenticationTypes=Basic"
+
 dotnet test Shared\Otus.PaymentSystem.Shared.sln
 dotnet test Gateway\Otus.PaymentSystem.Gateway.sln
 dotnet test Identity\Otus.PaymentSystem.Identity.sln --filter "FullyQualifiedName!~Postgres"
@@ -145,7 +148,7 @@ npm run test
 npm run build
 ```
 
-Run `scripts/pack-shared.ps1` before building the services; CI does it in the `Pack Shared NuGet packages` job and shares the artifact.
+Before building locally, set a GitHub token with `read:packages` and `NuGetPackageSourceCredentials_github` (see the block above). `scripts/pack-shared.ps1` is no longer needed for restore: packages come from GitHub Packages.
 
 ## Gaps (deliberate)
 

@@ -5,6 +5,7 @@ import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 
 import { createQueryClient } from '@/app/queryClient';
+import { AuthProvider } from '@/shared/auth/AuthContext';
 import { theme } from '@/shared/theme/theme';
 
 type AppProvidersProps = {
@@ -22,7 +23,9 @@ export function AppProviders({ children, queryClient }: AppProvidersProps) {
             <GlobalStyles styles="@layer theme, base, mui, components, utilities;" />
             <ThemeProvider theme={theme}>
                 <CssBaseline />
-                <QueryClientProvider client={client}>{children}</QueryClientProvider>
+                <QueryClientProvider client={client}>
+                    <AuthProvider>{children}</AuthProvider>
+                </QueryClientProvider>
             </ThemeProvider>
         </StyledEngineProvider>
     );

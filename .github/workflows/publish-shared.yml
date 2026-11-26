@@ -1,0 +1,58 @@
+name: Publish Shared packages
+
+on:
+  push:
+    tags:
+      - 'shared-v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Verify tag matches package versions
+        shell: bash
+        run: |
+          tag_version="${GITHUB_REF_NAME#shared-v}"
+          kernel_version="$(dotnet msbuild Shared/src/Otus.PaymentSystem.SharedKernel/Otus.PaymentSystem.SharedKernel.csproj -getProperty:Version)"
+          aspnet_version="$(dotnet msbuild Shared/src/Otus.PaymentSystem.AspNetCore/Otus.PaymentSystem.AspNetCore.csproj -getProperty:Version)"
+
+          if [[ "$tag_version" != "$kernel_version" || "$tag_version" != "$aspnet_version" ]]; then
+            echo "Tag version ($tag_version) must match both package versions ($kernel_version, $aspnet_version)."
+            exit 1
+          fi
+
+      - name: Pack Shared packages
+        run: |
+          mkdir -p artifacts/packages
+          dotnet pack Shared/src/Otus.PaymentSystem.SharedKernel/Otus.PaymentSystem.SharedKernel.csproj \
+            -c Release -o artifacts/packages
+          dotnet pack Shared/src/Otus.PaymentSystem.AspNetCore/Otus.PaymentSystem.AspNetCore.csproj \
+            -c Release -o artifacts/packages
+
+      - name: Publish to GitHub Packages
+        env:
+          NUGET_API_KEY: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          packages=(artifacts/packages/*.nupkg)
+          if [[ ${#packages[@]} -ne 2 ]]; then
+            echo "Expected two packages; got ${#packages[@]}"
+            exit 1
+          fi
+          for package in "${packages[@]}"; do
+            dotnet nuget push "$package" \
+              --api-key "$NUGET_API_KEY" \
+              --source "https://nuget.pkg.github.com/PoyarkinES/index.json"
+          done
