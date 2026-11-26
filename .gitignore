@@ -44,10 +44,6 @@ TestResults/
 .DS_Store
 Thumbs.db
 
-## AI Assistant
-.gigacode/
-.junie/
-
 ## Logs
 identity.log
 
