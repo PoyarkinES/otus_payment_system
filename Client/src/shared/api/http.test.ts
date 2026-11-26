@@ -1,9 +1,14 @@
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
-import { apiFetch, CORRELATION_HEADER } from '@/shared/api/http';
+import { apiFetch, CORRELATION_HEADER, REFRESH_URL } from '@/shared/api/http';
 import { ApiNetworkError, ApiProblem } from '@/shared/api/problem';
+import { clearTokens, getAccessToken, setTokens } from '@/shared/api/auth/storage';
 import { server } from '@/shared/testing/server';
+
+afterEach(() => {
+    clearTokens();
+});
 
 const URL = 'http://localhost:8080/bff/health';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -203,5 +208,163 @@ describe('apiFetch', () => {
 
         expect(error).not.toBeInstanceOf(ApiNetworkError);
         expect((error as Error).name).toBe('AbortError');
+    });
+
+    // --- Authorization tests ---
+
+    it('sends Authorization header when access token is set', async () => {
+        setTokens('test-at', 'test-rt');
+        let authHeader: string | null = null;
+        server.use(
+            http.get(URL, ({ request }) => {
+                authHeader = request.headers.get('Authorization');
+                return HttpResponse.json({ status: 'ok' });
+            }),
+        );
+
+        await apiFetch('/bff/health');
+
+        expect(authHeader).toBe('Bearer test-at');
+    });
+
+    it('does not send Authorization header when no token', async () => {
+        let authHeader: string | null = null;
+        server.use(
+            http.get(URL, ({ request }) => {
+                authHeader = request.headers.get('Authorization');
+                return HttpResponse.json({ status: 'ok' });
+            }),
+        );
+
+        await apiFetch('/bff/health');
+
+        expect(authHeader).toBeNull();
+    });
+
+    // --- 401 → refresh tests ---
+
+    it('handles 401 problem+json by calling refresh and retrying', async () => {
+        setTokens('old-at', 'old-rt');
+        let callCount = 0;
+        let authHeader = '';
+
+        server.use(
+            http.get(URL, ({ request }) => {
+                callCount++;
+                authHeader = request.headers.get('Authorization') ?? '';
+                if (callCount === 1) {
+                    return problemJson(
+                        { title: 'Unauthorized', status: 401, detail: 'Токен истёк' },
+                        401,
+                    );
+                }
+                return HttpResponse.json({ status: 'ok' });
+            }),
+        );
+
+        server.use(
+            http.post('http://localhost:8080' + REFRESH_URL, () =>
+                HttpResponse.json({
+                    accessToken: 'new-at',
+                    refreshToken: 'new-rt',
+                    expiresAt: new Date(Date.now() + 3600000).toISOString(),
+                    refreshExpiresAt: new Date(Date.now() + 86400000).toISOString(),
+                }),
+            ),
+        );
+
+        const result = await apiFetch<Result<{ status: string }>>('/bff/health');
+
+        expect(callCount).toBe(2);
+        expect(authHeader).toBe('Bearer new-at');
+        expect(result.data).toEqual({ status: 'ok' });
+        expect(getAccessToken()).toBe('new-at');
+    });
+
+    it('does not refresh on 401 when no access token set', async () => {
+        let refreshCalled = false;
+        server.use(http.get(URL, () => problemJson({ title: 'Unauthorized', status: 401 }, 401)));
+        server.use(
+            http.post('http://localhost:8080' + REFRESH_URL, () => {
+                refreshCalled = true;
+                return HttpResponse.json({ accessToken: 'new', refreshToken: 'new' });
+            }),
+        );
+
+        const error = await catchError(apiFetch('/bff/health'));
+
+        expect(error).toBeInstanceOf(ApiProblem);
+        expect(refreshCalled).toBe(false);
+    });
+
+    it('clears tokens on invalid refresh (401)', async () => {
+        setTokens('old-at', 'old-rt');
+
+        server.use(http.get(URL, () => problemJson({ title: 'Unauthorized', status: 401 }, 401)));
+        server.use(
+            http.post('http://localhost:8080' + REFRESH_URL, () =>
+                problemJson({ title: 'Invalid', status: 401 }, 401),
+            ),
+        );
+
+        const error = await catchError(apiFetch('/bff/health'));
+
+        expect(error).toBeInstanceOf(ApiProblem);
+        expect(getAccessToken()).toBeNull();
+    });
+
+    it('does not clear tokens on refresh network error', async () => {
+        setTokens('old-at', 'old-rt');
+
+        server.use(http.get(URL, () => problemJson({ title: 'Unauthorized', status: 401 }, 401)));
+        server.use(http.post('http://localhost:8080' + REFRESH_URL, () => HttpResponse.error()));
+
+        const error = await catchError(apiFetch('/bff/health'));
+
+        expect(error).toBeInstanceOf(ApiProblem);
+        // Токены не очищены при сетевой ошибке refresh
+        expect(getAccessToken()).toBe('old-at');
+    });
+
+    it('does not clear tokens on refresh 429 (rate limit)', async () => {
+        setTokens('old-at', 'old-rt');
+
+        server.use(http.get(URL, () => problemJson({ title: 'Unauthorized', status: 401 }, 401)));
+        server.use(
+            http.post('http://localhost:8080' + REFRESH_URL, () =>
+                problemJson({ title: 'Too Many Requests', status: 429 }, 429),
+            ),
+        );
+
+        const error = await catchError(apiFetch('/bff/health'));
+
+        expect(error).toBeInstanceOf(ApiProblem);
+        // Токены не очищены при 429
+        expect(getAccessToken()).toBe('old-at');
+    });
+
+    it('skips refresh on refresh endpoint itself', async () => {
+        setTokens('old-at', 'old-rt');
+        let refreshCallCount = 0;
+
+        server.use(
+            http.post('http://localhost:8080' + REFRESH_URL, () => {
+                refreshCallCount++;
+                return problemJson({ title: 'Unauthorized', status: 401 }, 401);
+            }),
+        );
+
+        // Прямой вызов POST refresh — не должен триггерить рекурсивный refresh
+        const error = await catchError(
+            apiFetch(REFRESH_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken: 'old-rt' }),
+            }),
+        );
+
+        expect(error).toBeInstanceOf(ApiProblem);
+        // refresh вызван только 1 раз (прямой вызов), не рекурсивно
+        expect(refreshCallCount).toBe(1);
     });
 });

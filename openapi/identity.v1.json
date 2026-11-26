@@ -601,19 +601,23 @@
   "components": {
     "schemas": {
       "AuthTokens": {
+        "required": [
+          "accessToken",
+          "expiresAt",
+          "refreshExpiresAt",
+          "refreshToken"
+        ],
         "type": "object",
         "properties": {
           "accessToken": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "expiresAt": {
             "type": "string",
             "format": "date-time"
           },
           "refreshToken": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "refreshExpiresAt": {
             "type": "string",
@@ -623,6 +627,12 @@
         "additionalProperties": false
       },
       "GetProfileResult": {
+        "required": [
+          "createdAt",
+          "email",
+          "status",
+          "userId"
+        ],
         "type": "object",
         "properties": {
           "userId": {
@@ -630,8 +640,7 @@
             "format": "uuid"
           },
           "email": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "status": {
             "enum": [
@@ -648,6 +657,9 @@
         "additionalProperties": false
       },
       "HttpValidationProblemDetails": {
+        "required": [
+          "errors"
+        ],
         "type": "object",
         "properties": {
           "type": {
@@ -678,42 +690,49 @@
               "items": {
                 "type": "string"
               }
-            },
-            "nullable": true
+            }
           }
         },
         "additionalProperties": { }
       },
       "LoginRequest": {
+        "required": [
+          "email",
+          "password"
+        ],
         "type": "object",
         "properties": {
           "email": {
             "type": "string",
-            "description": "Email, до 320 символов.",
-            "nullable": true
+            "description": "Email, до 320 символов."
           },
           "password": {
             "type": "string",
-            "description": "Пароль пользователя. Сложность здесь не проверяется.",
-            "nullable": true
+            "description": "Пароль пользователя. Сложность здесь не проверяется."
           }
         },
         "additionalProperties": false,
         "description": "Тело запроса POST /auth/login."
       },
       "LogoutRequest": {
+        "required": [
+          "refreshToken"
+        ],
         "type": "object",
         "properties": {
           "refreshToken": {
             "type": "string",
-            "description": "refresh-токен сессии, которую нужно завершить.",
-            "nullable": true
+            "description": "refresh-токен сессии, которую нужно завершить."
           }
         },
         "additionalProperties": false,
         "description": "Тело запроса POST /auth/logout."
       },
       "MeResult": {
+        "required": [
+          "email",
+          "userId"
+        ],
         "type": "object",
         "properties": {
           "userId": {
@@ -721,8 +740,7 @@
             "format": "uuid"
           },
           "email": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           }
         },
         "additionalProperties": false,
@@ -756,35 +774,43 @@
         "additionalProperties": { }
       },
       "RefreshRequest": {
+        "required": [
+          "refreshToken"
+        ],
         "type": "object",
         "properties": {
           "refreshToken": {
             "type": "string",
-            "description": "Токен обновления.",
-            "nullable": true
+            "description": "Токен обновления."
           }
         },
         "additionalProperties": false,
         "description": "Тело запроса POST /auth/refresh."
       },
       "RegisterRequest": {
+        "required": [
+          "email",
+          "password"
+        ],
         "type": "object",
         "properties": {
           "email": {
             "type": "string",
-            "description": "Email, до 320 символов.",
-            "nullable": true
+            "description": "Email, до 320 символов."
           },
           "password": {
             "type": "string",
-            "description": "Пароль: 8–128 символов, минимум одна буква и одна цифра.",
-            "nullable": true
+            "description": "Пароль: 8–128 символов, минимум одна буква и одна цифра."
           }
         },
         "additionalProperties": false,
         "description": "Тело запроса POST /auth/register."
       },
       "RegisterResult": {
+        "required": [
+          "email",
+          "userId"
+        ],
         "type": "object",
         "properties": {
           "userId": {
@@ -792,8 +818,7 @@
             "format": "uuid"
           },
           "email": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           }
         },
         "additionalProperties": false

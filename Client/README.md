@@ -3,9 +3,11 @@
 Веб-клиент Otus Payment System: одностраничное приложение (SPA) на React. Ходит **только через
 Gateway** — прямых адресов Identity, Wallets и других сервисов в коде нет и быть не должно.
 Эпик [#80](https://github.com/PoyarkinES/otus_payment_system/issues/80), каркас —
-[#82](https://github.com/PoyarkinES/otus_payment_system/issues/82). Сейчас в клиенте одна
-настоящая страница — «Статус системы» по `GET /bff/health`; на ней проверена вся цепочка
-от браузера до сервисов.
+[#82](https://github.com/PoyarkinES/otus_payment_system/issues/82).
+
+В клиенте реализована авторизация: вход, регистрация, автоматическое обновление токенов
+(refresh), защищённые маршруты и выход. Токены хранятся только в памяти (memory),
+пароль не попадает в localStorage. [#83](https://github.com/PoyarkinES/otus_payment_system/issues/83)
 
 ## Карта папок
 
@@ -13,15 +15,26 @@ Gateway** — прямых адресов Identity, Wallets и других се
 Client/
 ├── src/
 │   ├── app/
-│   │   └── router.tsx                  адрес → страница
+│   │   ├── router.tsx                  адрес → страница
+│   │   └── ProtectedRoute.tsx          guard: перенаправление на /login
 │   ├── pages/
-│   │   └── <имя>/                      одна страница = одна папка
-│   │       ├── <Имя>Page.tsx           страница
-│   │       ├── <Имя>Page.test.tsx      её тесты
-│   │       └── …                       части, нужные только этой странице
+│   │   ├── <имя>/                      одна страница = одна папка
+│   │   │   ├── <Имя>Page.tsx           страница
+│   │   │   ├── <Имя>Page.test.tsx      её тесты
+│   │   │   └── …                       части, нужные только этой странице
+│   │   ├── login/                      форма входа
+│   │   └── register/                   форма регистрации
 │   └── shared/                         общее для нескольких страниц
-│       ├── api/generated/endpoints/
-│       │   └── <тег>/<тег>.ts          хуки запросов из OpenAPI — руками не править
+│       ├── api/
+│       │   ├── auth/                   авторизация: токены и сессия
+│       │   │   ├── storage.ts          единое хранилище токенов (memory, с подпиской)
+│       │   │   └── session.ts          управление сессией (freshness, ensureFreshSession)
+│       │   ├── http.ts                 apiFetch: интерцептор авторизации + single-flight refresh
+│       │   └── generated/
+│       │       ├── endpoints/          хуки Gateway из OpenAPI — руками не править
+│       │       └── identity/           хуки Identity из OpenAPI — руками не править
+│       ├── auth/
+│       │   └── AuthContext.tsx         React Context токенов (useSyncExternalStore)
 │       ├── ui/                         общие компоненты: загрузка, ошибка, шапка
 │       └── testing/handlers.ts         ответы бэка в режиме без бэка
 ├── .env.example                        настройки
@@ -48,6 +61,9 @@ npm run dev         # открыть http://localhost:5173
   Образы Identity/Gateway публичные, токены GitHub/NuGet не нужны. Фронт пойдёт в Gateway на `http://localhost:8080`.
 - **Без бэка.** `npm run dev:mocks` — на запросы отвечают моки, Docker не нужен. Удобно, когда
   бэк ещё не готов или не хочется его поднимать.
+  Моки работают через Service Worker MSW, поэтому нужен Chrome/Edge (или другой браузер
+  с полноценной поддержкой Service Worker). В Яндекс.Браузере MSW может не перехватывать
+  POST-запросы — для `dev:mocks` используйте Chrome/Edge.
 
 Все команды:
 
@@ -61,7 +77,7 @@ npm run lint            # ≈ анализаторы Roslyn (ESLint)
 npm run format          # поправить форматирование (Prettier); format:check — только проверить
 npm run typecheck       # проверка типов TypeScript без сборки
 npm run build           # ≈ dotnet publish — готовая статика в dist/
-npm run api:generate    # перегенерировать клиент API из openapi/gateway.v1.json
+npm run api:generate    # перегенерировать клиент API из OpenAPI-спек
 ```
 
 ## Как фронт связан с бэком
@@ -91,23 +107,30 @@ Identity, Wallets, …            из браузера напрямую нед�
 ## Я поменял API — что делать
 
 Фронт не пишет DTO руками: типы, функции запросов и React-хуки генерирует
-[orval](https://orval.dev) из `openapi/gateway.v1.json`. Поэтому после изменения контракта
-Gateway:
+[orval](https://orval.dev) из двух OpenAPI-спек:
 
-1. Поменяли эндпоинт или DTO в Gateway.
-2. Обновили `openapi/gateway.v1.json` — бэковый CI (`openapi-gateway-drift`) всё равно этого
-   потребует.
+- `openapi/gateway.v1.json` — BFF-агрегаты `/bff/*` и health Gateway;
+- `openapi/identity.v1.json` — Auth-эндпоинты `/api/identity/auth/*` (login, register,
+  refresh, logout, me).
+
+После изменения контракта:
+
+1. Поменяли эндпоинт или DTO в Gateway или Identity.
+2. Обновили соответствующую `openapi/*.v1.json` — бэковый CI (`openapi-*-drift`) всё равно
+   этого потребует.
 3. `cd Client && npm run api:generate` — перегенерировали `src/shared/api/generated/`.
 4. `npm run typecheck` — TypeScript покажет каждое место во фронте, которое сломалось
    от изменения контракта. Если ничего не красное — фронт совместим.
-5. Закоммитили `openapi/gateway.v1.json` вместе с `Client/src/shared/api/generated/`.
+5. Закоммитили `openapi/*.v1.json` вместе с `Client/src/shared/api/generated/`.
 
 Если шаг 3 забыть, в CI упадёт job **Client (lint, test, build)** на шаге
 «Generated API client is up to date» с подсказкой, какие файлы устарели. Починка — те же
 шаги 3–5.
 
-Пока генерируется только спека Gateway. Эндпоинты Identity (`/api/identity/**`) подключим
-в задаче про вход ([#83](https://github.com/PoyarkinES/otus_payment_system/issues/83)).
+Auth-эндпоинты генерируются из `openapi/identity.v1.json` с `baseUrl: '/api/identity'`.
+Identity Swagger отдаёт `required` для non-nullable полей, поэтому сгенерированный
+`AuthTokens` строгий (`accessToken: string`, а не `accessToken?: string | null`) —
+адаптер на клиенте не нужен.
 
 ## Стек
 

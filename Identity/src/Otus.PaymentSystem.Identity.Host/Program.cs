@@ -38,6 +38,12 @@ var swaggerEnabled = builder.Configuration.GetValue("Swagger:Enabled", builder.E
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
+    // Swashbuckle не выводит required из NRT: флаг снимает nullable,
+    // фильтр добавляет non-nullable свойства в required. Вместе они дают
+    // строгий контракт для сгенерированного клиента (аналог #124 для Gateway).
+    options.SupportNonNullableReferenceTypes();
+    options.SchemaFilter<RequireNonNullablePropertiesSchemaFilter>();
+
     options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Otus Payment System — Identity API",

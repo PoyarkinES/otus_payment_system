@@ -1,10 +1,15 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
+import { clearTokens } from '@/shared/api/auth/storage';
 import { renderRoute } from '@/shared/testing/render';
 import { server } from '@/shared/testing/server';
+
+afterEach(() => {
+    clearTokens();
+});
 
 const URL = 'http://localhost:8080/bff/health';
 
@@ -31,7 +36,7 @@ describe('StatusPage', () => {
     it('shows loading state first', () => {
         health({ status: 'ok', services: { gateway: 'ok', identity: 'ok' } });
 
-        renderRoute('/');
+        renderRoute('/', true);
 
         expect(screen.getByRole('status')).toBeInTheDocument();
     });
@@ -39,7 +44,7 @@ describe('StatusPage', () => {
     it('shows all services ok', async () => {
         health({ status: 'ok', services: { gateway: 'ok', identity: 'ok' } });
 
-        renderRoute('/');
+        renderRoute('/', true);
 
         expect(await screen.findByText('Все сервисы работают')).toBeInTheDocument();
         expect(within(serviceRow('Gateway')).getByText('Работает')).toBeInTheDocument();
@@ -49,7 +54,7 @@ describe('StatusPage', () => {
     it('shows degraded state on 503', async () => {
         health({ status: 'degraded', services: { gateway: 'ok', identity: 'unavailable' } }, 503);
 
-        renderRoute('/');
+        renderRoute('/', true);
 
         expect(await screen.findByText('Система работает с ограничениями')).toBeInTheDocument();
         expect(within(serviceRow('Identity')).getByText('Недоступен')).toBeInTheDocument();
@@ -68,7 +73,7 @@ describe('StatusPage', () => {
             500,
         );
 
-        renderRoute('/');
+        renderRoute('/', true);
 
         expect(await screen.findByText('Ошибка на сервере')).toBeInTheDocument();
         expect(screen.getByText('Внутренняя ошибка')).toBeInTheDocument();
@@ -78,14 +83,14 @@ describe('StatusPage', () => {
     it('shows rate limit message on 429', async () => {
         problem({ status: 429, title: 'Too Many Requests', detail: 'Слишком много попыток.' }, 429);
 
-        renderRoute('/');
+        renderRoute('/', true);
 
         expect(await screen.findByText('Слишком много запросов')).toBeInTheDocument();
     });
 
     it('shows unavailable state when network fails and recovers on retry', async () => {
         server.use(http.get(URL, () => HttpResponse.error()));
-        renderRoute('/');
+        renderRoute('/', true);
 
         expect(await screen.findByText('Сервер недоступен')).toBeInTheDocument();
 
@@ -97,7 +102,7 @@ describe('StatusPage', () => {
 
     it('hides stale status when refresh fails', async () => {
         health({ status: 'ok', services: { gateway: 'ok', identity: 'ok' } });
-        renderRoute('/');
+        renderRoute('/', true);
         expect(await screen.findByText('Все сервисы работают')).toBeInTheDocument();
 
         server.use(http.get(URL, () => HttpResponse.error()));
@@ -114,7 +119,7 @@ describe('StatusPage', () => {
             services: { gateway: 'ok', identity: { status: 'ok', latencyMs: 5 } },
         });
 
-        renderRoute('/');
+        renderRoute('/', true);
 
         expect(await screen.findByText('Все сервисы работают')).toBeInTheDocument();
         expect(
@@ -125,7 +130,7 @@ describe('StatusPage', () => {
     it('renders unknown service status neutrally', async () => {
         health({ status: 'ok', services: { gateway: 'ok', identity: 'starting', wallets: 'ok' } });
 
-        renderRoute('/');
+        renderRoute('/', true);
 
         expect(await screen.findByText('Все сервисы работают')).toBeInTheDocument();
         expect(within(serviceRow('Identity')).getByText('starting')).toBeInTheDocument();
