@@ -4,7 +4,7 @@ import Container from '@mui/material/Container';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate, type Path } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
@@ -50,7 +50,7 @@ export function LoginPage() {
     const [loading, setLoading] = useState(false);
 
     // Восстанавливаем страницу, на которую пользователь хотел попасть до редиректа на login.
-    const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/';
+    const from = (location.state as { from?: Path } | null)?.from ?? '/wallets';
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();

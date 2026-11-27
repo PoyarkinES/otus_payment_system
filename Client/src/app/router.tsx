@@ -6,6 +6,7 @@ import { LoginPage } from '@/pages/login/LoginPage';
 import { NotFoundPage } from '@/pages/not-found/NotFoundPage';
 import { RegisterPage } from '@/pages/register/RegisterPage';
 import { StatusPage } from '@/pages/status/StatusPage';
+import { WalletsPage } from '@/pages/wallets/WalletsPage';
 import { AppLayout } from '@/shared/ui/AppLayout';
 
 /** Все маршруты приложения. Новая страница = новый элемент в `children`. */
@@ -30,6 +31,7 @@ export const routes: RouteObject[] = [
         errorElement: <RouteError />,
         children: [
             { index: true, element: <StatusPage /> },
+            { path: 'wallets', element: <WalletsPage /> },
             { path: '*', element: <NotFoundPage /> },
         ],
     },

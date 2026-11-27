@@ -21,7 +21,7 @@ describe('ProtectedRoute', () => {
         // С токенами доступ к '/' должен показать главную страницу
         renderRoute('/', true);
 
-        expect(screen.getByText('Otus Payment System')).toBeInTheDocument();
+        expect(screen.getByText('Otus Pay')).toBeInTheDocument();
         expect(
             screen.getByRole('heading', { level: 1, name: 'Статус системы' }),
         ).toBeInTheDocument();
@@ -37,7 +37,7 @@ describe('ProtectedRoute', () => {
     it('allows authenticated user to access child routes', () => {
         renderRoute('/bff/health', true);
 
-        expect(screen.getByText('Otus Payment System')).toBeInTheDocument();
+        expect(screen.getByText('Otus Pay')).toBeInTheDocument();
     });
 
     it('does not redirect on public /login route', () => {

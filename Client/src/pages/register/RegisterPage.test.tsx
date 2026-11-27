@@ -110,7 +110,7 @@ describe('RegisterPage', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Зарегистрироваться' }));
 
         // После register (201) вызывается login, токены сохраняются
-        expect(await screen.findByText('Otus Payment System')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'Кошельки' })).toBeVisible();
         expect(getAccessToken()).toBe('test-at');
     });
 

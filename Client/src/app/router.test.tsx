@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,14 +10,13 @@ import { renderRoute, renderWithProviders } from '@/shared/testing/render';
 describe('router', () => {
     afterEach(() => {
         vi.restoreAllMocks();
-        // Очищаем токены после каждого теста, чтобы не影响了 другие тесты.
         clearTokens();
     });
 
     it('renders layout title on index route', () => {
         renderRoute('/', true);
 
-        expect(screen.getByText('Otus Payment System')).toBeInTheDocument();
+        expect(screen.getByText('Otus Pay')).toBeInTheDocument();
         expect(
             screen.getByRole('heading', { level: 1, name: 'Статус системы' }),
         ).toBeInTheDocument();
@@ -27,6 +27,15 @@ describe('router', () => {
 
         expect(screen.getByRole('heading', { name: 'Страница не найдена' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'На главную' })).toHaveAttribute('href', '/');
+    });
+
+    it('opens wallets and recent operations from the sidebar', async () => {
+        const user = userEvent.setup();
+        renderRoute('/', true);
+        await user.click(screen.getByRole('link', { name: 'Кошельки' }));
+        expect(await screen.findByRole('heading', { level: 1, name: 'Кошельки' })).toBeVisible();
+        await user.click(screen.getByRole('link', { name: 'Операции' }));
+        expect(screen.getByRole('link', { name: 'Операции' })).toHaveAttribute('aria-current');
     });
 
     it('renders route error fallback when page throws', () => {
