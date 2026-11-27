@@ -17,27 +17,25 @@ describe('ProtectedRoute', () => {
         expect(screen.getByRole('heading', { name: 'Вход' })).toBeInTheDocument();
     });
 
-    it('allows authenticated user to access protected route', () => {
+    it('allows authenticated user to access protected route', async () => {
         // С токенами доступ к '/' должен показать главную страницу
         renderRoute('/', true);
 
-        expect(screen.getByText('Otus Payment System')).toBeInTheDocument();
-        expect(
-            screen.getByRole('heading', { level: 1, name: 'Статус системы' }),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Otus Pay')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'Кошельки' })).toBeInTheDocument();
     });
 
     it('redirects to login when accessing any protected child route without auth', () => {
         // Любой маршрут под '/' защищён
-        renderRoute('/bff/health');
+        renderRoute('/admin/status');
 
         expect(screen.getByRole('heading', { name: 'Вход' })).toBeInTheDocument();
     });
 
     it('allows authenticated user to access child routes', () => {
-        renderRoute('/bff/health', true);
+        renderRoute('/profile', true);
 
-        expect(screen.getByText('Otus Payment System')).toBeInTheDocument();
+        expect(screen.getByText('Otus Pay')).toBeInTheDocument();
     });
 
     it('does not redirect on public /login route', () => {

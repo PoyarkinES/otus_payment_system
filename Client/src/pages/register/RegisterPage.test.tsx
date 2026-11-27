@@ -67,6 +67,14 @@ describe('RegisterPage', () => {
         expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/login');
     });
 
+    it('describes the password requirements before the user types', () => {
+        renderRoute('/register');
+
+        expect(screen.getByLabelText('Пароль')).toHaveAccessibleDescription(
+            /8.*128.*латинская буква.*цифра/,
+        );
+    });
+
     it('shows validation error for short password', async () => {
         renderRoute('/register');
 
@@ -110,7 +118,7 @@ describe('RegisterPage', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Зарегистрироваться' }));
 
         // После register (201) вызывается login, токены сохраняются
-        expect(await screen.findByText('Otus Payment System')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Кошельки', level: 1 })).toBeVisible();
         expect(getAccessToken()).toBe('test-at');
     });
 

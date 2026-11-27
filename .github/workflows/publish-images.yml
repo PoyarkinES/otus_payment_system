@@ -22,6 +22,8 @@ jobs:
             dockerfile: Identity/Dockerfile
           - image: otus-payment-system-gateway
             dockerfile: Gateway/Dockerfile
+          - image: otus-payment-system-wallets
+            dockerfile: Wallets/Dockerfile
 
     steps:
       - name: Check out repository

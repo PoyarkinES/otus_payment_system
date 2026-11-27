@@ -1,8 +1,8 @@
-# Демо-стек M1: PostgreSQL + Identity + Gateway из публичных GHCR-образов.
+# Демо-стек M2: PostgreSQL 17 + Identity + Wallets + Gateway; образы приложений — из GHCR.
 # Наружу открыт только Gateway (8080) — единая точка входа, как в architecture.md.
 #
-# Запуск:      docker compose pull
-#              docker compose up -d
+# Запуск:      docker compose -f docker-compose.yml pull
+#              docker compose -f docker-compose.yml up -d
 # Демо:        http://localhost:8080/health, http://localhost:8080/bff/health
 # Локальная разработка: docker-compose.dev.yml (PostgreSQL) + dotnet run;
 # этот файл локальный код не собирает.
@@ -28,8 +28,27 @@ services:
       timeout: 5s
       retries: 10
 
+  wallets-db-bootstrap:
+    image: postgres:17
+    restart: "no"
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        if [ "$$(psql -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'otus_wallets'")" = "1" ]; then
+          echo "Database otus_wallets already exists."
+        else
+          createdb --maintenance-db=postgres --owner="$$PGUSER" otus_wallets
+        fi
+
   identity:
-    image: ghcr.io/poyarkines/otus-payment-system-identity:sha-fd5a34840dab02c4ba6d8a77f69d7355d567e334
+    image: ghcr.io/poyarkines/otus-payment-system-identity:sha-a6b4e378a113247638b92997572cf2accf7c68ae
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -49,19 +68,42 @@ services:
       retries: 20
       start_period: 20s
 
+  wallets:
+    image: ghcr.io/poyarkines/otus-payment-system-wallets:sha-a6b4e378a113247638b92997572cf2accf7c68ae
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__WalletsDb: "Host=postgres;Port=5432;Database=otus_wallets;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      Database__AutoMigrate: "true"
+      Jwt__JwksUri: http://identity:8080/.well-known/jwks.json
+    depends_on:
+      wallets-db-bootstrap:
+        condition: service_completed_successfully
+      identity:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
   gateway:
-    image: ghcr.io/poyarkines/otus-payment-system-gateway:sha-fd5a34840dab02c4ba6d8a77f69d7355d567e334
+    image: ghcr.io/poyarkines/otus-payment-system-gateway:sha-a6b4e378a113247638b92997572cf2accf7c68ae
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       # Имя сервиса вместо localhost: адрес Identity нужен и прокси, и /bff/health.
       ReverseProxy__Clusters__identity__Destinations__primary__Address: http://identity:8080/
+      ReverseProxy__Clusters__wallets__Destinations__primary__Address: http://wallets:8080/
       Jwt__JwksUri: http://identity:8080/.well-known/jwks.json
     ports:
       - "8080:8080"
     depends_on:
       identity:
         condition: service_healthy
+      # Wallets не блокирует старт Gateway: его маршруты могут временно
+      # отвечать 502/503, пока Wallets поднимается. Health Wallets проверяется отдельно.
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/bff/health"]
       interval: 10s

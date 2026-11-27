@@ -4,6 +4,8 @@
  */
 @layer theme, base, mui, components, utilities;
 @import 'tailwindcss';
+@import '@fontsource-variable/source-sans-3/wght.css';
+@import '@fontsource-variable/inter/wght.css';
 
 /*
  * Tailwind не заводит своих цветов, шрифтов и брейкпоинтов — берёт их из темы MUI

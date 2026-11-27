@@ -104,7 +104,7 @@ erDiagram
 
 > Взаимодействие сущностей, инициализация и вызовы: [wallets-entity-interactions.ru.md](./wallets-entity-interactions.ru.md).
 >
-> **Подключение:** `ConnectionStrings:WalletsDb` (`ConnectionStrings__WalletsDb` в compose/окружении). В `appsettings.Development.json` уже есть; сервис Wallets в `docker-compose.yml` пока не добавлен, поэтому compose-ключ появится вместе с Host.
+> **Подключение:** `ConnectionStrings:WalletsDb` (`ConnectionStrings__WalletsDb` в compose/окружении). В `appsettings.Development.json` уже есть; в Compose Wallets подключён к отдельной БД `otus_wallets`, которую создаёт одноразовый bootstrap-сервис.
 
 Схема создана миграцией `20261113133347_InitialWallets`, CHECK-ограничения — миграцией `20261121064406_AddWalletBalanceChecks`; обе применены к `otus_wallets`. Целевые таблицы — [architecture.ru.md](./architecture.ru.md:225) и [bounded-contexts.md](./bounded-contexts.md:150).
 
