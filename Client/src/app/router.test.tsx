@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter, RouterProvider } from 'react-router';
@@ -33,15 +33,27 @@ describe('router', () => {
         expect(screen.getByRole('link', { name: 'На главную' })).toHaveAttribute('href', '/');
     });
 
-    it('opens wallets, recent operations and the profile from the sidebar', async () => {
+    it('marks the selected destination when switching between wallets, operations and the profile', async () => {
         const user = userEvent.setup();
-        renderRoute('/', true);
-        await user.click(screen.getByRole('link', { name: 'Кошельки' }));
-        expect(await screen.findByRole('heading', { level: 1, name: 'Кошельки' })).toBeVisible();
-        await user.click(screen.getByRole('link', { name: 'Операции' }));
-        expect(screen.getByRole('link', { name: 'Операции' })).toHaveAttribute('aria-current');
-        await user.click(screen.getByRole('link', { name: 'Профиль' }));
+        renderRoute('/wallets', true);
+        const navigation = within(screen.getByRole('navigation', { name: 'Основная навигация' }));
+        const wallets = navigation.getByRole('link', { name: 'Кошельки' });
+        const operations = navigation.getByRole('link', { name: 'Операции' });
+
+        expect(wallets).toHaveAttribute('aria-current', 'page');
+        await user.click(operations);
+        expect(await screen.findByRole('region', { name: 'Последние операции' })).toHaveFocus();
+        expect(operations).toHaveAttribute('aria-current', 'location');
+        expect(wallets).not.toHaveAttribute('aria-current');
+
+        await user.click(wallets);
+        expect(wallets).toHaveAttribute('aria-current', 'page');
+        expect(operations).not.toHaveAttribute('aria-current');
+
+        const profile = navigation.getByRole('link', { name: 'Профиль' });
+        await user.click(profile);
         expect(await screen.findByRole('heading', { level: 1, name: 'Профиль' })).toBeVisible();
+        expect(profile).toHaveAttribute('aria-current', 'page');
     });
 
     it('starts the next account on its wallets after an explicit logout from the profile', async () => {

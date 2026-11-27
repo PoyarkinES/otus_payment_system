@@ -17,7 +17,7 @@ describe('ProtectedRoute', () => {
         expect(screen.getByRole('heading', { name: 'Вход' })).toBeInTheDocument();
     });
 
-    it('allows authenticated user to access protected route', () => {
+    it('allows authenticated user to access protected route', async () => {
         // С токенами доступ к '/' должен показать главную страницу
         renderRoute('/', true);
 
