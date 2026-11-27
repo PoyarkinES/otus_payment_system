@@ -11,6 +11,18 @@ permissions:
   packages: read
 
 jobs:
+  shared-version-check:
+    name: Shared package version check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Shared package versions
+        shell: pwsh
+        run: ./scripts/bump-shared.ps1 -Check
+
   build:
     name: Build
     runs-on: ubuntu-latest
