@@ -126,7 +126,7 @@ Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 ## Веб-клиент
 
 `Client/` — SPA на React + TypeScript с компонентами MUI. Все запросы идут через Gateway.
-После входа можно посмотреть доступный остаток, резерв и последние операции, скрыть суммы. На телефоне нижняя панель переключает между балансами и операциями.
+После входа можно посмотреть доступный остаток, резерв, пять последних операций и постраничную историю, скрыть суммы. На телефоне нижняя панель переключает между балансами и операциями.
 
 ```bash
 cd Client
@@ -168,7 +168,7 @@ Gateway → PostgreSQL → Wallets (+ holds) → Transfers (Redis, hold, Fraud s
 - **Проверенные Gateway-тесты:** 34 Host/unit/web и 11 E2E через in-process Wallets + PostgreSQL.
 - **CI** собирает решения, запускает тесты и проверяет OpenAPI drift; Gateway E2E проверены локально с `WALLETS_API_TEST_DB`.
 - **Веб-клиент (#82, #83, #85):** авторизация, обзор кошельков и проверки в CI.
-- **Дальше:** Payments/Transfers и экраны пополнения, вывода и истории операций; RabbitMQ, Redis, Fraud и Merchant Payments остаются будущими этапами.
+- **Дальше:** Payments/Transfers и экраны пополнения и списания; RabbitMQ, Redis, Fraud и Merchant Payments остаются будущими этапами.
 - **Post-1.0:** KYC/Onboarding (MongoDB + MinIO + gRPC), не блокирует 1.0.
 
 Актуальный статус и порядок задач — в pinned issue [#70](https://github.com/PoyarkinES/otus_payment_system/issues/70).

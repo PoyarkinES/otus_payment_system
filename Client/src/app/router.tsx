@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/app/ProtectedRoute';
 import { RouteError } from '@/app/RouteError';
 import { LoginPage } from '@/pages/login/LoginPage';
 import { NotFoundPage } from '@/pages/not-found/NotFoundPage';
+import { OperationsPage } from '@/pages/operations/OperationsPage';
 import { RegisterPage } from '@/pages/register/RegisterPage';
 import { AmountVisibilityProvider } from '@/pages/wallets/AmountVisibility';
 import { WalletsPage } from '@/pages/wallets/WalletsPage';
@@ -34,6 +35,7 @@ export const routes: RouteObject[] = [
         children: [
             { index: true, element: <Navigate to="/wallets" replace /> },
             { path: 'wallets', element: <WalletsPage /> },
+            { path: 'operations', element: <OperationsPage /> },
             { path: '*', element: <NotFoundPage /> },
         ],
     },

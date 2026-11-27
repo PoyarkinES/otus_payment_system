@@ -1,5 +1,6 @@
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
+import { Navigate, useLocation } from 'react-router';
 
 import { useBffWallets } from '@/shared/api/generated/endpoints/bff/bff';
 import { ErrorState } from '@/shared/ui/ErrorState';
@@ -8,8 +9,15 @@ import { AmountVisibilityButton, useAmountVisibility } from './AmountVisibility'
 import { RecentOperations } from './RecentOperations';
 import { WalletCard } from './WalletCard';
 
+const recentLimit = 5;
+
 export function WalletsPage() {
-    const { data, error, isPending, refetch } = useBffWallets();
+    const { hash } = useLocation();
+    return hash === '#operations' ? <Navigate to="/operations" replace /> : <WalletOverview />;
+}
+
+function WalletOverview() {
+    const { data, error, isPending, refetch } = useBffWallets({ recentOperations: recentLimit });
     const wallets = !error && data?.status === 200 ? (data.data.wallets ?? []) : undefined;
     const { hidden } = useAmountVisibility();
 
@@ -44,7 +52,7 @@ export function WalletsPage() {
                             </Typography>
                         </Paper>
                     )}
-                    <RecentOperations wallets={wallets} hidden={hidden} />
+                    <RecentOperations wallets={wallets} hidden={hidden} limit={recentLimit} />
                 </>
             )}
         </section>

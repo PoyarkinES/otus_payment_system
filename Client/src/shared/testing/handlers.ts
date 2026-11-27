@@ -3,31 +3,24 @@ import { http, HttpResponse } from 'msw';
 import {
     getBffHealthMockHandler,
     getBffMeMockHandler,
-    getBffWalletsMockHandler,
 } from '@/shared/api/generated/endpoints/bff/bff.msw';
-import type { BffWalletResult } from '@/shared/api/generated/model';
+import type { BffWalletResult, BffWalletsResult } from '@/shared/api/generated/model';
+import { demoOperations } from './demoOperations';
 
 const demoEmail = 'demo@otus.local';
+const demoWalletId = '00000000-0000-4000-8000-000000000002';
+const accessToken = 'mock-access-token';
 let currentEmail = demoEmail;
 const wallets = new Map<string, BffWalletResult>([
     [
         demoEmail,
         {
-            id: '00000000-0000-4000-8000-000000000002',
+            id: demoWalletId,
             currency: 'RUB',
             available: 84250,
             held: 3500,
             total: 87750,
             status: 'Active',
-            recentOperations: [
-                {
-                    id: '00000000-0000-4000-8000-000000000003',
-                    type: 'TopUp',
-                    currency: 'RUB',
-                    amount: 12000,
-                    createdAt: '2026-11-27T07:30:00Z',
-                },
-            ],
         },
     ],
 ]);
@@ -36,20 +29,48 @@ const futureAccess = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 const futureRefresh = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
 const mockTokens = {
-    accessToken: 'mock-access-token',
+    accessToken,
     refreshToken: 'mock-refresh-token',
     expiresAt: futureAccess,
     refreshExpiresAt: futureRefresh,
 };
 
+function integerParameter(params: URLSearchParams, key: string, fallback: number) {
+    const values = params.getAll(key);
+    if (values.length === 0) return fallback;
+    if (values.length !== 1 || !/^[+-]?\d+$/.test(values[0].trim())) return NaN;
+    return Number(values[0]);
+}
+
+function walletProblem(status: number, title: string, detail: string) {
+    return HttpResponse.json(
+        { status, title, detail, type: `https://httpstatuses.io/${status}` },
+        { status, headers: { 'Content-Type': 'application/problem+json' } },
+    );
+}
+
+function operationsFor(wallet: BffWalletResult) {
+    return wallet.id === demoWalletId ? demoOperations : (wallet.recentOperations ?? []);
+}
+
 export const handlers = [
     getBffHealthMockHandler({ status: 'ok', services: { gateway: 'ok', identity: 'ok' } }),
     getBffMeMockHandler({ userId: 'mock-user-id', email: 'mock@example.com', role: 'User' }),
 
-    getBffWalletsMockHandler(() => {
+    http.get('*/bff/wallets', ({ request }) => {
+        const limit = integerParameter(new URL(request.url).searchParams, 'recentOperations', 5);
+        if (!(limit >= 0 && limit <= 20)) {
+            return walletProblem(
+                400,
+                'Недопустимое количество операций.',
+                'Параметр recentOperations должен быть от 0 до 20.',
+            );
+        }
         const wallet = wallets.get(currentEmail);
-        return {
-            wallets: wallet ? [wallet] : [],
+        return HttpResponse.json<BffWalletsResult>({
+            wallets: wallet
+                ? [{ ...wallet, recentOperations: operationsFor(wallet).slice(0, limit) }]
+                : [],
             totals: wallet
                 ? [
                       {
@@ -60,7 +81,37 @@ export const handlers = [
                       },
                   ]
                 : [],
-        };
+        });
+    }),
+    http.get('*/api/wallets/:id/operations', ({ params, request }) => {
+        if (request.headers.get('Authorization') !== `Bearer ${accessToken}`) {
+            return new HttpResponse(null, { status: 401 });
+        }
+        const query = new URL(request.url).searchParams;
+        const page = integerParameter(query, 'page', 1);
+        const pageSize = integerParameter(query, 'pageSize', 20);
+        if (!(page >= 1 && page <= 2147483647)) {
+            return walletProblem(400, 'Bad Request', 'Номер страницы должен быть не менее 1.');
+        }
+        if (!(pageSize >= 1 && pageSize <= 100)) {
+            return walletProblem(400, 'Bad Request', 'Размер страницы должен быть от 1 до 100.');
+        }
+        const wallet = [...wallets.values()].find(
+            (item) => item.id === String(params.id).toLowerCase(),
+        );
+        if (!wallet) return walletProblem(404, 'Not Found', 'Кошелёк не найден.');
+        if (wallet !== wallets.get(currentEmail)) {
+            return walletProblem(403, 'Forbidden', 'Доступ к чужой истории запрещён.');
+        }
+        const history = operationsFor(wallet);
+        const start = (page - 1) * pageSize;
+        return HttpResponse.json({
+            items: history.slice(start, start + pageSize),
+            page,
+            pageSize,
+            totalCount: history.length,
+            totalPages: Math.ceil(history.length / pageSize),
+        });
     }),
     http.post('*/api/wallets', () => {
         if (wallets.has(currentEmail)) {

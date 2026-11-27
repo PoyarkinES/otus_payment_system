@@ -114,7 +114,7 @@ The demo uses published images and does not build local code or require GitHub/N
 
 `Client/` is a React + TypeScript SPA built with MUI components. It talks only to the Gateway,
 with generated clients for the Gateway and Identity contracts. After signing in, users can
-view the available and reserved RUB balances, review recent operations, and hide amounts. On mobile, the bottom bar switches between balances and operations.
+view the available and reserved RUB balances, review the five most recent operations or open paginated history, and hide amounts. On mobile, the bottom bar switches between balances and operations.
 
 ```bash
 cd Client
@@ -155,7 +155,7 @@ Gateway → PostgreSQL → Wallets (+ holds) → Transfers (Redis, hold, Fraud s
 - **Verified Gateway tests:** 34 Host/unit/web tests and 11 Gateway E2E tests against in-process Wallets + PostgreSQL.
 - **CI** builds solutions, runs tests and checks OpenAPI drift; Gateway E2E was verified locally with `WALLETS_API_TEST_DB`.
 - **Web client (#82, #83, #85):** Authentication, wallet overview, and client CI checks.
-- **Next:** Payments/transfers and the top-up, withdrawal, and history screens; RabbitMQ, Redis, Fraud and Merchant Payments remain future stages.
+- **Next:** Payments/transfers and the top-up and withdrawal screens; RabbitMQ, Redis, Fraud and Merchant Payments remain future stages.
 - **Post-1.0:** KYC/Onboarding (MongoDB + MinIO + gRPC), does not block 1.0.
 
 Current status and task order: pinned issue [#70](https://github.com/PoyarkinES/otus_payment_system/issues/70).

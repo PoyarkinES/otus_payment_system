@@ -134,10 +134,22 @@ describe('WalletsPage', () => {
         );
     });
 
-    it('focuses the operations section when opening its link before the summary loads', async () => {
-        summary([rub]);
-        openPage('/wallets#operations');
-
-        expect(await screen.findByRole('region', { name: 'Последние операции' })).toHaveFocus();
+    it('links to the complete history and displays at most five recent operations', async () => {
+        const recentOperations = Array.from({ length: 8 }, (_, i) => ({
+            ...rub.recentOperations[0],
+            id: String(i),
+            createdAt: new Date(Date.UTC(2026, 10, i + 1)).toISOString(),
+        }));
+        summary([{ ...rub, recentOperations }]);
+        openPage();
+        const history = within(await screen.findByRole('region', { name: 'Последние операции' }));
+        const rows = history.getAllByRole('listitem');
+        expect(rows).toHaveLength(5);
+        expect(rows[0]).toHaveTextContent('8 ноября');
+        expect(rows[4]).toHaveTextContent('4 ноября');
+        expect(history.getByRole('link', { name: 'Все операции' })).toHaveAttribute(
+            'href',
+            '/operations',
+        );
     });
 });
