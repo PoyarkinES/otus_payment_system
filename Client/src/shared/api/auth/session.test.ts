@@ -147,6 +147,29 @@ describe('session', () => {
             const result = await ensureFreshSession();
             expect(result).toBe(false);
         });
+
+        it('shares one rotation between simultaneous refreshes', async () => {
+            setTokens('old-at', 'old-rt');
+            let rotations = 0;
+            server.use(
+                http.post('http://localhost:8080' + REFRESH_URL, () => {
+                    if (++rotations > 1) return new HttpResponse(null, { status: 401 });
+                    return HttpResponse.json({
+                        accessToken: 'new-at',
+                        refreshToken: 'new-rt',
+                        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+                        refreshExpiresAt: new Date(Date.now() + 86400000).toISOString(),
+                    });
+                }),
+            );
+
+            expect(await Promise.all([ensureFreshSession(), ensureFreshSession()])).toEqual([
+                true,
+                true,
+            ]);
+            expect(rotations).toBe(1);
+            expect(getAccessToken()).toBe('new-at');
+        });
     });
 
     describe('getCurrentRefreshToken', () => {

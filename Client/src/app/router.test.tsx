@@ -1,25 +1,31 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { RouteError } from '@/app/RouteError';
 import { clearTokens } from '@/shared/api/auth/storage';
+import { getBffWalletsMockHandler } from '@/shared/api/generated/endpoints/bff/bff.msw';
 import { renderRoute, renderWithProviders } from '@/shared/testing/render';
+import { server } from '@/shared/testing/server';
 
 describe('router', () => {
     afterEach(() => {
         vi.restoreAllMocks();
-        // Очищаем токены после каждого теста, чтобы не影响了 другие тесты.
         clearTokens();
     });
 
-    it('renders layout title on index route', () => {
+    it('opens wallets without fetching system health on the index route', async () => {
+        const health = vi.fn(() => HttpResponse.json({ status: 'ok', services: {} }));
+        server.use(http.get('*/bff/health', health));
         renderRoute('/', true);
 
-        expect(screen.getByText('Otus Payment System')).toBeInTheDocument();
-        expect(
-            screen.getByRole('heading', { level: 1, name: 'Статус системы' }),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Otus Pay')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'Кошельки' })).toBeVisible();
+        expect(screen.queryByText('Статус системы')).not.toBeInTheDocument();
+        expect(health).not.toHaveBeenCalled();
+        expect(screen.queryByRole('button', { name: 'Выйти' })).not.toBeInTheDocument();
     });
 
     it('renders 404 for unknown route', () => {
@@ -27,6 +33,64 @@ describe('router', () => {
 
         expect(screen.getByRole('heading', { name: 'Страница не найдена' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'На главную' })).toHaveAttribute('href', '/');
+    });
+
+    it('marks the selected destination when switching between wallets, operations and the profile', async () => {
+        const user = userEvent.setup();
+        server.use(getBffWalletsMockHandler({ wallets: [{ currency: 'RUB' }] }));
+        renderRoute('/wallets', true);
+        const navigation = within(screen.getByRole('navigation', { name: 'Основная навигация' }));
+        const wallets = navigation.getByRole('link', { name: 'Кошельки' });
+        const operations = navigation.getByRole('link', { name: 'Операции' });
+
+        expect(wallets).toHaveAttribute('aria-current', 'page');
+        await user.click(operations);
+        expect(await screen.findByRole('heading', { name: 'История операций' })).toBeVisible();
+        expect(operations).toHaveAttribute('aria-current', 'page');
+        expect(wallets).not.toHaveAttribute('aria-current');
+
+        await user.click(wallets);
+        expect(wallets).toHaveAttribute('aria-current', 'page');
+        expect(operations).not.toHaveAttribute('aria-current');
+
+        const profile = navigation.getByRole('link', { name: 'Профиль' });
+        await user.click(profile);
+        expect(await screen.findByRole('heading', { level: 1, name: 'Профиль' })).toBeVisible();
+        expect(profile).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('starts the next account on its wallets after an explicit logout from the profile', async () => {
+        const user = userEvent.setup();
+        const tokens = {
+            accessToken: 'access-token',
+            refreshToken: 'refresh-token',
+            expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+            refreshExpiresAt: new Date(Date.now() + 86400_000).toISOString(),
+        };
+        const revoke = vi.fn(() => new HttpResponse(null, { status: 204 }));
+        server.use(
+            http.post('*/api/identity/auth/refresh', () => HttpResponse.json(tokens)),
+            http.post('*/api/identity/auth/logout', revoke),
+            http.post('*/api/identity/auth/login', () => HttpResponse.json(tokens)),
+        );
+        renderRoute('/profile', true);
+        await screen.findByText('Активен');
+        await user.click(screen.getByRole('button', { name: 'Выйти' }));
+        expect(await screen.findByRole('heading', { name: 'Вход' })).toBeVisible();
+        expect(revoke).toHaveBeenCalledOnce();
+        await user.type(screen.getByLabelText('Email'), 'next@example.test');
+        await user.type(screen.getByLabelText('Пароль'), 'test-password');
+        await user.click(screen.getByRole('button', { name: 'Войти' }));
+        expect(await screen.findByRole('heading', { level: 1, name: 'Кошельки' })).toBeVisible();
+    });
+
+    it('opens full history from a saved operations link', async () => {
+        renderRoute('/wallets#operations', true);
+        expect(await screen.findByRole('heading', { name: 'История операций' })).toBeVisible();
+        expect(screen.getByRole('link', { name: 'Операции' })).toHaveAttribute(
+            'aria-current',
+            'page',
+        );
     });
 
     it('renders route error fallback when page throws', () => {

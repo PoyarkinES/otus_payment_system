@@ -125,9 +125,9 @@ Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 
 ## Веб-клиент
 
-`Client/` — SPA на React + TypeScript с компонентами MUI. Ходит только через Gateway, клиент API
-генерируется из `openapi/gateway.v1.json`. Сейчас есть каркас и страница «Статус системы»
-(`/bff/health`); BFF API-сводка кошельков доступна через `/bff/wallets`, но экран кошельков ещё не реализован.
+`Client/` — SPA на React + TypeScript с компонентами MUI. Все запросы идут через Gateway.
+После входа можно посмотреть доступный остаток, резерв и пять последних операций, перейти к постраничной истории и скрыть суммы. На телефоне кошельки, операции и профиль доступны в нижней панели.
+В профиле видны email, роль и статус аккаунта. Из профиля активного администратора доступны поиск пользователя по UUID и статус системы.
 
 ```bash
 cd Client
@@ -168,8 +168,8 @@ Gateway → PostgreSQL → Wallets (+ holds) → Transfers (Redis, hold, Fraud s
 - **Wallets (#52):** реализованы балансы, holds, история операций и список кошельков; Gateway агрегирует список, totals по валютам и последние операции.
 - **Проверенные Gateway-тесты:** 34 Host/unit/web и 11 E2E через in-process Wallets + PostgreSQL.
 - **CI** собирает решения, запускает тесты и проверяет OpenAPI drift; Gateway E2E проверены локально с `WALLETS_API_TEST_DB`.
-- **Веб-клиент (#82):** каркас на React + MUI, клиент из OpenAPI Gateway, страница статуса системы, job `client` в CI.
-- **Дальше:** Payments/Transfers и UI-экраны; RabbitMQ, Redis, Fraud и Merchant Payments остаются будущими этапами.
+- **Веб-клиент (#82–#86):** авторизация, профиль, обзор кошельков и постраничная история, статус системы для администраторов и проверки в CI.
+- **Дальше:** Payments/Transfers и экраны пополнения и списания; RabbitMQ, Redis, Fraud и Merchant Payments остаются будущими этапами.
 - **Post-1.0:** KYC/Onboarding (MongoDB + MinIO + gRPC), не блокирует 1.0.
 
 Актуальный статус и порядок задач — в pinned issue [#70](https://github.com/PoyarkinES/otus_payment_system/issues/70).

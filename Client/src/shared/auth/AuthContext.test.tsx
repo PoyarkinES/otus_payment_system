@@ -1,5 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useCallback, type ReactNode } from 'react';
 
@@ -7,6 +8,8 @@ import { AuthProvider, useAuth } from '@/shared/auth/AuthContext';
 import { clearTokens, getAccessToken, getRefreshToken } from '@/shared/api/auth/storage';
 import { AppProviders } from '@/app/providers';
 import { createQueryClient } from '@/app/queryClient';
+import { apiFetch, REFRESH_URL } from '@/shared/api/http';
+import { server } from '@/shared/testing/server';
 
 afterEach(() => {
     clearTokens();
@@ -93,6 +96,33 @@ describe('AuthContext', () => {
 
         // isAuthenticated должен стать true (есть refreshToken)
         expect(await screen.findByTestId('is-authenticated')).toHaveTextContent('true');
+    });
+
+    it('removes private data on session expiry and before another login', async () => {
+        const client = createQueryClient();
+        render(
+            <AppProviders queryClient={client}>
+                <SetTokensDisplay />
+            </AppProviders>,
+        );
+        const key = ['/bff/me'];
+        const login = screen.getByRole('button', { name: 'Set tokens' });
+        await userEvent.click(login);
+        client.setQueryData(key, { email: 'first@example.com' });
+
+        server.use(
+            http.get('*/bff/me', () => new HttpResponse(null, { status: 401 })),
+            http.post('*' + REFRESH_URL, () => new HttpResponse(null, { status: 401 })),
+        );
+        await act(async () => {
+            await expect(apiFetch('/bff/me')).rejects.toMatchObject({ status: 401 });
+        });
+        expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false');
+        expect(client.getQueryData(key)).toBeUndefined();
+
+        client.setQueryData(key, { email: 'stale@example.com' });
+        await userEvent.click(login);
+        expect(client.getQueryData(key)).toBeUndefined();
     });
 
     it('isAuthenticated is true even when access token is expired but refresh exists', async () => {

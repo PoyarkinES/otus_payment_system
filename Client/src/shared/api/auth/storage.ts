@@ -5,21 +5,27 @@
  * Это гарантирует, что после refresh в http.ts контекст автоматически получит новые токены.
  */
 
+import type { AuthTokens } from '@/shared/api/generated/identity/model';
+
 export interface AuthTokensStorage {
+    /** Меняется при входе и завершении сессии, сохраняется при ротации токенов. */
+    sessionId: number;
     accessToken: string | null;
     refreshToken: string | null;
     expiresAt: string | null;
     refreshExpiresAt: string | null;
 }
 
-let tokens: AuthTokensStorage = {
+const emptyTokens = {
     accessToken: null,
     refreshToken: null,
     expiresAt: null,
     refreshExpiresAt: null,
 };
 
-type Subscriber = () => void;
+let tokens: AuthTokensStorage = { ...emptyTokens, sessionId: 0 };
+
+type Subscriber = (sessionChanged: boolean) => void;
 const subscribers = new Set<Subscriber>();
 
 /** Получает текущее состояние токенов (для useSyncExternalStore). */
@@ -35,31 +41,36 @@ export function subscribe(subscriber: Subscriber): () => void {
     };
 }
 
-/** Сохраняет токены после login или refresh. */
+function publish(next: AuthTokensStorage): void {
+    const sessionChanged = tokens.sessionId !== next.sessionId;
+    tokens = next;
+    subscribers.forEach((subscriber) => subscriber(sessionChanged));
+}
+
+/** Начинает новую сессию после входа. */
 export function setTokensStorage(
     at: string,
     rt: string,
     expiresAt: string,
     refreshExpiresAt: string,
 ): void {
-    tokens = {
+    publish({
+        sessionId: tokens.sessionId + 1,
         accessToken: at,
         refreshToken: rt,
         expiresAt,
         refreshExpiresAt,
-    };
-    subscribers.forEach((s) => s());
+    });
 }
 
-/** Очищает токены при logout или неудачном refresh. */
+/** Сохраняет результат ротации в рамках текущей сессии. */
+export function rotateTokens(next: AuthTokens): void {
+    publish({ ...next, sessionId: tokens.sessionId });
+}
+
+/** Завершает сессию при выходе или отклонении токенов. */
 export function clearTokens(): void {
-    tokens = {
-        accessToken: null,
-        refreshToken: null,
-        expiresAt: null,
-        refreshExpiresAt: null,
-    };
-    subscribers.forEach((s) => s());
+    publish({ ...emptyTokens, sessionId: tokens.sessionId + 1 });
 }
 
 /** Геттеры для apiFetch (обратная совместимость). */

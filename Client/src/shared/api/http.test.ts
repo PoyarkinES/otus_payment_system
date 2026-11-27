@@ -31,6 +31,15 @@ function problemJson(body: object, status: number, headers: Record<string, strin
     });
 }
 
+function rotatedTokens(accessToken: string, refreshToken: string) {
+    return HttpResponse.json({
+        accessToken,
+        refreshToken,
+        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+        refreshExpiresAt: new Date(Date.now() + 86400000).toISOString(),
+    });
+}
+
 describe('apiFetch', () => {
     it('sends X-Correlation-Id header', async () => {
         let sent: string | null = null;
@@ -264,12 +273,7 @@ describe('apiFetch', () => {
 
         server.use(
             http.post('http://localhost:8080' + REFRESH_URL, () =>
-                HttpResponse.json({
-                    accessToken: 'new-at',
-                    refreshToken: 'new-rt',
-                    expiresAt: new Date(Date.now() + 3600000).toISOString(),
-                    refreshExpiresAt: new Date(Date.now() + 86400000).toISOString(),
-                }),
+                rotatedTokens('new-at', 'new-rt'),
             ),
         );
 
@@ -297,13 +301,13 @@ describe('apiFetch', () => {
         expect(refreshCalled).toBe(false);
     });
 
-    it('clears tokens on invalid refresh (401)', async () => {
+    it.each([400, 401, 403])('clears tokens on rejected refresh (%s)', async (status) => {
         setTokens('old-at', 'old-rt');
 
         server.use(http.get(URL, () => problemJson({ title: 'Unauthorized', status: 401 }, 401)));
         server.use(
             http.post('http://localhost:8080' + REFRESH_URL, () =>
-                problemJson({ title: 'Invalid', status: 401 }, 401),
+                problemJson({ title: 'Invalid', status }, status),
             ),
         );
 
@@ -321,27 +325,124 @@ describe('apiFetch', () => {
 
         const error = await catchError(apiFetch('/bff/health'));
 
-        expect(error).toBeInstanceOf(ApiProblem);
+        expect(error).toBeInstanceOf(ApiNetworkError);
         // Токены не очищены при сетевой ошибке refresh
         expect(getAccessToken()).toBe('old-at');
     });
 
-    it('does not clear tokens on refresh 429 (rate limit)', async () => {
+    it.each([429, 503])('surfaces transient refresh status %s and keeps tokens', async (status) => {
         setTokens('old-at', 'old-rt');
 
         server.use(http.get(URL, () => problemJson({ title: 'Unauthorized', status: 401 }, 401)));
         server.use(
             http.post('http://localhost:8080' + REFRESH_URL, () =>
-                problemJson({ title: 'Too Many Requests', status: 429 }, 429),
+                problemJson({ title: 'Retry later', status }, status),
             ),
         );
 
         const error = await catchError(apiFetch('/bff/health'));
 
-        expect(error).toBeInstanceOf(ApiProblem);
-        // Токены не очищены при 429
+        expect(error).toMatchObject({ status });
         expect(getAccessToken()).toBe('old-at');
     });
+
+    it('ends the session when a protected request is still unauthorized after refresh', async () => {
+        setTokens('old-at', 'old-rt');
+        const authorizations: (string | null)[] = [];
+        server.use(
+            http.get('*/bff/me', ({ request }) => {
+                authorizations.push(request.headers.get('Authorization'));
+                return problemJson({ title: 'Unauthorized', status: 401 }, 401);
+            }),
+            http.post('http://localhost:8080' + REFRESH_URL, () =>
+                rotatedTokens('rotated-at', 'rotated-rt'),
+            ),
+        );
+
+        await expect(apiFetch('/bff/me')).rejects.toMatchObject({ status: 401 });
+        expect(authorizations).toEqual(['Bearer old-at', 'Bearer rotated-at']);
+        expect(getAccessToken()).toBeNull();
+    });
+
+    it('keeps the session when a resource denies permission', async () => {
+        setTokens('at', 'rt');
+        server.use(
+            http.get('*/bff/me', () => problemJson({ title: 'Forbidden', status: 403 }, 403)),
+        );
+
+        await expect(apiFetch('/bff/me')).rejects.toMatchObject({ status: 403 });
+        expect(getAccessToken()).toBe('at');
+    });
+
+    it('reuses the rotated tokens when a parallel request receives its first 401 later', async () => {
+        setTokens('old-at', 'old-rt');
+        let releaseResponse!: () => void;
+        const waitForRotation = new Promise<void>((resolve) => {
+            releaseResponse = resolve;
+        });
+        let rotations = 0;
+        server.use(
+            http.get('*/bff/me', ({ request }) =>
+                request.headers.get('Authorization') === 'Bearer new-at'
+                    ? HttpResponse.json({ email: 'me@example.com' })
+                    : new HttpResponse(null, { status: 401 }),
+            ),
+            http.get('*/api/identity/users/me', async ({ request }) => {
+                if (request.headers.get('Authorization') === 'Bearer new-at') {
+                    return HttpResponse.json({ status: 'Active' });
+                }
+                await waitForRotation;
+                return new HttpResponse(null, { status: 401 });
+            }),
+            http.post('*' + REFRESH_URL, () => {
+                rotations++;
+                return rotatedTokens('new-at', 'new-rt');
+            }),
+        );
+
+        const profile = apiFetch('/api/identity/users/me');
+        await apiFetch('/bff/me').finally(releaseResponse);
+        await expect(profile).resolves.toMatchObject({ data: { status: 'Active' } });
+        expect(rotations).toBe(1);
+    });
+
+    it('preserves credential errors when login is submitted during an existing session', async () => {
+        setTokens('old-at', 'old-rt');
+        const login = '/api/identity/auth/login';
+        server.use(
+            http.post('http://localhost:8080' + login, () =>
+                problemJson({ title: 'Unauthorized', detail: 'Invalid credentials' }, 401),
+            ),
+            http.post('http://localhost:8080' + REFRESH_URL, () =>
+                problemJson({ title: 'Invalid refresh' }, 401),
+            ),
+        );
+
+        await expect(apiFetch(login, { method: 'POST' })).rejects.toMatchObject({
+            detail: 'Invalid credentials',
+        });
+        expect(getAccessToken()).toBe('old-at');
+    });
+
+    it.each([200, 401])(
+        'keeps the new login after a previous session refresh returns %s',
+        async (status) => {
+            setTokens('first-at', 'first-rt');
+            server.use(
+                http.get('*/bff/me', () => problemJson({ title: 'Unauthorized' }, 401)),
+                http.post('http://localhost:8080' + REFRESH_URL, () => {
+                    clearTokens();
+                    setTokens('second-at', 'second-rt');
+                    return status === 200
+                        ? rotatedTokens('late-at', 'late-rt')
+                        : problemJson({ title: 'Invalid refresh' }, status);
+                }),
+            );
+
+            await expect(apiFetch('/bff/me')).rejects.toMatchObject({ status: 401 });
+            expect(getAccessToken()).toBe('second-at');
+        },
+    );
 
     it('skips refresh on refresh endpoint itself', async () => {
         setTokens('old-at', 'old-rt');
