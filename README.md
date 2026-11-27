@@ -96,6 +96,20 @@ Do not confuse:
 
 See [ADR 0001](./docs/adr/0001-api-gateway.md).
 
+## Compose demo stack
+
+`docker-compose.yml` runs PostgreSQL 17 and Identity, Wallets and Gateway. The three application images are public GHCR images pinned by commit SHA. The one-shot `wallets-db-bootstrap` service creates the separate `otus_wallets` database in the existing PostgreSQL instance; it is safe to run with a persistent volume and does not reset Identity data. Only Gateway is published on port `8080`.
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+docker compose -f docker-compose.yml pull
+docker compose -f docker-compose.yml up -d
+docker compose -f docker-compose.yml ps -a
+Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
+```
+
+The demo uses published images and does not build local code or require GitHub/NuGet tokens. Wallets migrations run at startup (`Database__AutoMigrate=true`). The full M2 flow is in [docs/demo-m2.en.md](./docs/demo-m2.en.md); the M1 Identity/Gateway walkthrough is currently available in [Russian](./docs/demo-m1.ru.md).
+
 ## Web client
 
 `Client/` is a React + TypeScript SPA built with MUI components. It talks only to the Gateway,

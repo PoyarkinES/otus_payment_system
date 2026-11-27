@@ -1,6 +1,6 @@
 # Демо-сценарий M1
 
-Что показывает демо: единая точка входа (Gateway), BFF-агрегаты для фронтенда, админский доступ к чужому профилю, healthcheck всего стека. Всё — в Docker, без локальных `dotnet run`.
+Что показывает демо: единая точка входа (Gateway), BFF-агрегаты для фронтенда, админский доступ к чужому профилю и healthcheck Identity. Всё — в Docker, без локальных `dotnet run`. Полный сценарий с Wallets описан в [демо M2](./demo-m2.ru.md).
 
 ## Предусловия
 
@@ -20,18 +20,20 @@
 ```powershell
 docker compose -f docker-compose.yml pull
 docker compose -f docker-compose.yml up -d
-docker compose -f docker-compose.yml ps
+docker compose -f docker-compose.yml ps -a
 ```
 
-Ожидаем три сервиса в статусе `healthy`:
+Ожидаем четыре работающих сервиса в статусе `healthy`; bootstrap завершается с кодом `0`:
 
 ```
 otus-payment-system-postgres-1    postgres:17    (healthy)   5432/tcp
+otus-payment-system-wallets-db-bootstrap-1   postgres:17    Exited (0)   # one-shot
 otus-payment-system-identity-1    ...identity    (healthy)   8080/tcp
+otus-payment-system-wallets-1    ...wallets    (healthy)   8080/tcp
 otus-payment-system-gateway-1     ...gateway     (healthy)   0.0.0.0:8080->8080/tcp
 ```
 
-Первый запуск 2–5 минут: скачиваются два публичных образа, локально ничего не собирается. Токены GitHub/NuGet не нужны. Наружу открыт только Gateway, БД и Identity доступны лишь внутри сети compose.
+Первый запуск 2–5 минут: скачиваются три публичных GHCR-образа, локально ничего не собирается. Токены GitHub/NuGet не нужны. Наружу открыт только Gateway, БД и сервисы доступны лишь внутри сети compose.
 
 ## Шаг 2. Healthcheck
 
@@ -47,7 +49,7 @@ Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 { "status": "ok", "services": { "gateway": "ok", "identity": "ok" } }
 ```
 
-`/bff/health` — агрегат: Gateway отвечает за себя, а статус Identity получает единственным внутренним вызовом `http://identity:8080/health`.
+`/bff/health` — агрегат Gateway и Identity: статус Identity получает внутренним вызовом `http://identity:8080/health`. Состояние Wallets отдельно проверяется по его внутреннему адресу `/health`; пример — в [демо M2](./demo-m2.ru.md).
 
 ## Шаг 3. Логин и BFF
 
