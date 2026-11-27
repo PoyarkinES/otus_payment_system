@@ -33,23 +33,32 @@ export function AppLayout() {
         <Box className="min-h-screen md:flex">
             <Box
                 component="aside"
-                className="flex items-center justify-between gap-3 border-divider bg-background-paper px-4 py-2 md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:flex-col md:items-stretch md:justify-start md:gap-10 md:p-6"
-                sx={{ borderStyle: 'solid', borderWidth: { xs: '0 0 1px', md: '0 1px 0 0' } }}
+                className="flex items-center justify-center bg-linear-to-b from-primary-light to-background-default px-4 pt-[env(safe-area-inset-top,0px)] md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:flex-col md:items-stretch md:justify-start md:gap-10 md:border-r md:border-divider md:bg-background-paper md:bg-none md:p-6"
             >
                 <Typography
                     component={Link}
                     to="/wallets"
                     variant="h5"
-                    className="flex min-h-11 items-center gap-2 text-inherit no-underline"
-                    sx={{ fontWeight: 750, letterSpacing: '-0.04em' }}
+                    className="inline-flex min-h-14 items-center gap-2 text-inherit no-underline md:min-h-11"
+                    sx={{
+                        fontSize: { xs: '1.1875rem', md: '1.5rem' },
+                        fontWeight: 750,
+                        letterSpacing: '-0.04em',
+                    }}
                 >
-                    <img src="/otus-pay-mark.svg" width="28" height="28" alt="" />
+                    <img
+                        src="/otus-pay-mark.svg"
+                        width="28"
+                        height="28"
+                        className="size-6 md:size-7"
+                        alt=""
+                    />
                     Otus Pay
                 </Typography>
                 <Box
                     component="nav"
                     aria-label="Основная навигация"
-                    className="fixed left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-divider bg-background-paper p-1 md:static md:z-auto md:translate-x-0 md:flex-col md:items-stretch md:rounded-none md:border-0 md:bg-transparent md:p-0"
+                    className="fixed left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-divider bg-background-paper p-1 md:static md:z-auto md:flex-1 md:translate-x-0 md:flex-col md:items-stretch md:rounded-none md:border-0 md:bg-transparent md:p-0"
                     sx={(theme) => ({
                         bottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))',
                         boxShadow: { xs: theme.shadows[3], md: 'none' },
@@ -100,7 +109,7 @@ export function AppLayout() {
             </Box>
             <Box
                 component="main"
-                className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:px-8 md:py-10"
+                className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:px-8 md:py-10"
             >
                 <Outlet />
             </Box>

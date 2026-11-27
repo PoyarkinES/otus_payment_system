@@ -79,7 +79,7 @@ describe('LoginPage', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
         // После успешного входа токены должны быть сохранены в storage
-        expect(await screen.findByText('Otus Pay')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Кошельки', level: 1 })).toBeVisible();
         expect(getAccessToken()).toBe('test-at');
     });
 

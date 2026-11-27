@@ -87,7 +87,12 @@ it('rejects an invalid preview limit', async () => {
 it('distinguishes a new empty wallet from a missing or foreign wallet', async () => {
     const otherHeaders = await login('new-wallet@otus.local');
     expect((await fetch(operations, { headers: otherHeaders })).status).toBe(403);
-    const created = await fetch(`${api}/api/wallets`, { method: 'POST', headers: otherHeaders });
+    const created = await fetch(`${api}/api/wallets`, {
+        method: 'POST',
+        headers: { ...otherHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currency: 'RUB' }),
+    });
+    expect(created.status).toBe(201);
     const { id } = await created.json();
     const own = await fetch(`${api}/api/wallets/${id}/operations`, { headers: otherHeaders });
     expect(await own.json()).toMatchObject({ items: [], totalPages: 0, totalCount: 0 });

@@ -3,6 +3,7 @@ import Typography from '@mui/material/Typography';
 import { Navigate, useLocation } from 'react-router';
 
 import { useBffWallets } from '@/shared/api/generated/endpoints/bff/bff';
+import { CreateWalletButton } from '@/shared/ui/CreateWalletButton';
 import { ErrorState } from '@/shared/ui/ErrorState';
 import { LoadingState } from '@/shared/ui/LoadingState';
 import { AmountVisibilityButton, useAmountVisibility } from './AmountVisibility';
@@ -20,6 +21,7 @@ function WalletOverview() {
     const { data, error, isPending, refetch } = useBffWallets({ recentOperations: recentLimit });
     const wallets = !error && data?.status === 200 ? (data.data.wallets ?? []) : undefined;
     const { hidden } = useAmountVisibility();
+    const hasWallet = wallets && wallets.length > 0;
 
     return (
         <section className="grid min-w-0 gap-4 sm:gap-6">
@@ -31,27 +33,32 @@ function WalletOverview() {
                 >
                     Кошельки
                 </Typography>
-                {wallets && wallets.length > 0 && <AmountVisibilityButton />}
+                {hasWallet && <AmountVisibilityButton />}
             </div>
             {isPending && <LoadingState label="Загружаем кошельки…" />}
             {error && <ErrorState error={error} onRetry={() => refetch()} />}
-            {wallets && (
+            {hasWallet === false && (
+                <Paper
+                    component="section"
+                    aria-labelledby="empty-wallet-heading"
+                    elevation={0}
+                    className="p-5 sm:p-8"
+                    sx={{ bgcolor: 'primary.light', borderRadius: 3 }}
+                >
+                    <Typography id="empty-wallet-heading" component="h2" variant="h5">
+                        Кошелька пока нет
+                    </Typography>
+                    <Typography color="text.secondary" className="mt-2 mb-5">
+                        Можно открыть один рублёвый кошелёк с нулевым балансом.
+                    </Typography>
+                    <CreateWalletButton />
+                </Paper>
+            )}
+            {hasWallet && (
                 <>
-                    {wallets.length > 0 ? (
-                        wallets.map((wallet, index) => (
-                            <WalletCard key={wallet.id ?? index} wallet={wallet} hidden={hidden} />
-                        ))
-                    ) : (
-                        <Paper
-                            elevation={0}
-                            className="p-5 sm:p-8"
-                            sx={{ bgcolor: 'primary.light', borderRadius: 3 }}
-                        >
-                            <Typography component="h2" variant="h5">
-                                Кошелька пока нет
-                            </Typography>
-                        </Paper>
-                    )}
+                    {wallets.map((wallet, index) => (
+                        <WalletCard key={wallet.id ?? index} wallet={wallet} hidden={hidden} />
+                    ))}
                     <RecentOperations wallets={wallets} hidden={hidden} limit={recentLimit} />
                 </>
             )}

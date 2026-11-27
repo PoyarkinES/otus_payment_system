@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { RouteError } from '@/app/RouteError';
 import { clearTokens } from '@/shared/api/auth/storage';
+import { getBffWalletsMockHandler } from '@/shared/api/generated/endpoints/bff/bff.msw';
 import { renderRoute, renderWithProviders } from '@/shared/testing/render';
 import { server } from '@/shared/testing/server';
 
@@ -24,6 +25,7 @@ describe('router', () => {
         expect(await screen.findByRole('heading', { level: 1, name: 'Кошельки' })).toBeVisible();
         expect(screen.queryByText('Статус системы')).not.toBeInTheDocument();
         expect(health).not.toHaveBeenCalled();
+        expect(screen.queryByRole('button', { name: 'Выйти' })).not.toBeInTheDocument();
     });
 
     it('renders 404 for unknown route', () => {
@@ -35,6 +37,7 @@ describe('router', () => {
 
     it('marks the selected destination when switching between wallets, operations and the profile', async () => {
         const user = userEvent.setup();
+        server.use(getBffWalletsMockHandler({ wallets: [{ currency: 'RUB' }] }));
         renderRoute('/wallets', true);
         const navigation = within(screen.getByRole('navigation', { name: 'Основная навигация' }));
         const wallets = navigation.getByRole('link', { name: 'Кошельки' });
