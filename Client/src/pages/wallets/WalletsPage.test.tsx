@@ -147,9 +147,10 @@ describe('WalletsPage', () => {
         expect(rows).toHaveLength(5);
         expect(rows[0]).toHaveTextContent('8 ноября');
         expect(rows[4]).toHaveTextContent('4 ноября');
-        expect(history.getByRole('link', { name: 'Все операции' })).toHaveAttribute(
-            'href',
-            '/operations',
-        );
+        const link = history.getByRole('link', { name: 'Посмотреть всю историю' });
+        expect(link).toHaveAttribute('href', '/operations');
+        expect(
+            rows[4].compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
     });
 });

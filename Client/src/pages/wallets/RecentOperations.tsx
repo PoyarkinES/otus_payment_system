@@ -41,28 +41,29 @@ export function RecentOperations({
             className="p-5 sm:p-7"
             sx={{ borderRadius: 3 }}
         >
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-x-2">
-                <Typography
-                    id="operations-heading"
-                    component="h2"
-                    variant="h5"
-                    sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' }, fontWeight: 700 }}
-                >
-                    Последние операции
-                </Typography>
-                {wallets.length > 0 && (
-                    <Button
-                        component={Link}
-                        to="/operations"
-                        endIcon={<span aria-hidden>→</span>}
-                        sx={{ minHeight: 44, px: 0.5 }}
-                    >
-                        Все операции
-                    </Button>
-                )}
-            </div>
+            <Typography
+                id="operations-heading"
+                component="h2"
+                variant="h5"
+                sx={{ mb: 1, fontSize: { xs: '1.25rem', sm: '1.5rem' }, fontWeight: 700 }}
+            >
+                Последние операции
+            </Typography>
             {operations.length ? (
-                <OperationList operations={operations} hidden={hidden} />
+                <>
+                    <OperationList operations={operations} hidden={hidden} />
+                    <div className="mt-2 flex justify-center border-t border-divider pt-4">
+                        <Button
+                            component={Link}
+                            to="/operations"
+                            variant="outlined"
+                            endIcon={<span aria-hidden>→</span>}
+                            sx={{ width: { xs: '100%', sm: 'auto' }, minHeight: 44, px: 3 }}
+                        >
+                            Посмотреть всю историю
+                        </Button>
+                    </div>
+                </>
             ) : (
                 <Typography color="text.secondary">Операций пока нет</Typography>
             )}
