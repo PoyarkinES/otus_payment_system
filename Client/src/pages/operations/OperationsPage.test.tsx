@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter, RouterProvider } from 'react-router';
@@ -99,8 +99,144 @@ describe('OperationsPage', () => {
         expect(rows[1]).toHaveTextContent('+67,00 ₽');
         expect(rows.length).toBeLessThan(20);
         expect(rows[0]).toHaveAttribute('aria-setsize', '68');
-        expect(screen.queryByRole('combobox')).toBeNull();
+        expect(screen.getByRole('combobox', { name: 'Тип операции' })).toBeVisible();
         expect(requests).toEqual([1]);
+    });
+
+    it('sends type and UTC date filters and can clear them', async () => {
+        const user = userEvent.setup();
+        serveWallets();
+        const requests: string[] = [];
+        const records = [
+            {
+                id: 'top-up',
+                referenceId: null,
+                type: 'TopUp',
+                amount: 30,
+                currency: 'RUB',
+                balanceBefore: 0,
+                balanceAfter: 30,
+                description: null,
+                createdAt: '2026-11-27T12:00:00Z',
+            },
+            {
+                id: 'recent-withdrawal',
+                referenceId: null,
+                type: 'Withdrawal',
+                amount: 20,
+                currency: 'RUB',
+                balanceBefore: 30,
+                balanceAfter: 10,
+                description: null,
+                createdAt: '2026-11-27T11:00:00Z',
+            },
+            {
+                id: 'old-withdrawal',
+                referenceId: null,
+                type: 'Withdrawal',
+                amount: 5,
+                currency: 'RUB',
+                balanceBefore: 35,
+                balanceAfter: 30,
+                description: null,
+                createdAt: '2026-11-25T11:00:00Z',
+            },
+        ];
+        server.use(
+            http.get(historyUrl, ({ request }) => {
+                const params = new URL(request.url).searchParams;
+                requests.push(params.toString());
+                const type = params.get('type');
+                const from = params.get('from');
+                const to = params.get('to');
+                const filtered = records.filter((operation) => {
+                    const date = operation.createdAt.slice(0, 10);
+                    return (
+                        (!type || operation.type === type) &&
+                        (!from || date >= from) &&
+                        (!to || date <= to)
+                    );
+                });
+                const page = Number(params.get('page'));
+                const pageSize = Number(params.get('pageSize'));
+                return HttpResponse.json({
+                    items: filtered.slice((page - 1) * pageSize, page * pageSize),
+                    page,
+                    pageSize,
+                    totalCount: filtered.length,
+                    totalPages: Math.ceil(filtered.length / pageSize),
+                });
+            }),
+        );
+        openPage(2000);
+
+        expect(await screen.findByText('+30,00 ₽')).toBeVisible();
+        await user.click(screen.getByRole('combobox', { name: 'Тип операции' }));
+        await user.click(await screen.findByRole('option', { name: 'Списание' }));
+        await waitFor(() => expect(requests.at(-1)).toContain('type=Withdrawal'));
+        expect(await screen.findByText('−20,00 ₽')).toBeVisible();
+        expect(screen.getByText('−5,00 ₽')).toBeVisible();
+
+        fireEvent.change(screen.getByLabelText('С даты'), { target: { value: '2026-11-27' } });
+        fireEvent.change(screen.getByLabelText('По дату'), { target: { value: '2026-11-27' } });
+        await waitFor(() => {
+            expect(requests.at(-1)).toContain('type=Withdrawal');
+            expect(requests.at(-1)).toContain('from=2026-11-27');
+            expect(requests.at(-1)).toContain('to=2026-11-27');
+        });
+        await waitFor(() => expect(screen.queryByText('−5,00 ₽')).not.toBeInTheDocument());
+
+        await user.click(screen.getByRole('button', { name: 'Сбросить фильтры' }));
+        expect(await screen.findByText('−5,00 ₽')).toBeVisible();
+    });
+
+    it('keeps filters on subsequent history pages', async () => {
+        const user = userEvent.setup();
+        serveWallets();
+        const requests: URLSearchParams[] = [];
+        const records = Array.from({ length: 22 }, (_, index) => ({
+            id: `withdrawal-${index}`,
+            referenceId: null,
+            type: 'Withdrawal',
+            amount: index + 1,
+            currency: 'RUB',
+            balanceBefore: index + 2,
+            balanceAfter: 1,
+            description: null,
+            createdAt: '2026-11-27T12:00:00Z',
+        }));
+        server.use(
+            http.get(historyUrl, ({ request }) => {
+                const params = new URL(request.url).searchParams;
+                requests.push(new URLSearchParams(params));
+                const filtered = records.filter(
+                    (operation) => !params.get('type') || operation.type === params.get('type'),
+                );
+                const page = Number(params.get('page'));
+                const pageSize = Number(params.get('pageSize'));
+                return HttpResponse.json({
+                    items: filtered.slice((page - 1) * pageSize, page * pageSize),
+                    page,
+                    pageSize,
+                    totalCount: filtered.length,
+                    totalPages: Math.ceil(filtered.length / pageSize),
+                });
+            }),
+        );
+        openPage(2000);
+
+        await screen.findByText('−22,00 ₽');
+        await user.click(screen.getByRole('combobox', { name: 'Тип операции' }));
+        await user.click(await screen.findByRole('option', { name: 'Списание' }));
+
+        await waitFor(() => {
+            expect(
+                requests.some(
+                    (params) => params.get('page') === '2' && params.get('type') === 'Withdrawal',
+                ),
+            ).toBe(true);
+        });
+        expect(screen.getAllByRole('listitem')).toHaveLength(22);
     });
 
     it('fetches more when the viewport reaches the end and stops after the last page', async () => {

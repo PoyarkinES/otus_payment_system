@@ -64,6 +64,43 @@ public class WalletsGatewayE2ETests : IClassFixture<GatewayApiFactory>
     }
 
     [Fact]
+    public async Task Get_WalletOperationsWithFilters_ThroughGateway_ReturnsFilteredPage()
+    {
+        using HttpClient client = CreateClient(Guid.NewGuid());
+        using HttpResponseMessage created = await client.PostAsJsonAsync(
+            "/api/wallets",
+            new { currency = "RUB" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        WalletResponse wallet = (await created.Content.ReadFromJsonAsync<WalletResponse>())!;
+
+        using HttpResponseMessage deposit = await PostOperationAsync(
+            client,
+            wallet.Id,
+            "deposit",
+            100m,
+            Guid.NewGuid());
+        using HttpResponseMessage withdrawal = await PostOperationAsync(
+            client,
+            wallet.Id,
+            "withdraw",
+            40m,
+            Guid.NewGuid());
+        Assert.Equal(HttpStatusCode.OK, deposit.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, withdrawal.StatusCode);
+
+        string from = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1).ToString("yyyy-MM-dd");
+        string to = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1).ToString("yyyy-MM-dd");
+        using HttpResponseMessage response = await client.GetAsync(
+            $"/api/wallets/{wallet.Id}/operations?type=TopUp&from={from}&to={to}&pageSize=1");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        OperationsPageResponse? page = await response.Content.ReadFromJsonAsync<OperationsPageResponse>();
+        Assert.NotNull(page);
+        Assert.Equal(1, page!.TotalCount);
+        Assert.Equal("TopUp", Assert.Single(page.Items).Type);
+    }
+
+    [Fact]
     public async Task Get_MissingWallet_ThroughGateway_Returns404()
     {
         var client = CreateClient(Guid.NewGuid());
@@ -252,6 +289,24 @@ public class WalletsGatewayE2ETests : IClassFixture<GatewayApiFactory>
         int Version,
         DateTimeOffset CreatedAt,
         DateTimeOffset UpdatedAt);
+
+    private sealed record OperationsPageResponse(
+        IReadOnlyCollection<WalletOperationResponse> Items,
+        int Page,
+        int PageSize,
+        int TotalCount,
+        int TotalPages);
+
+    private sealed record WalletOperationResponse(
+        Guid Id,
+        Guid? ReferenceId,
+        string Type,
+        decimal Amount,
+        string Currency,
+        decimal BalanceBefore,
+        decimal BalanceAfter,
+        string? Description,
+        DateTimeOffset CreatedAt);
 
     private sealed record BffWalletsResponse(
         IReadOnlyCollection<BffWalletResponse> Wallets,

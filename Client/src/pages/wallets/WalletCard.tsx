@@ -5,6 +5,7 @@ import Typography from '@mui/material/Typography';
 import type { BffWalletResult } from '@/shared/api/generated/model';
 import { amountTypography } from '@/shared/theme/theme';
 import { formatAmount } from './formatAmount';
+import { WalletActions } from './WalletActions';
 
 type WalletCardProps = { wallet: BffWalletResult; hidden: boolean };
 
@@ -78,6 +79,7 @@ export function WalletCard({ wallet, hidden }: WalletCardProps) {
                     </Typography>
                 </div>
             </dl>
+            <WalletActions wallet={wallet} />
         </Paper>
     );
 }

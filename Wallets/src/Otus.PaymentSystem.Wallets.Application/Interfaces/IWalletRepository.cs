@@ -70,17 +70,23 @@ public interface IWalletRepository
     Task<Wallet?> GetByIdLightAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Загрузка страницы транзакций для конкретного кошелька с пагинацией. 
+    /// Загрузка отфильтрованной страницы транзакций кошелька.
     /// </summary>
     /// <param name="walletId"></param>
     /// <param name="page"></param>
     /// <param name="pageSize"></param>
+    /// <param name="type">Необязательный тип операции.</param>
+    /// <param name="from">Начальная UTC-дата включительно.</param>
+    /// <param name="to">Конечная UTC-дата включительно.</param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
     Task<PagedWalletTransactions> GetTransactionsPageAsync(
         Guid walletId,
         int page,
         int pageSize,
+        WalletTransactionType? type = null,
+        DateOnly? from = null,
+        DateOnly? to = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

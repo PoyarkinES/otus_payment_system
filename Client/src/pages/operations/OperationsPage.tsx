@@ -1,6 +1,9 @@
 import Button from '@mui/material/Button';
+import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { Virtuoso, type Components } from 'react-virtuoso';
 
@@ -11,6 +14,15 @@ import type { BffWalletOperationResult } from '@/shared/api/generated/model';
 import { useWalletOperations } from '@/shared/api/walletOperations';
 import { ErrorState } from '@/shared/ui/ErrorState';
 import { LoadingState } from '@/shared/ui/LoadingState';
+
+const operationTypes = [
+    { value: 'TopUp', label: 'Пополнение' },
+    { value: 'Withdrawal', label: 'Списание' },
+    { value: 'TransferIn', label: 'Входящий перевод' },
+    { value: 'TransferOut', label: 'Исходящий перевод' },
+    { value: 'Fee', label: 'Комиссия' },
+    { value: 'Refund', label: 'Возврат' },
+] as const;
 
 const listComponents: Components<BffWalletOperationResult, number, HTMLUListElement> = {
     List: ({ context: _total, ...props }) => (
@@ -27,6 +39,11 @@ const listComponents: Components<BffWalletOperationResult, number, HTMLUListElem
 
 function WalletHistory({ walletId }: { walletId: string }) {
     const { hidden } = useAmountVisibility();
+    const [type, setType] = useState('');
+    const [from, setFrom] = useState('');
+    const [to, setTo] = useState('');
+    const validDateRange = !from || !to || from <= to;
+    const hasFilters = Boolean(type || from || to);
     const {
         data,
         error,
@@ -36,7 +53,7 @@ function WalletHistory({ walletId }: { walletId: string }) {
         fetchNextPage,
         isFetchingNextPage,
         isFetchNextPageError,
-    } = useWalletOperations(walletId);
+    } = useWalletOperations(walletId, { type, from, to }, validDateRange);
 
     return (
         <Paper
@@ -54,7 +71,65 @@ function WalletHistory({ walletId }: { walletId: string }) {
             >
                 Рублёвый кошелёк
             </Typography>
-            {isPending && <LoadingState label="Загружаем операции…" />}
+            <div className="mb-4 grid gap-3 sm:grid-cols-3">
+                <TextField
+                    select
+                    label="Тип операции"
+                    value={type}
+                    onChange={(event) => setType(event.target.value)}
+                    fullWidth
+                >
+                    <MenuItem value="">Все операции</MenuItem>
+                    {operationTypes.map((operationType) => (
+                        <MenuItem key={operationType.value} value={operationType.value}>
+                            {operationType.label}
+                        </MenuItem>
+                    ))}
+                </TextField>
+                <TextField
+                    type="date"
+                    label="С даты"
+                    value={from}
+                    onChange={(event) => setFrom(event.target.value)}
+                    slotProps={{
+                        inputLabel: { shrink: true },
+                        htmlInput: { max: to || undefined },
+                    }}
+                    helperText="Дата указана по UTC."
+                    fullWidth
+                />
+                <TextField
+                    type="date"
+                    label="По дату"
+                    value={to}
+                    onChange={(event) => setTo(event.target.value)}
+                    slotProps={{
+                        inputLabel: { shrink: true },
+                        htmlInput: { min: from || undefined },
+                    }}
+                    error={!validDateRange}
+                    helperText={
+                        validDateRange
+                            ? 'Дата включается в период.'
+                            : 'Начало периода не может быть позже окончания.'
+                    }
+                    fullWidth
+                />
+            </div>
+            {hasFilters && (
+                <Button
+                    type="button"
+                    className="mb-3 self-start"
+                    onClick={() => {
+                        setType('');
+                        setFrom('');
+                        setTo('');
+                    }}
+                >
+                    Сбросить фильтры
+                </Button>
+            )}
+            {validDateRange && isPending && <LoadingState label="Загружаем операции…" />}
             {error && !isFetchNextPageError && (
                 <ErrorState error={error} onRetry={() => refetch()} />
             )}
@@ -76,7 +151,9 @@ function WalletHistory({ walletId }: { walletId: string }) {
                         )}
                     />
                 ) : (
-                    <Typography color="text.secondary">Операций пока нет</Typography>
+                    <Typography color="text.secondary">
+                        {hasFilters ? 'По выбранным фильтрам операций нет' : 'Операций пока нет'}
+                    </Typography>
                 ))}
             {isFetchingNextPage && <LoadingState label="Загружаем ещё операции…" />}
             {isFetchNextPageError && <ErrorState error={error} onRetry={() => fetchNextPage()} />}
