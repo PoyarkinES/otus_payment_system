@@ -84,9 +84,9 @@ Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 
 ## Долги и следующий шаг
 
-- **#126** — закрыт: Shared `1.0.2`, потребители обновлены (#151), образы закреплены (#153).
+- **#126** — закрыт: Shared `1.0.2`, потребители обновлены (#151), образы переведены на `latest` + `pull_policy: always` (#157).
 - **#137/#138/#139** — закрыты: artifact убран, проверки версий и Compose-образов в CI.
-- **#85** — закрыт; **#86** — следующая UI-задача: формы top-up/withdraw, `Idempotency-Key`, фильтры истории. История уже готова частично.
+- **#85 и #86** — закрыты (#155); следующая UI-задача — **#87**, переводы, после появления transfers API в M3.
 - **M3** — переводы, идемпотентность, Redis, hold/Fraud sync: [#54](https://github.com/PoyarkinES/otus_payment_system/issues/54) и далее по [dashboard #70](https://github.com/PoyarkinES/otus_payment_system/issues/70).
 
 **Итог:** M2 закрыт досрочно; блокеров для M3 нет. Главный урок — не смешивать «код готов» и «релиз доехал»: версии, образы, issues и smoke должны сходиться в одной точке.
