@@ -114,7 +114,7 @@ The demo uses published images and does not build local code or require GitHub/N
 
 `Client/` is a React + TypeScript SPA built with MUI components. It talks only to the Gateway,
 with generated clients for the Gateway and Identity contracts. After signing in, users can
-create a RUB wallet, view available and reserved balances and recent operations, and hide amounts. On mobile, the bottom bar provides access to wallets, recent operations, and the profile. The profile shows
+review the available and reserved balances, see the five most recent operations, open paginated history, and hide amounts. On mobile, the bottom bar provides access to wallets, history, and the profile. The profile shows
 the signed-in user's email, role, and account status. Active administrators can open user lookup and system status from their profile.
 
 ```bash
@@ -155,8 +155,8 @@ Gateway → PostgreSQL → Wallets (+ holds) → Transfers (Redis, hold, Fraud s
 - **Wallets (#52)** implements balances, holds, ledger history and owner-only wallet listing.
 - **Verified Gateway tests:** 34 Host/unit/web tests and 11 Gateway E2E tests against in-process Wallets + PostgreSQL.
 - **CI** builds solutions, runs tests and checks OpenAPI drift; Gateway E2E was verified locally with `WALLETS_API_TEST_DB`.
-- **Web client (#82–#85):** Authentication, profile, wallet overview and creation, administrator-only system status, and client CI checks.
-- **Next:** Payments/transfers and the top-up, withdrawal, and history screens; RabbitMQ, Redis, Fraud and Merchant Payments remain future stages.
+- **Web client (#82–#86):** Authentication, profile, wallet overview and paginated history, administrator-only system status, and client CI checks.
+- **Next:** Payments/transfers and the top-up and withdrawal screens; RabbitMQ, Redis, Fraud and Merchant Payments remain future stages.
 - **Post-1.0:** KYC/Onboarding (MongoDB + MinIO + gRPC), does not block 1.0.
 
 Current status and task order: pinned issue [#70](https://github.com/PoyarkinES/otus_payment_system/issues/70).

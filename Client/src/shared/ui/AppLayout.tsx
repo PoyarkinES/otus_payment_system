@@ -18,7 +18,7 @@ const sections = [
         icon: 'M3 7h16a2 2 0 0 1 2 2v10H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h12v3 M21 12h-5v3h5',
     },
     {
-        to: '/wallets#operations',
+        to: '/operations',
         label: 'Операции',
         icon: 'M3 7h17m-4-4 4 4-4 4M21 17H4m4 4-4-4 4-4',
     },
@@ -96,7 +96,7 @@ export function AppLayout() {
                 >
                     {sections.map(({ to, label, icon }) => {
                         const selected =
-                            pathname + hash === to ||
+                            pathname === to ||
                             (to === '/profile' && pathname.startsWith('/admin/'));
                         return (
                             <Button
@@ -104,7 +104,7 @@ export function AppLayout() {
                                 component={Link}
                                 to={to}
                                 aria-label={label}
-                                aria-current={selected ? (hash ? 'location' : 'page') : undefined}
+                                aria-current={selected ? 'page' : undefined}
                                 sx={{
                                     minHeight: 44,
                                     minWidth: { xs: 64, md: 0 },

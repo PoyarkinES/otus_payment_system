@@ -42,8 +42,8 @@ describe('router', () => {
 
         expect(wallets).toHaveAttribute('aria-current', 'page');
         await user.click(operations);
-        expect(await screen.findByRole('region', { name: 'Последние операции' })).toHaveFocus();
-        expect(operations).toHaveAttribute('aria-current', 'location');
+        expect(await screen.findByRole('heading', { name: 'История операций' })).toBeVisible();
+        expect(operations).toHaveAttribute('aria-current', 'page');
         expect(wallets).not.toHaveAttribute('aria-current');
 
         await user.click(wallets);
@@ -79,6 +79,15 @@ describe('router', () => {
         await user.type(screen.getByLabelText('Пароль'), 'test-password');
         await user.click(screen.getByRole('button', { name: 'Войти' }));
         expect(await screen.findByRole('heading', { level: 1, name: 'Кошельки' })).toBeVisible();
+    });
+
+    it('opens full history from a saved operations link', async () => {
+        renderRoute('/wallets#operations', true);
+        expect(await screen.findByRole('heading', { name: 'История операций' })).toBeVisible();
+        expect(screen.getByRole('link', { name: 'Операции' })).toHaveAttribute(
+            'aria-current',
+            'page',
+        );
     });
 
     it('renders route error fallback when page throws', () => {
