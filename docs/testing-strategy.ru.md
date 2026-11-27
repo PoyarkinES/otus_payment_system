@@ -88,7 +88,8 @@
 
 | Джоба | Что делает | Что ловит |
 |---|---|---|
-| `Pack Shared NuGet packages` | legacy: `dotnet pack` двух Shared-проектов + artifact; restore идёт из GitHub Packages | версии и состав NuGet-пакетов |
+| `Shared package version check` | `scripts/bump-shared.ps1 -Check` | расхождение версии Shared и consumer-ссылок |
+| `Compose image tags` | `docker compose config` + `docker manifest inspect` для закреплённых GHCR SHA | неверный Compose, отсутствующий или не SHA-тег образа |
 | `Build` (матрица 8 решений) | `dotnet build -c Release` | ошибки компиляции в любом контексте |
 | `Test (Shared/Gateway/Identity/Wallets)` | `dotnet test` + coverage | регрессии unit/host-тестов |
 | `Identity integration tests (PostgreSQL)` | тесты с реальным PostgreSQL | расхождения EF-маппинга и SQL |
@@ -107,6 +108,8 @@
 - Wallets — `FullyQualifiedName!~Postgres & FullyQualifiedName!~IntegrationTests`.
 
 Что обязательно для PR: все перечисленные джобы. Мерж блокируется, если хотя бы одна красная: branch protection требует все обязательные чеки, включая drift, интеграционные тесты и клиент.
+
+Публикация образов запускается вручную; после сборки отдельная проверка падает, если `docker-compose.yml` не закреплён на опубликованном SHA.
 
 Nightly-воркфлоу пока нет. Кандидаты на него: полный прогон всех Postgres-тестов, пятикратный повтор конкурентных тестов (`hold`/`confirm`/`deposit`/`withdraw`), смоук `docker compose` и проверка уязвимостей зависимостей. Заведём отдельной задачей, когда появится первый платный раннер или вырастет время PR-прогона.
 

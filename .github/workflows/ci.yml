@@ -4,43 +4,66 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, 'fix/**' ]
 
 permissions:
   contents: read
   packages: read
 
 jobs:
-  pack-shared:
-    name: Pack Shared NuGet packages
+  shared-version-check:
+    name: Shared package version check
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
+      - name: Check Shared package versions
+        shell: pwsh
+        run: ./scripts/bump-shared.ps1 -Check
 
-      - name: Pack
+  compose-image-tags:
+    name: Compose image tags
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Compose and pinned GHCR manifests
+        env:
+          POSTGRES_DB: otus_identity
+          POSTGRES_USER: otus
+          POSTGRES_PASSWORD: otus
         run: |
-          mkdir -p artifacts/packages
-          dotnet pack Shared/src/Otus.PaymentSystem.SharedKernel/Otus.PaymentSystem.SharedKernel.csproj -c Release -o artifacts/packages
-          dotnet pack Shared/src/Otus.PaymentSystem.AspNetCore/Otus.PaymentSystem.AspNetCore.csproj -c Release -o artifacts/packages
+          set -euo pipefail
+          docker compose -f docker-compose.yml config -q
+          images="$(docker compose -f docker-compose.yml config --images)"
 
-      - name: Upload packages
-        uses: actions/upload-artifact@v4
-        with:
-          name: shared-packages
-          path: artifacts/packages/*.nupkg
-          if-no-files-found: error
+          for service in identity gateway wallets; do
+            prefix="ghcr.io/poyarkines/otus-payment-system-${service}:"
+            matches=$(printf '%s\n' "$images" | grep -F -c "$prefix" || true)
+            if [[ "$matches" -ne 1 ]]; then
+              echo "::error::Expected exactly one pinned image for $service; found $matches."
+              exit 1
+            fi
+
+            image=$(printf '%s\n' "$images" | grep -F "$prefix")
+            tag="${image#"$prefix"}"
+            if [[ ! "$tag" =~ ^sha-[[:xdigit:]]{40}$ ]]; then
+              echo "::error::Expected a full sha-<commit> tag for $service; got '$tag'."
+              exit 1
+            fi
+
+            docker manifest inspect "$image" > /dev/null
+          done
 
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: pack-shared
 
     strategy:
       fail-fast: false
@@ -64,9 +87,6 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Shared NuGet packages
-        uses: ./.github/actions/shared-packages
-
       - name: Restore
         run: dotnet restore ${{ matrix.solution }}
         env:
@@ -78,7 +98,6 @@ jobs:
   identity-integration-tests:
     name: Identity integration tests (PostgreSQL)
     runs-on: ubuntu-latest
-    needs: pack-shared
 
     services:
       postgres:
@@ -108,9 +127,6 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Shared NuGet packages
-        uses: ./.github/actions/shared-packages
-
       - name: Test
         run: >
           dotnet test
@@ -121,7 +137,6 @@ jobs:
   wallets-integration-tests:
     name: Wallets integration tests (PostgreSQL)
     runs-on: ubuntu-latest
-    needs: pack-shared
 
     services:
       postgres:
@@ -152,9 +167,6 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Shared NuGet packages
-        uses: ./.github/actions/shared-packages
-
       - name: Create repo test DB
         run: |
           PGPASSWORD=otus psql -h localhost -U otus -d otus_wallets_api_test -c "CREATE DATABASE otus_wallets_repo_test;"
@@ -168,7 +180,6 @@ jobs:
   gateway-e2e-tests:
     name: Gateway E2E (Wallets through Gateway)
     runs-on: ubuntu-latest
-    needs: pack-shared
 
     services:
       postgres:
@@ -198,9 +209,6 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Shared NuGet packages
-        uses: ./.github/actions/shared-packages
-
       - name: Test
         run: >
           dotnet test
@@ -210,7 +218,6 @@ jobs:
   openapi-drift:
     name: OpenAPI contract drift
     runs-on: ubuntu-latest
-    needs: pack-shared
 
     env:
       NuGetPackageSourceCredentials_github: "Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }};ValidAuthenticationTypes=Basic"
@@ -223,9 +230,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-
-      - name: Shared NuGet packages
-        uses: ./.github/actions/shared-packages
 
       - name: Build Identity Host
         run: dotnet build Identity/src/Otus.PaymentSystem.Identity.Host/Otus.PaymentSystem.Identity.Host.csproj --configuration Release
@@ -254,7 +258,6 @@ jobs:
   openapi-gateway-drift:
     name: OpenAPI gateway drift
     runs-on: ubuntu-latest
-    needs: pack-shared
 
     env:
       NuGetPackageSourceCredentials_github: "Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }};ValidAuthenticationTypes=Basic"
@@ -267,9 +270,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-
-      - name: Shared NuGet packages
-        uses: ./.github/actions/shared-packages
 
       - name: Build Gateway Host
         run: dotnet build Gateway/src/Otus.PaymentSystem.Gateway.Host/Otus.PaymentSystem.Gateway.Host.csproj --configuration Release
@@ -297,7 +297,6 @@ jobs:
   test:
     name: Test (${{ matrix.name }})
     runs-on: ubuntu-latest
-    needs: pack-shared
     timeout-minutes: 15
 
     strategy:
@@ -328,9 +327,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-
-      - name: Shared NuGet packages
-        uses: ./.github/actions/shared-packages
 
       - name: Test (filtered)
         if: matrix.filter != ''
@@ -363,7 +359,6 @@ jobs:
       packages: read
     name: Docker build (${{ matrix.name }})
     runs-on: ubuntu-latest
-    needs: pack-shared
     timeout-minutes: 15
 
     strategy:
@@ -380,9 +375,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Shared NuGet packages
-        uses: ./.github/actions/shared-packages
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

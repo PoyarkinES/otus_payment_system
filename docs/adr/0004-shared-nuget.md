@@ -2,7 +2,7 @@
 
 - **Статус:** Accepted, реализовано в #118; feed переведён на GitHub Packages в #133/#134
 - **Дата:** 2026-11-13
-- **Обновлено:** 2026-11-25
+- **Обновлено:** 2026-11-27
 - **Контекст:** монорепо, per-context решения, M2W5 и подготовка к независимой сборке сервисов
 - **Связанные документы:** [shared-nuget.ru.md](../shared-nuget.ru.md), [project-guide.ru.md](../project-guide.ru.md)
 
@@ -60,7 +60,7 @@
 **Меры**
 
 - `Shared/Directory.Build.props` — единая версия.
-- Публикация по тегу `shared-v*`; workflow проверяет совпадение версии.
+- Тег `shared-v<version>` задаёт версию пакетов; после публикации `scripts/bump-shared.ps1` синхронизирует `<Version>` и consumer-ссылки.
 - Локально — `gh auth login` + `gh auth refresh -s read:packages`.
 - В CI — `packages: read` и `GITHUB_TOKEN`; в Docker — BuildKit secret.
 - Версии фиксированные; обновление — отдельным PR.
@@ -74,6 +74,14 @@
 - В CI остался legacy job `Pack Shared NuGet packages` с artifact, который больше не участвует в restore; вынесено в техдолг #137.
 - Wallets уже на `PackageReference`, но Docker/Compose для него ещё не сделаны — #128.
 
+## Обновление 2026-11-27
+
+- #137: удалён локальный Shared artifact из CI и Docker; CI восстанавливает только опубликованные пакеты. Для Shared выбран release-first порядок.
+- #138: CI запускает `scripts/bump-shared.ps1 -Check` и проверяет синхронность всех consumer-ссылок.
+- #139: CI проверяет Compose и GHCR manifests; публикационный workflow завершается ошибкой, если Compose не закреплён на опубликованном SHA.
+- #128: Wallets включён в Compose; отдельная БД создаётся bootstrap-сервисом.
+- Shared `1.0.1` опубликован; Identity, Gateway и Wallets пересобраны с согласованным IdentityModel (#142/#143).
+
 ## План внедрения
 
 | Фаза | Результат |
@@ -84,15 +92,13 @@
 | 3 | Gateway на `PackageReference` — ✅ |
 | 4 | Wallets на `PackageReference` — ✅ |
 | 5 | Payments/Fraud/Notifications/Audit — ✅ |
-| 6 | GitHub Packages + BuildKit secret + GHCR для Identity/Gateway — ✅ |
-| 7 | Wallets Docker/Compose — ⏳ #128 |
+| 6 | GitHub Packages + BuildKit secret + GHCR для Identity/Gateway/Wallets — ✅ |
+| 7 | Wallets Docker/Compose — ✅ #128 |
 
 ## Что этот ADR не решает
 
 - Автоматизация версий — `scripts/bump-shared.ps1`; `Directory.Packages.props` не вводим.
-- Двойной путь CI (legacy artifact vs GitHub Packages) — техдолг #137.
-- Автоматическое обновление `sha-…` тега в compose — техдолг #139.
-- Wallets Docker/Compose — #128.
+- JWT blocking/JWKS — отдельный security-долг #126.
 - Публикация символов/SourceLink — опционально.
 - Service-to-service аутентификация — отдельный security-долг.
 
