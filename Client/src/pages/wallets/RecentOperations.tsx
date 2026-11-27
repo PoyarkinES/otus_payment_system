@@ -41,30 +41,30 @@ export function RecentOperations({
             className="p-5 sm:p-7"
             sx={{ borderRadius: 3 }}
         >
-            <Typography
-                id="operations-heading"
-                component="h2"
-                variant="h5"
-                sx={{ mb: 1.5, fontWeight: 700 }}
-            >
-                Последние операции
-            </Typography>
-            {operations.length ? (
-                <OperationList operations={operations} hidden={hidden} />
-            ) : (
-                <Typography color="text.secondary">Операций пока нет</Typography>
-            )}
-            {wallets.length > 0 && (
-                <div className="mt-3 border-t border-divider pt-2">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-x-2">
+                <Typography
+                    id="operations-heading"
+                    component="h2"
+                    variant="h5"
+                    sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' }, fontWeight: 700 }}
+                >
+                    Последние операции
+                </Typography>
+                {wallets.length > 0 && (
                     <Button
                         component={Link}
                         to="/operations"
                         endIcon={<span aria-hidden>→</span>}
-                        sx={{ minHeight: 44 }}
+                        sx={{ minHeight: 44, px: 0.5 }}
                     >
                         Все операции
                     </Button>
-                </div>
+                )}
+            </div>
+            {operations.length ? (
+                <OperationList operations={operations} hidden={hidden} />
+            ) : (
+                <Typography color="text.secondary">Операций пока нет</Typography>
             )}
         </Paper>
     );
