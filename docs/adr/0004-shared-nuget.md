@@ -78,7 +78,7 @@
 
 - #137: удалён локальный Shared artifact из CI и Docker; CI восстанавливает только опубликованные пакеты. Для Shared выбран release-first порядок.
 - #138: CI запускает `scripts/bump-shared.ps1 -Check` и проверяет синхронность всех consumer-ссылок.
-- #139: CI проверяет Compose и GHCR manifests; публикационный workflow завершается ошибкой, если Compose не закреплён на опубликованном SHA.
+- #139: CI проверяет Compose и GHCR manifests; публикационный workflow открывает PR с новыми Compose SHA после публикации образов.
 - #128: Wallets включён в Compose; отдельная БД создаётся bootstrap-сервисом.
 - Shared `1.0.1` опубликован; Identity, Gateway и Wallets пересобраны с согласованным IdentityModel (#142/#143).
 
