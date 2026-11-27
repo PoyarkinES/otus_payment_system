@@ -1,88 +1,83 @@
-# M2 demo: Wallets through the Gateway
+# M2 demo: Wallets through the UI
 
-This walkthrough uses the public Gateway for registration, wallet creation, deposit, hold, confirmation, and operation history. Wallets and PostgreSQL are not exposed on host ports.
+This walkthrough is shown in the browser: registration/login, wallet, deposit/withdraw, hold, confirmation, and operation history. Do not show Gateway, curl, or Swagger — they are not part of the demo.
 
-## Prerequisites and startup
+## Prerequisites
 
-- Docker Desktop is running and port `8080` is available.
-- A root `.env` file exists; create it from the example if needed: `Copy-Item .env.example .env`.
-- If the local `docker-compose.override.yml` is present, pass `-f docker-compose.yml` as shown below.
+- The Docker stack is already running: `postgres`, `identity`, `wallets`, `gateway` — `healthy`; `wallets-db-bootstrap` — `Exited (0)`.
+- The client is running separately:
+  ```powershell
+  cd Client
+  npm run dev
+  ```
+- Open `http://localhost:5173`.
 
-```powershell
-docker compose -f docker-compose.yml pull
-docker compose -f docker-compose.yml up -d
-docker compose -f docker-compose.yml ps -a
+## Scenario
+
+### 1. Sign in
+
+Use the demo admin:
+
+```
+admin@otus.local
+AdminP@ssw0rd
 ```
 
-Expect four running services in `healthy` state: `postgres`, `identity`, `wallets`, and `gateway`; `wallets-db-bootstrap` should exit with code `0`. The bootstrap creates `otus_wallets` only when it is missing and preserves the existing `otus_identity` volume.
+Or open `/register`, create a new user, and sign in as that user.
 
-Gateway starts independently of Wallets: while Wallets is coming up, `/api/wallets/**` may temporarily return `502/503`. This is expected; wait for Wallets to become `healthy`.
+### 2. Wallet
 
-Health checks:
+Open “Wallets”. If there is no wallet, click “Create wallet” (RUB). Show:
 
-```powershell
-Invoke-RestMethod http://localhost:8080/health | ConvertTo-Json
-Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
-docker compose -f docker-compose.yml exec wallets curl -fsS http://localhost:8080/health
-```
+- available;
+- held;
+- currency and status.
 
-`/bff/health` checks Gateway and Identity; Wallets has its own internal `/health` endpoint.
+### 3. Deposit
 
-## Register and log in
+Enter an amount, for example `100`, and click “Deposit”. Show that available grows while held stays unchanged.
 
-```powershell
-$email = "wallet-demo-$([guid]::NewGuid().ToString('N'))@otus.local"
-$password = 'WalletP@ssw0rd1'
-$authBody = @{ email = $email; password = $password } | ConvertTo-Json
+### 4. Withdraw
 
-Invoke-RestMethod -Method Post http://localhost:8080/api/identity/auth/register `
-    -ContentType 'application/json' -Body $authBody | Out-Null
+Enter an amount, for example `10`, and click “Withdraw”. Show available decreasing.
 
-$login = Invoke-RestMethod -Method Post http://localhost:8080/api/identity/auth/login `
-    -ContentType 'application/json' -Body $authBody
-$headers = @{ Authorization = "Bearer $($login.accessToken)" }
-```
+For a negative path, try withdrawing more than the balance — the UI shows an error and the balance stays unchanged.
 
-## Create and fund a wallet
+### 5. Hold
 
-```powershell
-$wallet = Invoke-RestMethod -Method Post http://localhost:8080/api/wallets `
-    -Headers $headers -ContentType 'application/json' `
-    -Body (@{ currency = 'RUB' } | ConvertTo-Json)
-$walletId = $wallet.id
+Enter an amount, for example `25`, and a recipient UUID (any valid UUID). Create the hold. Show:
 
-$depositHeaders = $headers.Clone()
-$depositHeaders['Idempotency-Key'] = [guid]::NewGuid().ToString()
-Invoke-RestMethod -Method Post "http://localhost:8080/api/wallets/$walletId/deposit" `
-    -Headers $depositHeaders -ContentType 'application/json' `
-    -Body (@{ amount = 100.00 } | ConvertTo-Json) | ConvertTo-Json
-```
+- available decreased;
+- held increased.
 
-## Place and confirm a hold, then view history
+Then:
 
-```powershell
-$hold = Invoke-RestMethod -Method Post "http://localhost:8080/api/wallets/$walletId/holds" `
-    -Headers $headers -ContentType 'application/json' `
-    -Body (@{
-        transferId = [guid]::NewGuid().ToString()
-        amount = 25.00
-        recipientUserId = [guid]::NewGuid().ToString()
-    } | ConvertTo-Json)
+- **Confirm** — the hold is settled and held decreases;
+- or **Release** — the funds return to available.
 
-Invoke-RestMethod -Method Post "http://localhost:8080/api/wallets/holds/$($hold.id)/confirm" `
-    -Headers $headers | Out-Null
+### 6. Operation history
 
-Invoke-RestMethod "http://localhost:8080/api/wallets/$walletId/operations" `
-    -Headers $headers | ConvertTo-Json -Depth 10
-Invoke-RestMethod http://localhost:8080/bff/wallets -Headers $headers | ConvertTo-Json -Depth 10
-```
+Open “Operation history”. Show:
 
-For this short demo, `recipientUserId` is a random GUID; on confirmation, Wallets creates a recipient wallet in the same currency. Deposits require a unique `Idempotency-Key`.
+- deposit, withdrawal, and hold entries;
+- type and date filters;
+- loading the next pages on scroll.
 
-## Stop the stack
+### 7. Optional
+
+- Profile: email, role, logout.
+- A repeated “Deposit” click must not create a duplicate: the button is disabled while pending, and `Idempotency-Key` protects retries.
+
+## If the UI does not open
+
+Show pre-recorded screenshots or a recording of the scenario. Do not switch to the console or debug the stack during the retro.
+
+## After the demo
+
+Stop the stack with:
 
 ```powershell
 docker compose -f docker-compose.yml down
 ```
 
-Plain `down` preserves data. Do not use `down -v` if you need to keep Identity and Wallets data; both databases live in the PostgreSQL volume.
+`down` without `-v` preserves Identity and Wallets data in the PostgreSQL volume.
