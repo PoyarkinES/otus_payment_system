@@ -124,7 +124,7 @@ docker compose pull
 docker compose up -d
 ```
 
-Образы закреплены по `sha-…`. Ручной workflow публикации на `main` проверяет опубликованные GHCR manifests и автоматически открывает или обновляет PR с новыми SHA в Compose. Для этого PR отдельно запускается CI; новые образы попадут в демо-стек после review и merge.
+Образы публикуются с мутабельным тегом `latest`; в Compose включён `pull_policy: always`, поэтому после публикации достаточно `docker compose pull && up -d`. Отдельный PR с SHA-тегами не нужен.
 
 ## 6. CI
 
@@ -134,7 +134,7 @@ docker compose up -d
    - публикует в GitHub Packages с `packages: write`.
 2. **Build/test** — `permissions: packages: read`; jobs получают `NuGetPackageSourceCredentials_github` из `GITHUB_TOKEN` и восстанавливают пакеты из GitHub Packages.
 3. **Docker build** — job `docker` передаёт `GITHUB_TOKEN` в BuildKit secret; токен не попадает в образ.
-4. **Образы** — `.github/workflows/publish-images.yml` (ручной запуск на `main`) собирает Identity/Gateway/Wallets, публикует в GHCR теги `latest` и `sha-<commit>`, проверяет manifests и открывает или обновляет PR с новыми Compose SHA. Для такого PR workflow отдельно запускает CI.
+4. **Образы** — `.github/workflows/publish-images.yml` (ручной запуск на `main`) собирает Identity/Gateway/Wallets и обновляет их тег `latest` в GHCR. CI проверяет, что Compose валиден и `latest`-манифесты существуют; PR с SHA-тегами больше не создаётся.
 
 Локальные Shared artifacts не используются в CI или Docker. GitHub Packages — единственный источник Shared для потребителей; CI проверяет изменения Shared из PR и потребителей с последней опубликованной версией.
 
@@ -154,7 +154,7 @@ docker compose up -d
    .\scripts\bump-shared.ps1 -Check
    ```
 5. Прогнать build/test и смерджить consumer PR.
-6. Если менялся код сервисов — запустить публикацию GHCR-образов; workflow автоматически откроет PR с новыми `sha-…` в `docker-compose.yml`.
+6. Если менялся код сервисов — запустить публикацию GHCR-образов; `latest` обновится, а Compose заберёт его через `pull_policy: always`.
 
 ## 8. Миграция
 
@@ -178,7 +178,7 @@ docker compose up -d
 | Нет токена локально | `gh auth login` + `gh auth refresh -s read:packages` |
 | Токен попал в образ | только BuildKit secret, не `ARG`/`--build-arg` |
 | CI проверяет не тот Shared | Сначала выпустить Shared из merged source-тега, затем обновить потребителей отдельным PR |
-| Compose не обновили после публикации образа | workflow публикации открывает PR с новыми `sha-…`; демо-стек обновляется после review и merge (#139) |
+| Compose не забирает новый образ | `pull_policy: always` + `docker compose pull && up -d`; CI проверяет наличие `latest`-манифестов |
 | Breaking change без major | SemVer + ревью публичного API |
 
 ## 10. FAQ

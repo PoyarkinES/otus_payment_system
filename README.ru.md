@@ -103,7 +103,7 @@
 
 ## Демо-стек (Docker Compose, GHCR)
 
-`docker-compose.yml` запускает PostgreSQL 17 и Identity, Wallets и Gateway. Три образа приложений — **публичные GHCR-образы**, закреплённые по commit SHA. Одноразовый `wallets-db-bootstrap` создаёт отдельную БД `otus_wallets` в уже работающем PostgreSQL и не требует удалять существующий volume. Локальный код при этом не собирается; токены GitHub/NuGet для запуска не нужны. Наружу открыт только Gateway — сервисы и БД доступны лишь внутри сети compose.
+`docker-compose.yml` запускает PostgreSQL 17 и Identity, Wallets и Gateway. Три образа приложений — **публичные GHCR-образы с тегом `latest`**; в Compose включён `pull_policy: always`, поэтому `docker compose pull && up -d` поднимает свежую версию. Одноразовый `wallets-db-bootstrap` создаёт отдельную БД `otus_wallets` в уже работающем PostgreSQL и не требует удалять существующий volume. Локальный код при этом не собирается; токены GitHub/NuGet для запуска не нужны. Наружу открыт только Gateway — сервисы и БД доступны лишь внутри сети compose.
 
 ```powershell
 # если .env ещё нет
@@ -119,7 +119,7 @@ Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 - Bootstrap пропускает создание `otus_wallets`, если эта БД уже существует; `Wallets` применяет её схему на старте (`Database__AutoMigrate=true`). Миграции Identity также применяются при старте; в обычном `dotnet run` их по-прежнему накатывают через `dotnet ef database update`.
 - Используй явный `-f docker-compose.yml`, чтобы не подмешивать `docker-compose.override.yml` (он публикует postgres на 5434 и может конфликтовать с dev-контейнером `otus-postgres`).
 - Для локальных изменений кода используй `docker compose -f docker-compose.dev.yml up -d` (только PostgreSQL) и `dotnet run`; `docker-compose.yml` — только готовые образы.
-- Ручной workflow публикации образов проверяет опубликованные GHCR manifests и автоматически открывает или обновляет PR с новыми SHA-тегами в `docker-compose.yml`. Для созданного PR workflow запускает CI отдельно; текущий стек обновляется после review и merge.
+- Ручной workflow публикации образов собирает Identity, Gateway и Wallets и обновляет их тег `latest` в GHCR. Compose с `pull_policy: always` забирает его при следующем `pull/up`; отдельный PR с SHA-тегами не нужен.
 
 Пошаговые сценарии: [M1 — Identity и Gateway](./docs/demo-m1.ru.md) и [M2 — регистрация, кошелёк, пополнение, hold, confirm и история](./docs/demo-m2.ru.md). Уровни тестов и что проверяет CI: [docs/testing-strategy.ru.md](./docs/testing-strategy.ru.md).
 

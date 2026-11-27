@@ -1,88 +1,83 @@
-# Демо-сценарий M2: Wallets через Gateway
+# Демо-сценарий M2: Wallets через UI
 
-Сценарий проходит через публичный Gateway: регистрация пользователя, создание кошелька, пополнение, hold, confirm и просмотр истории операций. Wallets и PostgreSQL не публикуют порты наружу.
+Сценарий показывается в браузере: регистрация/вход, кошелёк, пополнение/списание, резерв, подтверждение и история операций. Gateway, curl и Swagger не показываем — это не часть демо.
 
-## Предусловия и запуск
+## Что должно быть запущено
 
-- Запущен Docker Desktop, порт `8080` свободен.
-- В корне есть `.env`; если его нет, создай из примера: `Copy-Item .env.example .env`.
-- При наличии локального `docker-compose.override.yml` используй `-f docker-compose.yml`, как в командах ниже.
+- Docker-стек уже поднят: `postgres`, `identity`, `wallets`, `gateway` — `healthy`; `wallets-db-bootstrap` — `Exited (0)`.
+- Клиент запущен отдельно:
+  ```powershell
+  cd Client
+  npm run dev
+  ```
+- Открыт `http://localhost:5173`.
 
-```powershell
-docker compose -f docker-compose.yml pull
-docker compose -f docker-compose.yml up -d
-docker compose -f docker-compose.yml ps -a
+## Сценарий
+
+### 1. Вход
+
+Войти демо-админом:
+
+```
+admin@otus.local
+AdminP@ssw0rd
 ```
 
-Ожидаются четыре работающих сервиса в статусе `healthy`: `postgres`, `identity`, `wallets`, `gateway`; `wallets-db-bootstrap` должен завершиться с кодом `0`. Bootstrap создаёт `otus_wallets`, если БД ещё нет, и сохраняет существующий volume с `otus_identity`.
+Или открыть `/register`, зарегистрировать нового пользователя и войти под ним.
 
-Gateway стартует независимо от Wallets: пока Wallets поднимается, маршруты `/api/wallets/**` могут временно отвечать `502/503`. Это ожидаемо; дождись `healthy` у Wallets.
+### 2. Кошелёк
 
-Проверки:
+Открыть «Кошельки». Если кошелька нет — нажать «Создать кошелёк» (рублёвый). Показать:
 
-```powershell
-Invoke-RestMethod http://localhost:8080/health | ConvertTo-Json
-Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
-docker compose -f docker-compose.yml exec wallets curl -fsS http://localhost:8080/health
-```
+- `Доступно`;
+- `В резерве`;
+- валюту и статус.
 
-`/bff/health` проверяет Gateway и Identity; Wallets проверяется отдельно по внутреннему `/health`.
+### 3. Пополнение
 
-## Регистрация и вход
+Ввести сумму, например `100`, нажать «Пополнить». Показать, что увеличилось `Доступно`, а `В резерве` не изменилось.
 
-```powershell
-$email = "wallet-demo-$([guid]::NewGuid().ToString('N'))@otus.local"
-$password = 'WalletP@ssw0rd1'
-$authBody = @{ email = $email; password = $password } | ConvertTo-Json
+### 4. Списание
 
-Invoke-RestMethod -Method Post http://localhost:8080/api/identity/auth/register `
-    -ContentType 'application/json' -Body $authBody | Out-Null
+Ввести сумму, например `10`, нажать «Списать». Показать уменьшение `Доступно`.
 
-$login = Invoke-RestMethod -Method Post http://localhost:8080/api/identity/auth/login `
-    -ContentType 'application/json' -Body $authBody
-$headers = @{ Authorization = "Bearer $($login.accessToken)" }
-```
+Для негативного сценария можно попробовать списать больше остатка — UI покажет ошибку, баланс не изменится.
 
-## Создание кошелька и пополнение
+### 5. Резерв (hold)
 
-```powershell
-$wallet = Invoke-RestMethod -Method Post http://localhost:8080/api/wallets `
-    -Headers $headers -ContentType 'application/json' `
-    -Body (@{ currency = 'RUB' } | ConvertTo-Json)
-$walletId = $wallet.id
+Ввести сумму, например `25`, и UUID получателя (любой валидный UUID). Нажать создание резерва. Показать:
 
-$depositHeaders = $headers.Clone()
-$depositHeaders['Idempotency-Key'] = [guid]::NewGuid().ToString()
-Invoke-RestMethod -Method Post "http://localhost:8080/api/wallets/$walletId/deposit" `
-    -Headers $depositHeaders -ContentType 'application/json' `
-    -Body (@{ amount = 100.00 } | ConvertTo-Json) | ConvertTo-Json
-```
+- `Доступно` уменьшилось;
+- `В резерве` увеличилось.
 
-## Hold, confirm и история
+Затем:
 
-```powershell
-$hold = Invoke-RestMethod -Method Post "http://localhost:8080/api/wallets/$walletId/holds" `
-    -Headers $headers -ContentType 'application/json' `
-    -Body (@{
-        transferId = [guid]::NewGuid().ToString()
-        amount = 25.00
-        recipientUserId = [guid]::NewGuid().ToString()
-    } | ConvertTo-Json)
+- **Подтвердить** — резерв уходит, `В резерве` уменьшается;
+- или **Освободить** — деньги возвращаются в `Доступно`.
 
-Invoke-RestMethod -Method Post "http://localhost:8080/api/wallets/holds/$($hold.id)/confirm" `
-    -Headers $headers | Out-Null
+### 6. История операций
 
-Invoke-RestMethod "http://localhost:8080/api/wallets/$walletId/operations" `
-    -Headers $headers | ConvertTo-Json -Depth 10
-Invoke-RestMethod http://localhost:8080/bff/wallets -Headers $headers | ConvertTo-Json -Depth 10
-```
+Открыть «История операций». Показать:
 
-Для короткого демо `recipientUserId` — случайный GUID: при confirm Wallets создаёт для получателя кошелёк в той же валюте. Пополнение требует уникальный `Idempotency-Key`.
+- пополнение, списание и резерв в списке;
+- фильтры по типу и дате;
+- подгрузку следующих страниц при скролле.
 
-## Остановка
+### 7. Дополнительно
+
+- Профиль: email, роль, выход.
+- Повторный клик по «Пополнить» не должен создавать дубль: кнопка блокируется на время запроса, а `Idempotency-Key` защищает от повторов.
+
+## Если UI не открывается
+
+Покажи заранее сделанные скриншоты или запись сценария. Не переключайся на консоль и не отлаживай стек на ретро.
+
+## После демо
+
+Остановить стек можно командой:
 
 ```powershell
 docker compose -f docker-compose.yml down
 ```
 
-Обычный `down` сохраняет данные. Не используй `down -v`, если нужно сохранить БД Identity и Wallets: обе находятся в volume PostgreSQL.
+`down` без `-v` сохраняет данные Identity и Wallets в volume PostgreSQL.

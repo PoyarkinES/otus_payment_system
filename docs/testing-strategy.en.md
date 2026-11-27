@@ -89,7 +89,7 @@ We will enable a CI threshold after M3 stabilizes, when Payments and Fraud exist
 | Job | What it does | What it catches |
 |---|---|---|
 | `Shared package version check` | `scripts/bump-shared.ps1 -Check` | Shared version differs from consumer references |
-| `Compose image tags` | `docker compose config` + `docker manifest inspect` for pinned GHCR SHAs | invalid Compose, missing manifest, or non-SHA image tag |
+| `Compose image tags` | `docker compose config` + `docker manifest inspect` for the mutable `latest` tag | invalid Compose, missing manifest, or a non-`latest` tag |
 | `Build` (matrix of 8 solutions) | `dotnet build -c Release` | compilation errors in any context |
 | `Test (Shared/Gateway/Identity/Wallets)` | `dotnet test` + coverage | regressions in unit/host tests |
 | `Identity integration tests (PostgreSQL)` | tests against real PostgreSQL | EF mapping and SQL discrepancies |
