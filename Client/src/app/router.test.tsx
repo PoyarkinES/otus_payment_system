@@ -15,13 +15,15 @@ describe('router', () => {
         clearTokens();
     });
 
-    it('renders layout title on index route', () => {
+    it('opens wallets without fetching system health on the index route', async () => {
+        const health = vi.fn(() => HttpResponse.json({ status: 'ok', services: {} }));
+        server.use(http.get('*/bff/health', health));
         renderRoute('/', true);
 
         expect(screen.getByText('Otus Pay')).toBeInTheDocument();
-        expect(
-            screen.getByRole('heading', { level: 1, name: 'Статус системы' }),
-        ).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'Кошельки' })).toBeVisible();
+        expect(screen.queryByText('Статус системы')).not.toBeInTheDocument();
+        expect(health).not.toHaveBeenCalled();
     });
 
     it('renders 404 for unknown route', () => {

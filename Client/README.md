@@ -12,7 +12,7 @@ Gateway** — прямых адресов Identity, Wallets и других се
 ## Профиль и кошельки
 
 - `/wallets` показывает доступный остаток, резерв и последние операции из `GET /bff/wallets`. Через `POST /api/wallets` можно создать один кошелёк в RUB. Переключатель видимости скрывает суммы на экране.
-- `/profile` берёт email и роль из `GET /bff/me`, а статус аккаунта — из `GET /api/identity/users/me`. Активный администратор может открыть `/admin/users` и найти пользователя по UUID.
+- `/profile` берёт email и роль из `GET /bff/me`, а статус аккаунта — из `GET /api/identity/users/me`. Активному администратору доступны поиск пользователя по UUID (`/admin/users`) и статус системы (`/admin/status`).
 - В режиме `npm run dev:mocks` войдите как `demo@otus.local`, чтобы посмотреть кошелёк с остатком и операцией. Другой email начинает с пустого списка. Для проверки роли администратора используйте `admin@otus.local`. Моки принимают любой непустой пароль и хранят данные в памяти до перезагрузки страницы.
 
 ## Карта папок
@@ -194,5 +194,5 @@ TypeScript только ниже 6.1.
    `LoadingState` и `ErrorState` из `src/shared/ui/` — как в `pages/status/StatusPage.tsx`.
 5. Рядом положить `<Имя>Page.test.tsx`: `renderRoute('/<путь>')` открывает приложение на
    нужном адресе, `server.use(http.get(...))` задаёт ответ сервера
-   (пример — `pages/status/StatusPage.test.tsx`).
+   (пример — `pages/profile/ProfilePage.test.tsx`).
 6. Проверить: `npm run lint && npm run typecheck && npm test`.

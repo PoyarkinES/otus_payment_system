@@ -1,5 +1,6 @@
-import type { RouteObject } from 'react-router';
+import { Navigate, type RouteObject } from 'react-router';
 
+import { AdminRoute } from '@/app/AdminRoute';
 import { ProtectedRoute } from '@/app/ProtectedRoute';
 import { RouteError } from '@/app/RouteError';
 import { LoginPage } from '@/pages/login/LoginPage';
@@ -32,10 +33,16 @@ export const routes: RouteObject[] = [
         ),
         errorElement: <RouteError />,
         children: [
-            { index: true, element: <StatusPage /> },
+            { index: true, element: <Navigate to="/wallets" replace /> },
             { path: 'wallets', element: <WalletsPage /> },
             { path: 'profile', element: <ProfilePage /> },
-            { path: 'admin/users', element: <AdminUserPage /> },
+            {
+                element: <AdminRoute />,
+                children: [
+                    { path: 'admin/users', element: <AdminUserPage /> },
+                    { path: 'admin/status', element: <StatusPage /> },
+                ],
+            },
             { path: '*', element: <NotFoundPage /> },
         ],
     },

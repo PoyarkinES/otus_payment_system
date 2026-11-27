@@ -115,7 +115,7 @@ The demo uses published images and does not build local code or require GitHub/N
 `Client/` is a React + TypeScript SPA built with MUI components. It talks only to the Gateway,
 with generated clients for the Gateway and Identity contracts. After signing in, users can
 create a RUB wallet, view available and reserved balances, and hide amounts. The profile shows
-the signed-in user's email, role, and account status. Active admins can look up users by ID.
+the signed-in user's email, role, and account status. Active administrators can open user lookup and system status from their profile.
 
 ```bash
 cd Client

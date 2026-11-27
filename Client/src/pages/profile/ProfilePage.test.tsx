@@ -45,6 +45,7 @@ describe('ProfilePage', () => {
             expect(await screen.findByText('me@example.com')).toBeInTheDocument();
             expect(screen.getByText(roleLabel)).toBeInTheDocument();
             expect(screen.getByText(statusLabel)).toBeInTheDocument();
+            expect(screen.queryByText('Статус системы')).not.toBeInTheDocument();
             expect(
                 screen.queryByRole('link', { name: 'Поиск пользователя' }),
             ).not.toBeInTheDocument();
@@ -67,6 +68,34 @@ describe('ProfilePage', () => {
             'href',
             '/admin/users',
         );
+    });
+});
+
+describe('admin system status', () => {
+    it('opens system status from the profile of an active administrator', async () => {
+        mockAccount('Admin', 'Active');
+        renderRoute('/profile', true);
+
+        const link = await screen.findByRole('link', { name: 'Статус системы' });
+        expect(link).toHaveAttribute('href', '/admin/status');
+        await userEvent.click(link);
+
+        expect(await screen.findByText('Все сервисы работают')).toBeVisible();
+    });
+
+    it.each([
+        ['User', 'Active'],
+        ['Admin', 'Blocked'],
+    ])('denies direct access without fetching health for %s / %s', async (role, status) => {
+        mockAccount(role, status);
+        const health = vi.fn(() => HttpResponse.json({ status: 'ok', services: {} }));
+        server.use(http.get('*/bff/health', health));
+
+        renderRoute('/admin/status', true);
+
+        expect(await screen.findByText('Недостаточно прав')).toBeVisible();
+        expect(screen.queryByText('Статус системы')).not.toBeInTheDocument();
+        expect(health).not.toHaveBeenCalled();
     });
 });
 

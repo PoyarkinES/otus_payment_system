@@ -111,7 +111,7 @@ export function AppLayout() {
                     {sections.map(({ to, label, icon }) => {
                         const selected =
                             pathname + hash === to ||
-                            (to === '/profile' && pathname === '/admin/users');
+                            (to === '/profile' && pathname.startsWith('/admin/'));
                         return (
                             <Button
                                 key={to}
@@ -145,14 +145,6 @@ export function AppLayout() {
                     })}
                 </Box>
                 <Box className="flex gap-1 md:mt-auto md:flex-col md:items-start">
-                    <Button
-                        component={Link}
-                        size="small"
-                        to="/"
-                        aria-current={pathname === '/' ? 'page' : undefined}
-                    >
-                        Статус системы
-                    </Button>
                     <Button onClick={handleLogout} disabled={loggingOut}>
                         {loggingOut ? 'Выходим…' : 'Выйти'}
                     </Button>
