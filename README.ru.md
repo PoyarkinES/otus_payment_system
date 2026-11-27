@@ -119,7 +119,7 @@ Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 - Bootstrap пропускает создание `otus_wallets`, если эта БД уже существует; `Wallets` применяет её схему на старте (`Database__AutoMigrate=true`). Миграции Identity также применяются при старте; в обычном `dotnet run` их по-прежнему накатывают через `dotnet ef database update`.
 - Используй явный `-f docker-compose.yml`, чтобы не подмешивать `docker-compose.override.yml` (он публикует postgres на 5434 и может конфликтовать с dev-контейнером `otus-postgres`).
 - Для локальных изменений кода используй `docker compose -f docker-compose.dev.yml up -d` (только PostgreSQL) и `dotnet run`; `docker-compose.yml` — только готовые образы.
-- После изменения кода публикуется новый образ, тег `sha-…` в `docker-compose.yml` обновляется отдельным PR.
+- Ручной workflow публикации образов проверяет, что `docker-compose.yml` закреплён на SHA только что опубликованных образов. Если SHA не обновлён, workflow падает с понятной ошибкой: обнови теги в отдельном PR и повтори запуск; CI также проверяет Compose и наличие каждого закреплённого GHCR manifest.
 
 Пошаговые сценарии: [M1 — Identity и Gateway](./docs/demo-m1.ru.md) и [M2 — регистрация, кошелёк, пополнение, hold, confirm и история](./docs/demo-m2.ru.md). Уровни тестов и что проверяет CI: [docs/testing-strategy.ru.md](./docs/testing-strategy.ru.md).
 

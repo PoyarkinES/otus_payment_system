@@ -23,6 +23,44 @@ jobs:
         shell: pwsh
         run: ./scripts/bump-shared.ps1 -Check
 
+  compose-image-tags:
+    name: Compose image tags
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Compose and pinned GHCR manifests
+        env:
+          POSTGRES_DB: otus_identity
+          POSTGRES_USER: otus
+          POSTGRES_PASSWORD: otus
+        run: |
+          set -euo pipefail
+          docker compose -f docker-compose.yml config -q
+          images="$(docker compose -f docker-compose.yml config --images)"
+
+          for service in identity gateway wallets; do
+            prefix="ghcr.io/poyarkines/otus-payment-system-${service}:"
+            matches=$(printf '%s\n' "$images" | grep -F -c "$prefix" || true)
+            if [[ "$matches" -ne 1 ]]; then
+              echo "::error::Expected exactly one pinned image for $service; found $matches."
+              exit 1
+            fi
+
+            image=$(printf '%s\n' "$images" | grep -F "$prefix")
+            tag="${image#"$prefix"}"
+            if [[ ! "$tag" =~ ^sha-[[:xdigit:]]{40}$ ]]; then
+              echo "::error::Expected a full sha-<commit> tag for $service; got '$tag'."
+              exit 1
+            fi
+
+            docker manifest inspect "$image" > /dev/null
+          done
+
   build:
     name: Build
     runs-on: ubuntu-latest
