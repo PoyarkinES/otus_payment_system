@@ -20,4 +20,7 @@ export const server = setupServer(
             createdAt: '2026-11-01T09:00:00Z',
         }),
     ),
+    http.get('http://localhost:8080/bff/wallets', () =>
+        HttpResponse.json({ wallets: [], totals: [] }),
+    ),
 );

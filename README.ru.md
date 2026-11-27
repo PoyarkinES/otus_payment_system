@@ -125,11 +125,9 @@ Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 
 ## Веб-клиент
 
-`Client/` — SPA на React + TypeScript с компонентами MUI. Ходит только через Gateway, клиент API
-генерируется из `openapi/gateway.v1.json`. Сейчас есть каркас и страница «Статус системы»
-(`/bff/health`); BFF API-сводка кошельков доступна через `/bff/wallets`, но экран кошельков ещё не реализован.
-
-В профиле `/profile` видны email, роль и статус аккаунта. Активному администратору доступен поиск пользователя по UUID на странице `/admin/users`.
+`Client/` — SPA на React + TypeScript с компонентами MUI. Все запросы идут через Gateway.
+После входа можно создать рублёвый кошелёк, посмотреть доступный остаток и резерв, скрыть суммы.
+В профиле видны email, роль и статус аккаунта. Активному администратору доступен поиск пользователя по UUID.
 
 ```bash
 cd Client
@@ -170,7 +168,7 @@ Gateway → PostgreSQL → Wallets (+ holds) → Transfers (Redis, hold, Fraud s
 - **Wallets (#52):** реализованы балансы, holds, история операций и список кошельков; Gateway агрегирует список, totals по валютам и последние операции.
 - **Проверенные Gateway-тесты:** 34 Host/unit/web и 11 E2E через in-process Wallets + PostgreSQL.
 - **CI** собирает решения, запускает тесты и проверяет OpenAPI drift; Gateway E2E проверены локально с `WALLETS_API_TEST_DB`.
-- **Веб-клиент (#82):** каркас на React + MUI, клиент из OpenAPI Gateway, страница статуса системы, job `client` в CI.
+- **Веб-клиент (#82–#85):** авторизация, профиль, создание и обзор кошельков, статус системы и проверки в CI.
 - **Дальше:** Payments/Transfers и UI-экраны; RabbitMQ, Redis, Fraud и Merchant Payments остаются будущими этапами.
 - **Post-1.0:** KYC/Onboarding (MongoDB + MinIO + gRPC), не блокирует 1.0.
 

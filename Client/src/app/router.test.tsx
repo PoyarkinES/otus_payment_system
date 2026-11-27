@@ -1,22 +1,24 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { RouteError } from '@/app/RouteError';
 import { clearTokens } from '@/shared/api/auth/storage';
 import { renderRoute, renderWithProviders } from '@/shared/testing/render';
+import { server } from '@/shared/testing/server';
 
 describe('router', () => {
     afterEach(() => {
         vi.restoreAllMocks();
-        // Очищаем токены после каждого теста, чтобы не影响了 другие тесты.
         clearTokens();
     });
 
     it('renders layout title on index route', () => {
         renderRoute('/', true);
 
-        expect(screen.getByText('Otus Payment System')).toBeInTheDocument();
+        expect(screen.getByText('Otus Pay')).toBeInTheDocument();
         expect(
             screen.getByRole('heading', { level: 1, name: 'Статус системы' }),
         ).toBeInTheDocument();
@@ -27,6 +29,42 @@ describe('router', () => {
 
         expect(screen.getByRole('heading', { name: 'Страница не найдена' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'На главную' })).toHaveAttribute('href', '/');
+    });
+
+    it('opens wallets, recent operations and the profile from the sidebar', async () => {
+        const user = userEvent.setup();
+        renderRoute('/', true);
+        await user.click(screen.getByRole('link', { name: 'Кошельки' }));
+        expect(await screen.findByRole('heading', { level: 1, name: 'Кошельки' })).toBeVisible();
+        await user.click(screen.getByRole('link', { name: 'Операции' }));
+        expect(screen.getByRole('link', { name: 'Операции' })).toHaveAttribute('aria-current');
+        await user.click(screen.getByRole('link', { name: 'Профиль' }));
+        expect(await screen.findByRole('heading', { level: 1, name: 'Профиль' })).toBeVisible();
+    });
+
+    it('starts the next account on its wallets after an explicit logout from the profile', async () => {
+        const user = userEvent.setup();
+        const tokens = {
+            accessToken: 'access-token',
+            refreshToken: 'refresh-token',
+            expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+            refreshExpiresAt: new Date(Date.now() + 86400_000).toISOString(),
+        };
+        const revoke = vi.fn(() => new HttpResponse(null, { status: 204 }));
+        server.use(
+            http.post('*/api/identity/auth/refresh', () => HttpResponse.json(tokens)),
+            http.post('*/api/identity/auth/logout', revoke),
+            http.post('*/api/identity/auth/login', () => HttpResponse.json(tokens)),
+        );
+        renderRoute('/profile', true);
+        await screen.findByText('Активен');
+        await user.click(screen.getByRole('button', { name: 'Выйти' }));
+        expect(await screen.findByRole('heading', { name: 'Вход' })).toBeVisible();
+        expect(revoke).toHaveBeenCalledOnce();
+        await user.type(screen.getByLabelText('Email'), 'next@example.test');
+        await user.type(screen.getByLabelText('Пароль'), 'test-password');
+        await user.click(screen.getByRole('button', { name: 'Войти' }));
+        expect(await screen.findByRole('heading', { level: 1, name: 'Кошельки' })).toBeVisible();
     });
 
     it('renders route error fallback when page throws', () => {

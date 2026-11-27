@@ -8,6 +8,7 @@ import { AdminUserPage } from '@/pages/profile/AdminUserPage';
 import { ProfilePage } from '@/pages/profile/ProfilePage';
 import { RegisterPage } from '@/pages/register/RegisterPage';
 import { StatusPage } from '@/pages/status/StatusPage';
+import { WalletsPage } from '@/pages/wallets/WalletsPage';
 import { AppLayout } from '@/shared/ui/AppLayout';
 
 /** Все маршруты приложения. Новая страница = новый элемент в `children`. */
@@ -32,6 +33,7 @@ export const routes: RouteObject[] = [
         errorElement: <RouteError />,
         children: [
             { index: true, element: <StatusPage /> },
+            { path: 'wallets', element: <WalletsPage /> },
             { path: 'profile', element: <ProfilePage /> },
             { path: 'admin/users', element: <AdminUserPage /> },
             { path: '*', element: <NotFoundPage /> },

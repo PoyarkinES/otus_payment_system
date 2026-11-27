@@ -30,40 +30,6 @@ function mockAccount(role: string | null, status: string) {
 afterEach(clearTokens);
 
 describe('ProfilePage', () => {
-    it('opens the profile from the main navigation', async () => {
-        renderRoute('/', true);
-        await userEvent.click(screen.getByRole('link', { name: 'Профиль' }));
-        expect(await screen.findByRole('heading', { level: 1, name: 'Профиль' })).toBeVisible();
-    });
-
-    it('starts the next account on its default page after an explicit logout from the profile', async () => {
-        const user = userEvent.setup();
-        const tokens = {
-            accessToken: 'access-token',
-            refreshToken: 'refresh-token',
-            expiresAt: new Date(Date.now() + 3600_000).toISOString(),
-            refreshExpiresAt: new Date(Date.now() + 86400_000).toISOString(),
-        };
-        const revoke = vi.fn(() => new HttpResponse(null, { status: 204 }));
-        server.use(
-            http.post('*/api/identity/auth/refresh', () => HttpResponse.json(tokens)),
-            http.post('*/api/identity/auth/logout', revoke),
-            http.post('*/api/identity/auth/login', () => HttpResponse.json(tokens)),
-        );
-        renderRoute('/profile', true);
-        await screen.findByText('Активен');
-        await user.click(screen.getByRole('button', { name: 'Выйти' }));
-        expect(await screen.findByRole('heading', { name: 'Вход' })).toBeVisible();
-        expect(revoke).toHaveBeenCalledOnce();
-        await user.type(screen.getByLabelText('Email'), 'next@example.test');
-        await user.type(screen.getByLabelText('Пароль'), 'test-password');
-        await user.click(screen.getByRole('button', { name: 'Войти' }));
-        expect(await screen.findByRole('button', { name: 'Выйти' })).toBeVisible();
-        expect(
-            screen.queryByRole('heading', { level: 1, name: 'Профиль' }),
-        ).not.toBeInTheDocument();
-    });
-
     it.each([
         ['User', 'Active', 'Пользователь', 'Активен'],
         ['Admin', 'Blocked', 'Администратор', 'Заблокирован'],

@@ -1,10 +1,12 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { createMemoryRouter, createPath, RouterProvider } from 'react-router';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { clearTokens } from '@/shared/api/auth/storage';
-import { renderRoute } from '@/shared/testing/render';
+import { LoginPage } from '@/pages/login/LoginPage';
+import { renderRoute, renderWithProviders } from '@/shared/testing/render';
 import { server } from '@/shared/testing/server';
 
 afterEach(() => {
@@ -77,7 +79,7 @@ describe('LoginPage', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
         // После успешного входа токены должны быть сохранены в storage
-        expect(await screen.findByText('Otus Payment System')).toBeInTheDocument();
+        expect(await screen.findByText('Otus Pay')).toBeInTheDocument();
         expect(getAccessToken()).toBe('test-at');
     });
 
@@ -98,6 +100,30 @@ describe('LoginPage', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
         expect(await screen.findByText('Email уже используется')).toBeInTheDocument();
+    });
+
+    it.each([
+        ['/wallets', null],
+        [
+            '/wallets?page=2#operations',
+            { from: { pathname: '/wallets', search: '?page=2', hash: '#operations' } },
+        ],
+    ] as const)('returns to %s after login', async (expectedPath, state) => {
+        mockLoginSuccess();
+        const router = createMemoryRouter(
+            [
+                { path: '/login', element: <LoginPage /> },
+                { path: '*', element: <div /> },
+            ],
+            { initialEntries: [{ pathname: '/login', state }] },
+        );
+        renderWithProviders(<RouterProvider router={router} />);
+
+        await userEvent.type(screen.getByLabelText('Email'), 'test@example.com');
+        await userEvent.type(screen.getByLabelText('Пароль'), 'password123');
+        await userEvent.click(screen.getByRole('button', { name: 'Войти' }));
+
+        await waitFor(() => expect(createPath(router.state.location)).toBe(expectedPath));
     });
 
     it('shows detail message on 401 response', async () => {

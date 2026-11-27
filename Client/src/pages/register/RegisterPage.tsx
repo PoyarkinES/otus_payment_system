@@ -85,7 +85,7 @@ export function RegisterPage() {
             // apiFetch бросает на 4xx/5xx, поэтому при успехе data — AuthTokens.
             const tokens = loginResp.data as AuthTokens;
             setTokens(tokens);
-            navigate('/', { replace: true });
+            navigate('/wallets', { replace: true });
         } catch (err) {
             if (err instanceof ApiProblem && err.status === 400 && err.errors) {
                 const fieldErrors: Partial<Record<keyof RegisterFields, string>> = {};
