@@ -37,7 +37,21 @@ describe('router', () => {
 
     it('marks the selected destination when switching between wallets, operations and the profile', async () => {
         const user = userEvent.setup();
-        server.use(getBffWalletsMockHandler({ wallets: [{ currency: 'RUB' }] }));
+        server.use(
+            getBffWalletsMockHandler({
+                wallets: [
+                    {
+                        id: 'wallet-1',
+                        currency: 'RUB',
+                        available: 0,
+                        held: 0,
+                        total: 0,
+                        status: 'Active',
+                        recentOperations: [],
+                    },
+                ],
+            }),
+        );
         renderRoute('/wallets', true);
         const navigation = within(screen.getByRole('navigation', { name: 'Основная навигация' }));
         const wallets = navigation.getByRole('link', { name: 'Кошельки' });
