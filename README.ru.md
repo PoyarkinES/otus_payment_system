@@ -70,6 +70,7 @@
     ├── db-schema.ru.md
     ├── testing-strategy.ru.md
     ├── demo-m1.ru.md
+    ├── demo-m2.ru.md
     ├── retro-m1.ru.md
     └── adr/0001-api-gateway.md
 ```
@@ -102,25 +103,25 @@
 
 ## Демо-стек (Docker Compose, GHCR)
 
-`docker-compose.yml` запускает PostgreSQL, Identity и Gateway из **публичных образов GHCR**, закреплённых по commit SHA. Локальный код при этом не собирается; токены GitHub/NuGet для запуска не нужны. Наружу открыт только Gateway — Identity и БД доступны лишь внутри сети compose.
+`docker-compose.yml` запускает PostgreSQL 17 и Identity, Wallets и Gateway. Три образа приложений — **публичные GHCR-образы**, закреплённые по commit SHA. Одноразовый `wallets-db-bootstrap` создаёт отдельную БД `otus_wallets` в уже работающем PostgreSQL и не требует удалять существующий volume. Локальный код при этом не собирается; токены GitHub/NuGet для запуска не нужны. Наружу открыт только Gateway — сервисы и БД доступны лишь внутри сети compose.
 
 ```powershell
 # если .env ещё нет
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 
-docker compose pull
-docker compose up -d
-docker compose ps
+docker compose -f docker-compose.yml pull
+docker compose -f docker-compose.yml up -d
+docker compose -f docker-compose.yml ps -a
 Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 ```
 
 - Вход: `http://localhost:8080`, демо-админ `admin@otus.local` / `AdminP@ssw0rd`.
-- Схема БД применяется на старте контейнера (`Database__AutoMigrate=true`); в обычном `dotnet run` миграции по-прежнему накатываются через `dotnet ef database update`.
-- Если в корне лежит локальный `docker-compose.override.yml`, запускай явно: `docker compose -f docker-compose.yml up -d` (override публикует postgres на 5434 и конфликтует с dev-контейнером `otus-postgres`).
+- Bootstrap пропускает создание `otus_wallets`, если эта БД уже существует; `Wallets` применяет её схему на старте (`Database__AutoMigrate=true`). Миграции Identity также применяются при старте; в обычном `dotnet run` их по-прежнему накатывают через `dotnet ef database update`.
+- Используй явный `-f docker-compose.yml`, чтобы не подмешивать `docker-compose.override.yml` (он публикует postgres на 5434 и может конфликтовать с dev-контейнером `otus-postgres`).
 - Для локальных изменений кода используй `docker compose -f docker-compose.dev.yml up -d` (только PostgreSQL) и `dotnet run`; `docker-compose.yml` — только готовые образы.
 - После изменения кода публикуется новый образ, тег `sha-…` в `docker-compose.yml` обновляется отдельным PR.
 
-Пошаговый сценарий с негативными проверками: [docs/demo-m1.ru.md](./docs/demo-m1.ru.md). Уровни тестов и что проверяет CI: [docs/testing-strategy.ru.md](./docs/testing-strategy.ru.md).
+Пошаговые сценарии: [M1 — Identity и Gateway](./docs/demo-m1.ru.md) и [M2 — регистрация, кошелёк, пополнение, hold, confirm и история](./docs/demo-m2.ru.md). Уровни тестов и что проверяет CI: [docs/testing-strategy.ru.md](./docs/testing-strategy.ru.md).
 
 ## Веб-клиент
 
