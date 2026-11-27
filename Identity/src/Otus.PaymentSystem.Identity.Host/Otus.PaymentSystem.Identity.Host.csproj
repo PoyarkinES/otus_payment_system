@@ -13,7 +13,7 @@
     <ProjectReference Include="..\Otus.PaymentSystem.Identity.Domain\Otus.PaymentSystem.Identity.Domain.csproj" />
     <ProjectReference Include="..\Otus.PaymentSystem.Identity.Application\Otus.PaymentSystem.Identity.Application.csproj" />
     <ProjectReference Include="..\Otus.PaymentSystem.Identity.Infrastructure\Otus.PaymentSystem.Identity.Infrastructure.csproj" />
-    <PackageReference Include="Otus.PaymentSystem.AspNetCore" Version="1.0.1" />
+    <PackageReference Include="Otus.PaymentSystem.AspNetCore" Version="1.0.2" />
   </ItemGroup>
 
   <ItemGroup>
