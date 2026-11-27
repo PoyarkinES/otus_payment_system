@@ -1,8 +1,6 @@
-import { useEffect, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
-import { useLocation } from 'react-router';
 import { amountTypography } from '@/shared/theme/theme';
 
 import type { BffWalletResult } from '@/shared/api/generated/model';
@@ -28,15 +26,6 @@ export function RecentOperations({
     wallets: BffWalletResult[];
     hidden: boolean;
 }) {
-    const { hash, key } = useLocation();
-    const region = useRef<HTMLElement>(null);
-    useEffect(() => {
-        if (hash === '#operations') {
-            region.current?.focus({ preventScroll: true });
-            region.current?.scrollIntoView?.({ block: 'start' });
-        }
-    }, [hash, key]);
-
     const operations = wallets
         .flatMap((wallet) =>
             (wallet.recentOperations ?? []).map((operation) => ({
@@ -56,7 +45,6 @@ export function RecentOperations({
             component="section"
             elevation={0}
             id="operations"
-            ref={region}
             tabIndex={-1}
             aria-labelledby="operations-heading"
             className="scroll-mt-4 p-5 sm:p-7"

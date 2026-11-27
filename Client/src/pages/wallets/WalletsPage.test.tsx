@@ -110,14 +110,34 @@ describe('WalletsPage', () => {
         expect(screen.getByText('В резерве').nextElementSibling).toHaveTextContent('12,3456 ₽');
     });
 
-    it('shows an empty wallet without creating one on the user’s behalf', async () => {
-        const create = vi.fn(() => new HttpResponse(null, { status: 201 }));
-        server.use(http.post(createUrl, create));
-        summary([]);
+    it('opens one RUB wallet on demand and refreshes its balance and recent history', async () => {
+        const zeroWallet = { ...rub, available: 0, held: 0, total: 0, recentOperations: [] };
+        const create = vi.fn(() => HttpResponse.json(zeroWallet, { status: 201 }));
+        server.use(
+            http.post(createUrl, create),
+            http.get(summaryUrl, () =>
+                HttpResponse.json({ wallets: create.mock.calls.length ? [zeroWallet] : [] }),
+            ),
+        );
         openPage();
-        expect(await screen.findByText('Кошелька пока нет')).toBeVisible();
-        expect(screen.queryByRole('button', { name: /создать/i })).not.toBeInTheDocument();
+
+        expect(await screen.findByRole('heading', { name: 'Кошелька пока нет' })).toBeVisible();
+        expect(screen.getByText(/один рублёвый кошелёк с нулевым балансом/i)).toBeVisible();
+        expect(
+            screen.queryByRole('region', { name: 'Последние операции' }),
+        ).not.toBeInTheDocument();
+        const action = screen.getByRole('button', { name: 'Создать кошелёк' });
         expect(create).not.toHaveBeenCalled();
+        await userEvent.click(action);
+
+        const wallet = within(await screen.findByRole('article', { name: 'Рублёвый кошелёк' }));
+        expect(wallet.getByText('Доступно').nextElementSibling).toHaveTextContent('0,00 ₽');
+        expect(wallet.getByText('В резерве').nextElementSibling).toHaveTextContent('0,00 ₽');
+        expect(screen.getByRole('region', { name: 'Последние операции' })).toHaveTextContent(
+            'Операций пока нет',
+        );
+        expect(screen.queryByRole('button', { name: 'Создать кошелёк' })).not.toBeInTheDocument();
+        expect(create).toHaveBeenCalledTimes(1);
     });
 
     it('recovers after an unsuccessful list request', async () => {
@@ -128,10 +148,7 @@ describe('WalletsPage', () => {
         summary([]);
         await userEvent.click(screen.getByRole('button', { name: 'Повторить' }));
         expect(await screen.findByText('Кошелька пока нет')).toBeVisible();
-        expect(screen.getByRole('region', { name: 'Последние операции' })).toHaveAttribute(
-            'id',
-            'operations',
-        );
+        expect(screen.getByRole('button', { name: 'Создать кошелёк' })).toBeEnabled();
     });
 
     it('focuses the operations section when opening its link before the summary loads', async () => {
@@ -139,5 +156,14 @@ describe('WalletsPage', () => {
         openPage('/wallets#operations');
 
         expect(await screen.findByRole('region', { name: 'Последние операции' })).toHaveFocus();
+    });
+
+    it('focuses the wallet opening option when the operations link has no wallet', async () => {
+        summary([]);
+        openPage('/wallets#operations');
+
+        const empty = await screen.findByRole('region', { name: 'Кошелька пока нет' });
+        expect(empty).toHaveFocus();
+        expect(within(empty).getByRole('button', { name: 'Создать кошелёк' })).toBeVisible();
     });
 });
