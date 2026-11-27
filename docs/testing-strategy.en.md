@@ -109,7 +109,7 @@ Filters in the `Test` matrix:
 
 What is mandatory for a PR: every job above. A merge is blocked if any job is red: branch protection requires every mandatory check, including drift, integration tests, and the client.
 
-Image publishing is manual; after publishing, a separate check fails unless `docker-compose.yml` pins the just-published SHA.
+Image publishing is manual; after publishing, the workflow verifies the GHCR manifests and opens or updates a PR with the new Compose SHAs. CI is dispatched separately for that PR.
 
 There is no nightly workflow yet. Candidates for it: a full run of all Postgres tests, a five-fold repeat of concurrency tests (`hold`/`confirm`/`deposit`/`withdraw`), a `docker compose` smoke run, and dependency vulnerability scanning. We will add it as a separate task when the first paid runner appears or PR run time grows.
 

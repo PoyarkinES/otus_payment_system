@@ -54,19 +54,29 @@ jobs:
           build-args: |
             NUGET_USERNAME=${{ github.actor }}
 
-  verify-compose:
-    name: Verify Compose uses published SHA
+  update-compose-pr:
+    name: Open Compose SHA update PR
     if: ${{ github.ref == 'refs/heads/main' }}
     needs: publish
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      actions: write
+      contents: write
+      packages: read
+      pull-requests: write
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Verify Compose points to published images
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pin Compose to published images
         env:
           IMAGE_TAG: sha-${{ github.sha }}
           POSTGRES_DB: otus_identity
@@ -74,6 +84,17 @@ jobs:
           POSTGRES_PASSWORD: otus
         run: |
           set -euo pipefail
+
+          for service in identity gateway wallets; do
+            count=$(grep -E -c "^[[:space:]]*image: ghcr[.]io/poyarkines/otus-payment-system-${service}:sha-[[:xdigit:]]{40}$" docker-compose.yml || true)
+            if [[ "$count" -ne 1 ]]; then
+              echo "::error::Expected exactly one SHA-pinned Compose image for $service; found $count."
+              exit 1
+            fi
+
+            sed -i -E "s#(image: ghcr[.]io/poyarkines/otus-payment-system-${service}:)sha-[[:xdigit:]]{40}\$#\\1${IMAGE_TAG}#" docker-compose.yml
+          done
+
           docker compose -f docker-compose.yml config -q
           images="$(docker compose -f docker-compose.yml config --images)"
 
@@ -81,9 +102,30 @@ jobs:
             image="${REGISTRY}/${IMAGE_OWNER}/otus-payment-system-${service}:${IMAGE_TAG}"
             matches=$(printf '%s\n' "$images" | grep -F -x -c "$image" || true)
             if [[ "$matches" -ne 1 ]]; then
-              echo "::error::Compose is not pinned to the published image $image. Update docker-compose.yml and rerun this workflow."
+              echo "::error::Compose update did not resolve to the published image $image."
               exit 1
             fi
 
             docker manifest inspect "$image" > /dev/null
           done
+
+      - name: Create or update Compose SHA pull request
+        id: compose-pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/update-compose-image-sha
+          delete-branch: true
+          add-paths: docker-compose.yml
+          commit-message: "chore: pin Compose to published image SHAs"
+          title: "chore: update Compose image SHAs"
+          body: |
+            Updates the Identity, Gateway, and Wallets Compose image tags to the images published by the manual workflow run.
+
+            Source commit: `${{ github.sha }}`
+            [Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+      - name: Dispatch CI for the generated pull request
+        if: steps.compose-pr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run ci.yml --ref automation/update-compose-image-sha

@@ -110,6 +110,8 @@ Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 
 The demo uses published images and does not build local code or require GitHub/NuGet tokens. Wallets migrations run at startup (`Database__AutoMigrate=true`). The full M2 flow is in [docs/demo-m2.en.md](./docs/demo-m2.en.md); the M1 Identity/Gateway walkthrough is currently available in [Russian](./docs/demo-m1.ru.md).
 
+The manual image-publishing workflow verifies the published GHCR manifests and opens or updates a pull request with the new SHA tags in `docker-compose.yml`. CI is dispatched for that pull request; the demo stack picks up the images after review and merge.
+
 ## Web client
 
 `Client/` is a React + TypeScript SPA built with MUI components. It talks only to the Gateway,
