@@ -42,15 +42,6 @@ export function WalletCard({ wallet, hidden }: WalletCardProps) {
                 <Typography id={titleId} component="h2" variant="h5">
                     {title}
                 </Typography>
-                {wallet.currency === 'RUB' && (
-                    <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ letterSpacing: '0.06em' }}
-                    >
-                        RUB
-                    </Typography>
-                )}
                 {wallet.status === 'Frozen' && <Typography variant="body2">Заморожен</Typography>}
                 {wallet.status === 'Closed' && <Typography variant="body2">Закрыт</Typography>}
             </div>

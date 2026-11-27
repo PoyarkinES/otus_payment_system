@@ -5,6 +5,7 @@ import { RouteError } from '@/app/RouteError';
 import { LoginPage } from '@/pages/login/LoginPage';
 import { NotFoundPage } from '@/pages/not-found/NotFoundPage';
 import { RegisterPage } from '@/pages/register/RegisterPage';
+import { AmountVisibilityProvider } from '@/pages/wallets/AmountVisibility';
 import { WalletsPage } from '@/pages/wallets/WalletsPage';
 import { AppLayout } from '@/shared/ui/AppLayout';
 
@@ -24,7 +25,9 @@ export const routes: RouteObject[] = [
         path: '/',
         element: (
             <ProtectedRoute>
-                <AppLayout />
+                <AmountVisibilityProvider>
+                    <AppLayout />
+                </AmountVisibilityProvider>
             </ProtectedRoute>
         ),
         errorElement: <RouteError />,

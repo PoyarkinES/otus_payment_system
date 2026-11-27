@@ -1,10 +1,10 @@
-import { onlineManager } from '@tanstack/react-query';
-import { act, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import { AmountVisibilityProvider } from './AmountVisibility';
 import { WalletsPage } from './WalletsPage';
 import { renderWithProviders } from '@/shared/testing/render';
 import { server } from '@/shared/testing/server';
@@ -43,7 +43,9 @@ function summary(wallets: object[]) {
 function openPage(path = '/wallets') {
     return renderWithProviders(
         <MemoryRouter initialEntries={[path]}>
-            <WalletsPage />
+            <AmountVisibilityProvider>
+                <WalletsPage />
+            </AmountVisibilityProvider>
         </MemoryRouter>,
     );
 }
@@ -57,7 +59,7 @@ describe('WalletsPage', () => {
         const card = within(await screen.findByRole('article', { name: 'Рублёвый кошелёк' }));
         expect(card.getByText('Доступно').nextElementSibling).toHaveTextContent('1 234 567,89 ₽');
         expect(card.getByText('В резерве').nextElementSibling).toHaveTextContent('500,25 ₽');
-        expect(card.getByText('RUB')).toBeVisible();
+        expect(card.queryByText('RUB')).not.toBeInTheDocument();
         const other = within(screen.getByRole('article', { name: /кошелёк USD/i }));
         expect(other.getByText('Доступно').nextElementSibling).toHaveTextContent('0,00');
     });
@@ -82,14 +84,12 @@ describe('WalletsPage', () => {
         expect(screen.getByText(/1 234 567,89/)).toBeVisible();
     });
 
-    it('explains why another RUB wallet cannot be created when one is already loaded', async () => {
+    it('offers the privacy control without a wallet creation action', async () => {
         summary([rub]);
         openPage();
         await screen.findByRole('article', { name: 'Рублёвый кошелёк' });
-
-        const create = screen.getByRole('button', { name: 'Создать кошелёк' });
-        expect(create).toBeDisabled();
-        expect(create).toHaveAccessibleDescription('Рублёвый кошелёк уже существует.');
+        expect(screen.getByRole('button', { name: 'Скрыть суммы' })).toBeVisible();
+        expect(screen.queryByRole('button', { name: /создать кошелёк/i })).not.toBeInTheDocument();
     });
 
     it('keeps unavailable amounts distinct from zero', async () => {
@@ -110,20 +110,14 @@ describe('WalletsPage', () => {
         expect(screen.getByText('В резерве').nextElementSibling).toHaveTextContent('12,3456 ₽');
     });
 
-    it('prevents duplicate submission if a reconnect refresh finds a wallet with the dialog open', async () => {
+    it('shows an empty wallet without creating one on the user’s behalf', async () => {
+        const create = vi.fn(() => new HttpResponse(null, { status: 201 }));
+        server.use(http.post(createUrl, create));
         summary([]);
         openPage();
-        await screen.findByText('Кошельков пока нет');
-        await userEvent.click(screen.getByRole('button', { name: 'Создать кошелёк' }));
-        const dialog = within(screen.getByRole('dialog'));
-        summary([rub]);
-        act(() => {
-            onlineManager.setOnline(false);
-            onlineManager.setOnline(true);
-        });
-
-        expect(await dialog.findByText('Рублёвый кошелёк уже существует.')).toBeVisible();
-        expect(dialog.getByRole('button', { name: 'Создать' })).toBeDisabled();
+        expect(await screen.findByText('Кошелька пока нет')).toBeVisible();
+        expect(screen.queryByRole('button', { name: /создать/i })).not.toBeInTheDocument();
+        expect(create).not.toHaveBeenCalled();
     });
 
     it('recovers after an unsuccessful list request', async () => {
@@ -133,7 +127,7 @@ describe('WalletsPage', () => {
 
         summary([]);
         await userEvent.click(screen.getByRole('button', { name: 'Повторить' }));
-        expect(await screen.findByText('Кошельков пока нет')).toBeVisible();
+        expect(await screen.findByText('Кошелька пока нет')).toBeVisible();
         expect(screen.getByRole('region', { name: 'Последние операции' })).toHaveAttribute(
             'id',
             'operations',
@@ -145,61 +139,5 @@ describe('WalletsPage', () => {
         openPage('/wallets#operations');
 
         expect(await screen.findByRole('region', { name: 'Последние операции' })).toHaveFocus();
-    });
-
-    it('keeps the form available after a creation failure and shows the support code', async () => {
-        summary([]);
-        server.use(
-            http.post(createUrl, () =>
-                HttpResponse.json(
-                    { status: 503, detail: 'Попробуйте позже.', traceId: 'wallet-create-42' },
-                    { status: 503, headers: { 'Content-Type': 'application/problem+json' } },
-                ),
-            ),
-        );
-        openPage();
-        await screen.findByText('Кошельков пока нет');
-        await userEvent.click(screen.getByRole('button', { name: 'Создать кошелёк' }));
-        const dialog = within(screen.getByRole('dialog'));
-        await userEvent.click(dialog.getByRole('button', { name: 'Создать' }));
-
-        expect(await dialog.findByRole('alert')).toHaveTextContent('Сервис временно недоступен');
-        expect(dialog.getByRole('alert')).toHaveTextContent('wallet-create-42');
-        expect(dialog.getByRole('button', { name: 'Создать' })).toBeEnabled();
-    });
-
-    it.each([201, 409])('refreshes the wallet list after creation returns %s', async (status) => {
-        let exists = false;
-        server.use(
-            http.get(summaryUrl, () =>
-                HttpResponse.json({ wallets: exists ? [rub] : [], totals: [] }),
-            ),
-            http.post(createUrl, async ({ request }) => {
-                if (
-                    request.headers.get('Content-Type') !== 'application/json' ||
-                    ((await request.json()) as { currency?: string }).currency !== 'RUB'
-                ) {
-                    return new HttpResponse(null, { status: 400 });
-                }
-                exists = true;
-                return status === 409
-                    ? HttpResponse.json(
-                          { title: 'Conflict', status },
-                          { status, headers: { 'Content-Type': 'application/problem+json' } },
-                      )
-                    : HttpResponse.json({ id: rub.id, currency: 'RUB' }, { status });
-            }),
-        );
-        openPage();
-        await screen.findByText('Кошельков пока нет');
-        await userEvent.click(screen.getByRole('button', { name: 'Создать кошелёк' }));
-        const dialog = within(screen.getByRole('dialog', { name: 'Создать кошелёк' }));
-        expect(dialog.getByText(/RUB/)).toBeVisible();
-        await userEvent.click(dialog.getByRole('button', { name: 'Создать' }));
-        expect(await screen.findByRole('article', { name: 'Рублёвый кошелёк' })).toBeVisible();
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        if (status === 409) {
-            expect(screen.getByRole('alert')).toHaveTextContent('Рублёвый кошелёк уже существует');
-        }
     });
 });
