@@ -1,11 +1,10 @@
-import type { RouteObject } from 'react-router';
+import { Navigate, type RouteObject } from 'react-router';
 
 import { ProtectedRoute } from '@/app/ProtectedRoute';
 import { RouteError } from '@/app/RouteError';
 import { LoginPage } from '@/pages/login/LoginPage';
 import { NotFoundPage } from '@/pages/not-found/NotFoundPage';
 import { RegisterPage } from '@/pages/register/RegisterPage';
-import { StatusPage } from '@/pages/status/StatusPage';
 import { WalletsPage } from '@/pages/wallets/WalletsPage';
 import { AppLayout } from '@/shared/ui/AppLayout';
 
@@ -30,7 +29,7 @@ export const routes: RouteObject[] = [
         ),
         errorElement: <RouteError />,
         children: [
-            { index: true, element: <StatusPage /> },
+            { index: true, element: <Navigate to="/wallets" replace /> },
             { path: 'wallets', element: <WalletsPage /> },
             { path: '*', element: <NotFoundPage /> },
         ],

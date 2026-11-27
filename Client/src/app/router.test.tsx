@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -13,13 +13,13 @@ describe('router', () => {
         clearTokens();
     });
 
-    it('renders layout title on index route', () => {
+    it('opens wallets from the index and keeps the system status out of account navigation', async () => {
         renderRoute('/', true);
 
         expect(screen.getByText('Otus Pay')).toBeInTheDocument();
-        expect(
-            screen.getByRole('heading', { level: 1, name: 'Статус системы' }),
-        ).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'Кошельки' })).toBeVisible();
+        expect(screen.queryByRole('link', { name: 'Статус системы' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Выйти' })).toBeEnabled();
     });
 
     it('renders 404 for unknown route', () => {
@@ -29,13 +29,22 @@ describe('router', () => {
         expect(screen.getByRole('link', { name: 'На главную' })).toHaveAttribute('href', '/');
     });
 
-    it('opens wallets and recent operations from the sidebar', async () => {
+    it('marks the selected destination when switching between balances and operations', async () => {
         const user = userEvent.setup();
-        renderRoute('/', true);
-        await user.click(screen.getByRole('link', { name: 'Кошельки' }));
-        expect(await screen.findByRole('heading', { level: 1, name: 'Кошельки' })).toBeVisible();
-        await user.click(screen.getByRole('link', { name: 'Операции' }));
-        expect(screen.getByRole('link', { name: 'Операции' })).toHaveAttribute('aria-current');
+        renderRoute('/wallets', true);
+        const navigation = within(screen.getByRole('navigation', { name: 'Основная навигация' }));
+        const wallets = navigation.getByRole('link', { name: 'Кошельки' });
+        const operations = navigation.getByRole('link', { name: 'Операции' });
+
+        expect(wallets).toHaveAttribute('aria-current', 'page');
+        await user.click(operations);
+        expect(await screen.findByRole('region', { name: 'Последние операции' })).toHaveFocus();
+        expect(operations).toHaveAttribute('aria-current', 'location');
+        expect(wallets).not.toHaveAttribute('aria-current');
+
+        await user.click(wallets);
+        expect(wallets).toHaveAttribute('aria-current', 'page');
+        expect(operations).not.toHaveAttribute('aria-current');
     });
 
     it('renders route error fallback when page throws', () => {
