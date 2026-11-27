@@ -124,7 +124,7 @@ docker compose pull
 docker compose up -d
 ```
 
-Образы закреплены по `sha-…`; после изменения кода публикуется новый образ и тег в compose обновляется отдельным PR.
+Образы закреплены по `sha-…`. CI проверяет Compose и наличие каждого GHCR manifest. Ручной workflow публикации на `main` после сборки Identity, Gateway и Wallets падает, если Compose не обновлён до опубликованного SHA; после обновления Compose в отдельном PR workflow можно повторить.
 
 ## 6. CI
 
@@ -134,7 +134,7 @@ docker compose up -d
    - публикует в GitHub Packages с `packages: write`.
 2. **Build/test** — `permissions: packages: read`; jobs получают `NuGetPackageSourceCredentials_github` из `GITHUB_TOKEN` и восстанавливают пакеты из GitHub Packages.
 3. **Docker build** — job `docker` передаёт `GITHUB_TOKEN` в BuildKit secret; токен не попадает в образ.
-4. **Образы** — `.github/workflows/publish-images.yml` (ручной запуск) собирает Identity/Gateway/Wallets и публикует в GHCR теги `latest` и `sha-<commit>`.
+4. **Образы** — `.github/workflows/publish-images.yml` (ручной запуск на `main`) собирает Identity/Gateway/Wallets, публикует в GHCR теги `latest` и `sha-<commit>`, затем проверяет, что Compose уже закреплён на этих SHA.
 
 Локальные Shared artifacts не используются в CI или Docker. GitHub Packages — единственный источник Shared для потребителей; CI проверяет изменения Shared из PR и потребителей с последней опубликованной версией.
 
@@ -154,7 +154,7 @@ docker compose up -d
    .\scripts\bump-shared.ps1 -Check
    ```
 5. Прогнать build/test и смерджить consumer PR.
-6. Если менялся код сервисов — опубликовать новые GHCR-образы и обновить `sha-…` в `docker-compose.yml`.
+6. Если менялся код сервисов — запустить публикацию GHCR-образов; workflow автоматически откроет PR с новыми `sha-…` в `docker-compose.yml`.
 
 ## 8. Миграция
 
@@ -178,7 +178,7 @@ docker compose up -d
 | Нет токена локально | `gh auth login` + `gh auth refresh -s read:packages` |
 | Токен попал в образ | только BuildKit secret, не `ARG`/`--build-arg` |
 | CI проверяет не тот Shared | Сначала выпустить Shared из merged source-тега, затем обновить потребителей отдельным PR |
-| Образ устарел | после публикации обновить `sha-…` в compose; автоматизация — техдолг #139 |
+| Compose не обновили после публикации образа | workflow публикации на `main` завершается ошибкой до обновления `sha-…` в Compose (#139) |
 | Breaking change без major | SemVer + ревью публичного API |
 
 ## 10. FAQ
