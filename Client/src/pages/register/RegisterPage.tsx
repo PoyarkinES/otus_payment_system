@@ -1,15 +1,10 @@
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Container from '@mui/material/Container';
-import Paper from '@mui/material/Paper';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import { Link, useNavigate } from 'react-router';
-import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router';
+import { useState } from 'react';
 import { z } from 'zod';
 
 import { login, register } from '@/shared/api/generated/identity/endpoints/auth/auth';
 import { useAuth } from '@/shared/auth/AuthContext';
+import { AuthForm } from '@/shared/ui/AuthForm';
 import { ApiProblem } from '@/shared/api/problem';
 import type { AuthTokens } from '@/shared/api/generated/identity/model';
 
@@ -49,18 +44,15 @@ function describeError(status: number, title?: string): string {
 export function RegisterPage() {
     const { setTokens } = useAuth();
     const navigate = useNavigate();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
     const [errors, setErrors] = useState<Partial<Record<keyof RegisterFields, string>>>({});
     const [generalError, setGeneralError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
-    const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (fields: RegisterFields) => {
         setGeneralError(null);
         setErrors({});
 
-        const result = registerSchema.safeParse({ email, password });
+        const result = registerSchema.safeParse(fields);
         if (!result.success) {
             const fieldErrors: Partial<Record<keyof RegisterFields, string>> = {};
             for (const err of result.error.issues) {
@@ -110,51 +102,12 @@ export function RegisterPage() {
     };
 
     return (
-        <Container maxWidth="sm" className="flex items-center justify-center min-h-[60vh]">
-            <Paper elevation={2} className="w-full max-w-md p-8">
-                <Typography variant="h4" component="h1" className="mb-6 text-center">
-                    Регистрация
-                </Typography>
-
-                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                    <TextField
-                        label="Email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        error={!!errors.email}
-                        helperText={errors.email}
-                        disabled={loading}
-                        autoComplete="email"
-                        fullWidth
-                    />
-
-                    <TextField
-                        label="Пароль"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        error={!!errors.password}
-                        helperText={errors.password}
-                        disabled={loading}
-                        autoComplete="new-password"
-                        fullWidth
-                    />
-
-                    {generalError && <Alert severity="error">{generalError}</Alert>}
-
-                    <Button type="submit" variant="contained" size="large" disabled={loading}>
-                        {loading ? 'Регистрируем…' : 'Зарегистрироваться'}
-                    </Button>
-
-                    <Typography variant="body2" className="text-center">
-                        Уже есть аккаунт?{' '}
-                        <Link to="/login" className="no-underline">
-                            Войти
-                        </Link>
-                    </Typography>
-                </form>
-            </Paper>
-        </Container>
+        <AuthForm
+            mode="register"
+            errors={errors}
+            generalError={generalError}
+            loading={loading}
+            onSubmit={handleSubmit}
+        />
     );
 }
