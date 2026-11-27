@@ -21,25 +21,29 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Verify tag matches package versions
+      - name: Validate release tag version
+        id: validate
         shell: bash
         run: |
           tag_version="${GITHUB_REF_NAME#shared-v}"
-          kernel_version="$(dotnet msbuild Shared/src/Otus.PaymentSystem.SharedKernel/Otus.PaymentSystem.SharedKernel.csproj -getProperty:Version)"
-          aspnet_version="$(dotnet msbuild Shared/src/Otus.PaymentSystem.AspNetCore/Otus.PaymentSystem.AspNetCore.csproj -getProperty:Version)"
 
-          if [[ "$tag_version" != "$kernel_version" || "$tag_version" != "$aspnet_version" ]]; then
-            echo "Tag version ($tag_version) must match both package versions ($kernel_version, $aspnet_version)."
+          if [[ ! "$tag_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release tag must contain a valid SemVer version; got '$tag_version'."
             exit 1
           fi
 
+          echo "version=$tag_version" >> "$GITHUB_OUTPUT"
+          echo "Shared package version will be taken from release tag: $tag_version"
+
       - name: Pack Shared packages
+        env:
+          SHARED_VERSION: ${{ steps.validate.outputs.version }}
         run: |
           mkdir -p artifacts/packages
           dotnet pack Shared/src/Otus.PaymentSystem.SharedKernel/Otus.PaymentSystem.SharedKernel.csproj \
-            -c Release -o artifacts/packages
+            -p:Version="$SHARED_VERSION" -c Release -o artifacts/packages
           dotnet pack Shared/src/Otus.PaymentSystem.AspNetCore/Otus.PaymentSystem.AspNetCore.csproj \
-            -c Release -o artifacts/packages
+            -p:Version="$SHARED_VERSION" -c Release -o artifacts/packages
 
       - name: Publish to GitHub Packages
         env:
