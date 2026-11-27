@@ -13,7 +13,7 @@
 | 3. Демо | 3–5 мин | Показать стек и сценарий: register → wallet → deposit → hold → confirm → history; `GET /api/wallets` → 200. |
 | 4. Что сработало | 3 мин | PostgreSQL-тесты, bootstrap БД, smoke через Gateway, `latest`-образы, release-first Shared. |
 | 5. Что кусало | 4 мин | IdentityModel, NU1102 в CI, bootstrap БД, strict BFF, stacked PR, преждевременное закрытие #126. |
-| 6. Правила и долги | 2–3 мин | Что забираем в M3, что осталось: #86, transfers. |
+| 6. Правила и следующий шаг | 2–3 мин | Что забираем в M3 и какие задачи идут дальше. Закрытые долги не перечисляем. |
 
 ## Что вошло в M2
 
@@ -87,11 +87,13 @@ Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 5. **Закрывать issue после merge/rollout и smoke**, с конкретным результатом проверки.
 6. **Compose использует `latest` + `pull_policy: always`; CI проверяет наличие manifest**, а версии Shared — `bump-shared.ps1 -Check`.
 
-## Долги и следующий шаг
+## Следующий шаг
 
-- **#126** — закрыт: Shared `1.0.2`, потребители обновлены (#151), образы переведены на `latest` + `pull_policy: always` (#157).
-- **#137/#138/#139** — закрыты: artifact убран, проверки версий и Compose-образов в CI.
-- **#85 и #86** — закрыты (#155); следующая UI-задача — **#87**, переводы, после появления transfers API в M3.
-- **M3** — переводы, идемпотентность, Redis, hold/Fraud sync: [#54](https://github.com/PoyarkinES/otus_payment_system/issues/54) и далее по [dashboard #70](https://github.com/PoyarkinES/otus_payment_system/issues/70).
+Открытых долгов по M2 нет.
+
+- **M3 W9 (#54)** — переводы: идемпотентность, Redis-кэш получателя, hold.
+- Дальше по M3: **#55** — Fraud sync, confirm/release, `Confirming`; **#56** — outbox, аудит, UoW; **#57** — тесты, E2E, ретро.
+- **UI #87** — переводы, после появления transfers API; **#88** — E2E/accessibility, ближе к концу.
+- План и статус — [dashboard #70](https://github.com/PoyarkinES/otus_payment_system/issues/70).
 
 **Итог:** M2 закрыт досрочно; блокеров для M3 нет. Главный урок — не смешивать «код готов» и «релиз доехал»: версии, образы, issues и smoke должны сходиться в одной точке.
