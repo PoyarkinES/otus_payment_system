@@ -34,7 +34,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate Compose and pinned GHCR manifests
+      - name: Validate Compose and GHCR manifests
         env:
           POSTGRES_DB: otus_identity
           POSTGRES_USER: otus
@@ -48,14 +48,13 @@ jobs:
             prefix="ghcr.io/poyarkines/otus-payment-system-${service}:"
             matches=$(printf '%s\n' "$images" | grep -F -c "$prefix" || true)
             if [[ "$matches" -ne 1 ]]; then
-              echo "::error::Expected exactly one pinned image for $service; found $matches."
+              echo "::error::Expected exactly one image for $service; found $matches."
               exit 1
             fi
 
             image=$(printf '%s\n' "$images" | grep -F "$prefix")
-            tag="${image#"$prefix"}"
-            if [[ ! "$tag" =~ ^sha-[[:xdigit:]]{40}$ ]]; then
-              echo "::error::Expected a full sha-<commit> tag for $service; got '$tag'."
+            if [[ "$image" != *":latest" ]]; then
+              echo "::error::Expected the mutable :latest tag for $service; got '$image'."
               exit 1
             fi
 

@@ -98,7 +98,7 @@ See [ADR 0001](./docs/adr/0001-api-gateway.md).
 
 ## Compose demo stack
 
-`docker-compose.yml` runs PostgreSQL 17 and Identity, Wallets and Gateway. The three application images are public GHCR images pinned by commit SHA. The one-shot `wallets-db-bootstrap` service creates the separate `otus_wallets` database in the existing PostgreSQL instance; it is safe to run with a persistent volume and does not reset Identity data. Only Gateway is published on port `8080`.
+`docker-compose.yml` runs PostgreSQL 17 and Identity, Wallets and Gateway. The three application images are public GHCR images on the mutable `latest` tag; Compose uses `pull_policy: always`, so `docker compose pull && up -d` picks up the newest build. The one-shot `wallets-db-bootstrap` service creates the separate `otus_wallets` database in the existing PostgreSQL instance; it is safe to run with a persistent volume and does not reset Identity data. Only Gateway is published on port `8080`.
 
 ```powershell
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }

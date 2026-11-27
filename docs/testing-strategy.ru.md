@@ -89,7 +89,7 @@
 | Джоба | Что делает | Что ловит |
 |---|---|---|
 | `Shared package version check` | `scripts/bump-shared.ps1 -Check` | расхождение версии Shared и consumer-ссылок |
-| `Compose image tags` | `docker compose config` + `docker manifest inspect` для закреплённых GHCR SHA | неверный Compose, отсутствующий или не SHA-тег образа |
+| `Compose image tags` | `docker compose config` + `docker manifest inspect` для мутабельного `latest` | неверный Compose, отсутствующий manifest или не-`latest` тег |
 | `Build` (матрица 8 решений) | `dotnet build -c Release` | ошибки компиляции в любом контексте |
 | `Test (Shared/Gateway/Identity/Wallets)` | `dotnet test` + coverage | регрессии unit/host-тестов |
 | `Identity integration tests (PostgreSQL)` | тесты с реальным PostgreSQL | расхождения EF-маппинга и SQL |

@@ -48,7 +48,8 @@ services:
         fi
 
   identity:
-    image: ghcr.io/poyarkines/otus-payment-system-identity:sha-085ddb6ce8de82fd5b740132f6fafa6bd7536c2a
+    image: ghcr.io/poyarkines/otus-payment-system-identity:latest
+    pull_policy: always
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -69,7 +70,8 @@ services:
       start_period: 20s
 
   wallets:
-    image: ghcr.io/poyarkines/otus-payment-system-wallets:sha-085ddb6ce8de82fd5b740132f6fafa6bd7536c2a
+    image: ghcr.io/poyarkines/otus-payment-system-wallets:latest
+    pull_policy: always
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -89,7 +91,8 @@ services:
       start_period: 20s
 
   gateway:
-    image: ghcr.io/poyarkines/otus-payment-system-gateway:sha-085ddb6ce8de82fd5b740132f6fafa6bd7536c2a
+    image: ghcr.io/poyarkines/otus-payment-system-gateway:latest
+    pull_policy: always
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Development
