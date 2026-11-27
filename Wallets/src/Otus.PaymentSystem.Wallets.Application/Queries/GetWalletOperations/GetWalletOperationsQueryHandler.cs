@@ -22,6 +22,16 @@ namespace Otus.PaymentSystem.Wallets.Application.Queries.GetWalletOperations
                 throw new DomainException("Размер страницы должен быть от 1 до 100.", DomainError.Validation);
             }
 
+            if (query.Type.HasValue && !Enum.IsDefined(typeof(WalletTransactionType), query.Type.Value))
+            {
+                throw new DomainException("Неизвестный тип операции.", DomainError.Validation);
+            }
+
+            if (query.From is { } from && query.To is { } to && from > to)
+            {
+                throw new DomainException("Начало периода не может быть позже его окончания.", DomainError.Validation);
+            }
+
             Wallet? wallet = await wallets.GetByIdLightAsync(query.WalletId, cancellationToken);
             if (wallet == null)
             {
@@ -33,7 +43,14 @@ namespace Otus.PaymentSystem.Wallets.Application.Queries.GetWalletOperations
                 throw new DomainException("Доступ к чужой истории запрещён.", DomainError.Forbidden);
             }
 
-            PagedWalletTransactions transactionsPage = await wallets.GetTransactionsPageAsync(query.WalletId, query.Page, query.PageSize, cancellationToken);
+            PagedWalletTransactions transactionsPage = await wallets.GetTransactionsPageAsync(
+                query.WalletId,
+                query.Page,
+                query.PageSize,
+                query.Type,
+                query.From,
+                query.To,
+                cancellationToken);
             var items = transactionsPage.Items.Select(WalletOperationResult.From).ToList();
 
             return new WalletOperationsPageResult(

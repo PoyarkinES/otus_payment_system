@@ -108,13 +108,41 @@ public sealed class EfWalletRepository(WalletsDbContext db) : IWalletRepository
             .FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
     }
 
-    public async Task<PagedWalletTransactions> GetTransactionsPageAsync(Guid walletId, int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<PagedWalletTransactions> GetTransactionsPageAsync(
+        Guid walletId,
+        int page,
+        int pageSize,
+        WalletTransactionType? type = null,
+        DateOnly? from = null,
+        DateOnly? to = null,
+        CancellationToken cancellationToken = default)
     {
         var skip = (page - 1) * pageSize;
-        var totalCount = await db.WalletTransactions.CountAsync(t => t.WalletId == walletId, cancellationToken);
-        List<WalletTransaction> transactions = await db.WalletTransactions
+        IQueryable<WalletTransaction> query = db.WalletTransactions
             .AsNoTracking()
-            .Where(t => t.WalletId == walletId)
+            .Where(t => t.WalletId == walletId);
+
+        if (type.HasValue)
+        {
+            query = query.Where(t => t.Type == type.Value);
+        }
+
+        if (from.HasValue)
+        {
+            DateTimeOffset fromUtc = from.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            query = query.Where(t => t.CreatedAt >= fromUtc);
+        }
+
+        if (to.HasValue && to.Value < DateOnly.MaxValue)
+        {
+            DateTimeOffset toUtcExclusive = to.Value
+                .AddDays(1)
+                .ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            query = query.Where(t => t.CreatedAt < toUtcExclusive);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        List<WalletTransaction> transactions = await query
             .OrderByDescending(t => t.CreatedAt)
             .ThenByDescending(t => t.Id)
             .Skip(skip)

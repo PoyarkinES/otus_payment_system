@@ -77,6 +77,52 @@ public class WalletOperationsApiTests : IClassFixture<WalletApiFactory>
     }
 
     [Fact]
+    public async Task GetWalletOperations_FiltersBeforePaginating()
+    {
+        var client = CreateClient(Guid.NewGuid());
+        var wallet = await CreateWalletAsync(client);
+        using var deposit = await PostOperationAsync(client, wallet.Id, "deposit", 100m, Guid.NewGuid());
+        using var withdrawal = await PostOperationAsync(client, wallet.Id, "withdraw", 40m, Guid.NewGuid());
+        Assert.Equal(HttpStatusCode.OK, deposit.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, withdrawal.StatusCode);
+
+        var from = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1).ToString("yyyy-MM-dd");
+        var to = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1).ToString("yyyy-MM-dd");
+        var response = await client.GetAsync(
+            $"/wallets/{wallet.Id}/operations?type=TopUp&from={from}&to={to}&pageSize=1");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var page = await response.Content.ReadFromJsonAsync<OperationsPageResponse>();
+
+        Assert.NotNull(page);
+        Assert.Equal(1, page!.TotalCount);
+        Assert.Equal(1, page.TotalPages);
+        Assert.Equal("TopUp", Assert.Single(page.Items).Type);
+
+        var futureDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1).ToString("yyyy-MM-dd");
+        var futureResponse = await client.GetAsync(
+            $"/wallets/{wallet.Id}/operations?from={futureDate}&to={futureDate}");
+        Assert.Equal(HttpStatusCode.OK, futureResponse.StatusCode);
+        var futurePage = await futureResponse.Content.ReadFromJsonAsync<OperationsPageResponse>();
+        Assert.NotNull(futurePage);
+        Assert.Empty(futurePage!.Items);
+        Assert.Equal(0, futurePage.TotalCount);
+    }
+
+    [Theory]
+    [InlineData("?type=NotAnOperation")]
+    [InlineData("?from=2026-02-02&to=2026-02-01")]
+    public async Task GetWalletOperations_InvalidFilters_Returns400(string query)
+    {
+        var client = CreateClient(Guid.NewGuid());
+        var wallet = await CreateWalletAsync(client);
+
+        var response = await client.GetAsync($"/wallets/{wallet.Id}/operations{query}");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task GetWalletOperations_PageBeyondEnd_ReturnsEmptyItemsAndRealTotalCount()
     {
         var client = CreateClient(Guid.NewGuid());

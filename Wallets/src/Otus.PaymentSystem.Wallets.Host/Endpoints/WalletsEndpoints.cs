@@ -9,6 +9,7 @@ using Otus.PaymentSystem.Wallets.Application.Commands.DepositWallet;
 using Otus.PaymentSystem.Wallets.Application.Commands.WithdrawWallet;
 using Otus.PaymentSystem.Wallets.Application.Queries.GetWalletOperations;
 using Otus.PaymentSystem.Wallets.Application.Queries.ListUserWallets;
+using Otus.PaymentSystem.Wallets.Domain.Aggregates;
 
 namespace Otus.PaymentSystem.Wallets.Host.Endpoints;
 
@@ -134,6 +135,9 @@ public static class WalletsEndpoints
         Guid id,
         [FromQuery] int? page,
         [FromQuery] int? pageSize,
+        [FromQuery] WalletTransactionType? type,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
         ClaimsPrincipal user,
         IMediator mediator,
         CancellationToken cancellationToken)
@@ -145,7 +149,7 @@ public static class WalletsEndpoints
         pageSize ??= 20;
 
         WalletOperationsPageResult result = await mediator.Send(
-            new GetWalletOperationsQuery(id, userId.Value, page.Value, pageSize.Value),
+            new GetWalletOperationsQuery(id, userId.Value, page.Value, pageSize.Value, type, from, to),
             cancellationToken);
         return Results.Ok(result);
     }
