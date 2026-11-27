@@ -23,6 +23,7 @@ const wallets = new Map<string, BffWalletResult>([
             held: 3500,
             total: 87750,
             status: 'Active',
+            recentOperations: [],
         },
     ],
 ]);
