@@ -1,5 +1,5 @@
 name: Shared NuGet packages
-description: Download Shared NuGet packages built by pack-shared and make them available to NuGet.
+description: Download Shared NuGet packages built by pack-shared and register them as a local NuGet source.
 
 runs:
   using: composite
@@ -9,3 +9,7 @@ runs:
       with:
         name: shared-packages
         path: artifacts/packages
+
+    - name: Add local NuGet source
+      shell: bash
+      run: dotnet nuget add source artifacts/packages --name shared-packages --configfile NuGet.config

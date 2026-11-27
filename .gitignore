@@ -25,9 +25,12 @@ bld/
 
 ## NuGet
 artifacts/
+!artifacts/
 *.nupkg
 *.snupkg
 packages/
+!artifacts/packages/
+!artifacts/packages/.gitkeep
 
 ## Local docker overrides
 docker-compose.override.yml
