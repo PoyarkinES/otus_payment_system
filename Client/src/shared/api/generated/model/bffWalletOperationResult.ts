@@ -7,17 +7,15 @@
  */
 
 export interface BffWalletOperationResult {
-    id?: string;
+    id: string;
     /** @nullable */
     referenceId?: string | null;
-    /** @nullable */
-    type?: string | null;
-    amount?: number;
-    /** @nullable */
-    currency?: string | null;
-    balanceBefore?: number;
-    balanceAfter?: number;
+    type: string;
+    amount: number;
+    currency: string;
+    balanceBefore: number;
+    balanceAfter: number;
     /** @nullable */
     description?: string | null;
-    createdAt?: string;
+    createdAt: string;
 }

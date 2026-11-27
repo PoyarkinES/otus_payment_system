@@ -47,6 +47,12 @@ builder.Services.AddSwaggerGen(options =>
         Description = "Единая точка входа для клиента: BFF-агрегаты /bff/* и проксирование /api/identity/**."
     });
 
+    // Строгий контракт BFF: различать string и string? в OpenAPI-спеке.
+    // SupportNonNullableReferenceTypes помечает nullable свойства флагом "nullable": true,
+    // а SchemaFilter заполняет массив "required" для non-nullable свойств.
+    options.SupportNonNullableReferenceTypes();
+    options.SchemaFilter<RequireNonNullablePropertiesSchemaFilter>();
+
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Type = SecuritySchemeType.Http,

@@ -8,7 +8,6 @@
 import type { BffServiceStatus } from './bffServiceStatus';
 
 export interface BffHealthResult {
-    /** @nullable */
-    status?: string | null;
-    services?: BffServiceStatus;
+    status: string;
+    services: BffServiceStatus;
 }

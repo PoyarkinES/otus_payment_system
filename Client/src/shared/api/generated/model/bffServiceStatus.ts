@@ -7,8 +7,6 @@
  */
 
 export interface BffServiceStatus {
-    /** @nullable */
-    gateway?: string | null;
-    /** @nullable */
-    identity?: string | null;
+    gateway: string;
+    identity: string;
 }
