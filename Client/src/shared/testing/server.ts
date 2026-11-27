@@ -12,6 +12,9 @@ export const server = setupServer(
     http.get('http://localhost:8080/bff/me', () =>
         HttpResponse.json({ userId: 'test-user', email: 'test@example.com', role: 'User' }),
     ),
+    http.get('http://localhost:8080/bff/wallets', () =>
+        HttpResponse.json({ wallets: [], totals: [] }),
+    ),
     http.get('http://localhost:8080/api/identity/users/me', () =>
         HttpResponse.json({
             userId: 'test-user',

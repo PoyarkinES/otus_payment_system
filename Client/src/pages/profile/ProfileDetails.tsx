@@ -15,7 +15,7 @@ type ProfileDetailsProps = {
     userId?: string;
 };
 
-function Detail({ label, value }: { label: string; value: string }) {
+export function Detail({ label, value }: { label: string; value: string }) {
     return (
         <div className="flex min-w-0 flex-col gap-1">
             <Typography component="dt" variant="body2" color="text.secondary">
@@ -30,7 +30,11 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 export function ProfileDetails({ email, status, roleLabel, userId }: ProfileDetailsProps) {
     return (
-        <Paper component="dl" variant="outlined" className="m-0 grid gap-5 p-5 sm:grid-cols-2">
+        <Paper
+            component="dl"
+            variant="outlined"
+            className="m-0 grid gap-5 p-5 sm:grid-cols-3 sm:p-6"
+        >
             <Detail label="Email" value={email || 'Не указан'} />
             {roleLabel && <Detail label="Роль" value={roleLabel} />}
             <Detail

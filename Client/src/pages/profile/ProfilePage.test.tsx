@@ -1,9 +1,9 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { clearTokens } from '@/shared/api/auth/storage';
+import { clearTokens, getSnapshot } from '@/shared/api/auth/storage';
 import { renderRoute } from '@/shared/testing/render';
 import { server } from '@/shared/testing/server';
 
@@ -36,7 +36,7 @@ describe('ProfilePage', () => {
         expect(await screen.findByRole('heading', { level: 1, name: 'Профиль' })).toBeVisible();
     });
 
-    it('starts the next account on its default page after an explicit logout from an admin page', async () => {
+    it('revokes the refreshed session from the profile and opens the default page for the next account', async () => {
         const user = userEvent.setup();
         const tokens = {
             accessToken: 'access-token',
@@ -44,18 +44,26 @@ describe('ProfilePage', () => {
             expiresAt: new Date(Date.now() + 3600_000).toISOString(),
             refreshExpiresAt: new Date(Date.now() + 86400_000).toISOString(),
         };
-        const revoke = vi.fn(() => new HttpResponse(null, { status: 204 }));
+        const revoked = vi.fn();
         server.use(
             http.post('*/api/identity/auth/refresh', () => HttpResponse.json(tokens)),
-            http.post('*/api/identity/auth/logout', revoke),
+            http.post('*/api/identity/auth/logout', async ({ request }) => {
+                revoked(request.headers.get('Authorization'), await request.json());
+                return new HttpResponse(null, { status: 204 });
+            }),
             http.post('*/api/identity/auth/login', () => HttpResponse.json(tokens)),
         );
         mockAccount('Admin', 'Active');
         renderRoute('/admin/users', true);
         await screen.findByRole('textbox', { name: 'UUID пользователя' });
-        await user.click(screen.getByRole('button', { name: 'Выйти' }));
+        expect(screen.queryByRole('button', { name: 'Выйти' })).not.toBeInTheDocument();
+        await user.click(screen.getByRole('link', { name: 'Профиль' }));
+        await user.click(within(screen.getByRole('main')).getByRole('button', { name: 'Выйти' }));
         expect(await screen.findByRole('heading', { name: 'Вход' })).toBeVisible();
-        expect(revoke).toHaveBeenCalledOnce();
+        expect(revoked.mock.calls).toEqual([
+            ['Bearer access-token', { refreshToken: 'refresh-token' }],
+        ]);
+        expect(getSnapshot().refreshToken).toBeNull();
         await user.type(screen.getByLabelText('Email'), 'next@example.test');
         await user.type(screen.getByLabelText('Пароль'), 'test-password');
         await user.click(screen.getByRole('button', { name: 'Войти' }));
@@ -74,6 +82,9 @@ describe('ProfilePage', () => {
             renderRoute('/profile', true);
 
             expect(screen.getByRole('status')).toBeInTheDocument();
+            expect(
+                within(screen.getByRole('main')).getByRole('button', { name: 'Выйти' }),
+            ).toBeEnabled();
             expect(await screen.findByText('me@example.com')).toBeInTheDocument();
             expect(screen.getByText(roleLabel)).toBeInTheDocument();
             expect(screen.getByText(statusLabel)).toBeInTheDocument();
@@ -92,6 +103,9 @@ describe('ProfilePage', () => {
         renderRoute('/profile', true);
 
         expect(await screen.findByText('Сервис временно недоступен')).toBeInTheDocument();
+        expect(
+            within(screen.getByRole('main')).getByRole('button', { name: 'Выйти' }),
+        ).toBeEnabled();
         expect(screen.queryByRole('link', { name: 'Поиск пользователя' })).not.toBeInTheDocument();
 
         mockAccount('Admin', 'Active');
