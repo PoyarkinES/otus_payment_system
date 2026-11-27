@@ -10,7 +10,7 @@
 |---|---:|---|
 | 1. Итог | 1–2 мин | M2 закрыт досрочно: Wallets, holds, Compose, Shared, UI-кошелёк. Эпик и milestone закрыты. |
 | 2. Что вошло | 3 мин | Пройти по таблице: #50–#53, #128, Shared 1.0.1 → 1.0.2, образы, UI #84/#85. |
-| 3. Демо | 3–5 мин | Показать стек и сценарий: register → wallet → deposit → hold → confirm → history; `GET /api/wallets` → 200. |
+| 3. Демо | 3–5 мин | Показать сценарий в UI: login/register → кошелёк → пополнение → резерв → подтверждение → история. Консоль Gateway не нужна. |
 | 4. Что сработало | 3 мин | PostgreSQL-тесты, bootstrap БД, smoke через Gateway, SHA-образы, release-first Shared. |
 | 5. Что кусало | 4 мин | IdentityModel, NU1102 в CI, bootstrap БД, strict BFF, stacked PR, преждевременное закрытие #126. |
 | 6. Правила и долги | 2–3 мин | Что забираем в M3, что осталось: #86, transfers. |
@@ -36,21 +36,19 @@
 
 ## Демо
 
-Полный сценарий — [demo-m2.ru.md](./demo-m2.ru.md). Для рассказа достаточно:
+Демо идёт **через UI**, консоль Gateway не нужна. Backend уже поднят; открываем [http://localhost:5173](http://localhost:5173).
 
-```powershell
-docker compose -f docker-compose.yml ps -a
-# postgres, identity, wallets, gateway — healthy
-# wallets-db-bootstrap — Exited (0)
+Сценарий:
 
-Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
-# gateway + identity: ok; Wallets проверяется отдельно
+1. Войти демо-админом или зарегистрировать нового пользователя.
+2. Открыть «Кошельки»; если кошелька нет — создать рублёвый.
+3. Пополнить кошелёк и показать `available`/`held`.
+4. Создать резерв на UUID получателя; подтвердить или освободить его.
+5. Открыть «Историю операций»: показать записи, фильтры и подгрузку страниц.
 
-# register → login → create wallet → deposit → hold → confirm → history
-# финал: GET /api/wallets через Gateway → 200
-```
+Полный API-сценарий остаётся в [demo-m2.ru.md](./demo-m2.ru.md) как справочник для разработки, но для ретро его показывать не нужно.
 
-Если демо не запускается — показать `ps -a`, `GET /api/wallets` и сказать, что smoke уже пройден на этом стеке; не тратить ретро на отладку.
+Если UI не открывается — показать заранее сделанные скриншоты/запись сценария. Не переключать рассказ на консоль и не отлаживать стек на ретро.
 
 ## Что сработало
 
