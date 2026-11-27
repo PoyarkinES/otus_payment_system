@@ -41,16 +41,26 @@ describe('router', () => {
             getBffWalletsMockHandler({
                 wallets: [
                     {
-                        id: 'wallet-1',
+                        id: '00000000-0000-4000-8000-000000000002',
                         currency: 'RUB',
-                        available: 0,
-                        held: 0,
-                        total: 0,
+                        available: 84250,
+                        held: 3500,
+                        total: 87750,
                         status: 'Active',
                         recentOperations: [],
                     },
                 ],
+                totals: [],
             }),
+            http.get('*/api/wallets/:walletId/operations', () =>
+                HttpResponse.json({
+                    items: [],
+                    page: 1,
+                    pageSize: 20,
+                    totalCount: 0,
+                    totalPages: 0,
+                }),
+            ),
         );
         renderRoute('/wallets', true);
         const navigation = within(screen.getByRole('navigation', { name: 'Основная навигация' }));

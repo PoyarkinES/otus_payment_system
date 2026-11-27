@@ -203,11 +203,14 @@
   "components": {
     "schemas": {
       "BffHealthResult": {
+        "required": [
+          "services",
+          "status"
+        ],
         "type": "object",
         "properties": {
           "status": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "services": {
             "$ref": "#/components/schemas/BffServiceStatus"
@@ -216,6 +219,11 @@
         "additionalProperties": false
       },
       "BffMeResult": {
+        "required": [
+          "email",
+          "role",
+          "userId"
+        ],
         "type": "object",
         "properties": {
           "userId": {
@@ -223,36 +231,41 @@
             "format": "uuid"
           },
           "email": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "role": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           }
         },
         "additionalProperties": false
       },
       "BffServiceStatus": {
+        "required": [
+          "gateway",
+          "identity"
+        ],
         "type": "object",
         "properties": {
           "gateway": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "identity": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           }
         },
         "additionalProperties": false
       },
       "BffWalletCurrencyTotalResult": {
+        "required": [
+          "available",
+          "currency",
+          "held",
+          "total"
+        ],
         "type": "object",
         "properties": {
           "currency": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "available": {
             "type": "number",
@@ -270,6 +283,15 @@
         "additionalProperties": false
       },
       "BffWalletOperationResult": {
+        "required": [
+          "amount",
+          "balanceAfter",
+          "balanceBefore",
+          "createdAt",
+          "currency",
+          "id",
+          "type"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -282,16 +304,14 @@
             "nullable": true
           },
           "type": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "amount": {
             "type": "number",
             "format": "double"
           },
           "currency": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "balanceBefore": {
             "type": "number",
@@ -313,6 +333,15 @@
         "additionalProperties": false
       },
       "BffWalletResult": {
+        "required": [
+          "available",
+          "currency",
+          "held",
+          "id",
+          "recentOperations",
+          "status",
+          "total"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -320,8 +349,7 @@
             "format": "uuid"
           },
           "currency": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "available": {
             "type": "number",
@@ -336,35 +364,35 @@
             "format": "double"
           },
           "status": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "recentOperations": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/BffWalletOperationResult"
-            },
-            "nullable": true
+            }
           }
         },
         "additionalProperties": false
       },
       "BffWalletsResult": {
+        "required": [
+          "totals",
+          "wallets"
+        ],
         "type": "object",
         "properties": {
           "wallets": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/BffWalletResult"
-            },
-            "nullable": true
+            }
           },
           "totals": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/BffWalletCurrencyTotalResult"
-            },
-            "nullable": true
+            }
           }
         },
         "additionalProperties": false
