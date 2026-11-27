@@ -33,7 +33,7 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-    /** Сохранить пару токенов после login/refresh. */
+    /** Начать новую сессию с токенами, полученными при входе. */
     setTokens: (tokens: AuthTokens) => void;
     /** Очистить всё — при logout или неудачном refresh. */
     clearTokens: () => void;

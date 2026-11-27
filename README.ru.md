@@ -129,6 +129,8 @@ Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 генерируется из `openapi/gateway.v1.json`. Сейчас есть каркас и страница «Статус системы»
 (`/bff/health`); BFF API-сводка кошельков доступна через `/bff/wallets`, но экран кошельков ещё не реализован.
 
+В профиле `/profile` видны email, роль и статус аккаунта. Активному администратору доступен поиск пользователя по UUID на странице `/admin/users`.
+
 ```bash
 cd Client
 npm ci

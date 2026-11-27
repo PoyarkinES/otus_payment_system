@@ -9,6 +9,15 @@ Gateway** — прямых адресов Identity, Wallets и других се
 (refresh), защищённые маршруты и выход. Токены хранятся только в памяти (memory),
 пароль не попадает в localStorage. [#83](https://github.com/PoyarkinES/otus_payment_system/issues/83)
 
+## Профиль
+
+На странице `/profile` видны email и роль из `GET /bff/me` и статус аккаунта из `GET /api/identity/users/me`.
+Активный администратор может открыть `/admin/users` и найти пользователя по UUID.
+
+В режиме `npm run dev:mocks` войдите как `admin@otus.local` с любым непустым паролем и
+поищите демонстрационный аккаунт по UUID `00000000-0000-4000-8000-000000000001`.
+Другие email получают роль пользователя.
+
 ## Карта папок
 
 ```

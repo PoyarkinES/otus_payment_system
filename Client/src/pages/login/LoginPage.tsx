@@ -5,7 +5,6 @@ import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
 
@@ -42,7 +41,6 @@ export function LoginPage() {
     const { setTokens } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
-    const queryClient = useQueryClient();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errors, setErrors] = useState<Partial<Record<keyof LoginFields, string>>>({});
@@ -76,8 +74,6 @@ export function LoginPage() {
             // apiFetch бросает на 4xx/5xx, поэтому при успехе data — AuthTokens.
             const tokens = resp.data as AuthTokens;
             setTokens(tokens);
-            // Очищаем кэш React Query, чтобы данные подгрузились свежими.
-            queryClient.invalidateQueries();
             navigate(from, { replace: true });
         } catch (err) {
             if (err instanceof ApiProblem && err.status === 400 && err.errors) {

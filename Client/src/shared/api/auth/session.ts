@@ -8,19 +8,11 @@
  * - гарантию, что защищённые запросы идут с валидным access-токеном.
  *
  * Используется в AppLayout (logout) и других местах, где тело запроса
- * зависит от актуальных токенов и не может быть просто повторено через retryRequest.
+ * зависит от актуальных токенов.
  */
 
-import { refresh as authRefresh } from '@/shared/api/generated/identity/endpoints/auth/auth';
-import {
-    getAccessToken,
-    getRefreshToken,
-    getExpiresAt,
-    setTokensStorage,
-    clearTokens,
-} from '@/shared/api/auth/storage';
-import { ApiProblem } from '@/shared/api/problem';
-import type { AuthTokens } from '@/shared/api/generated/identity/model';
+import { getAccessToken, getRefreshToken, getExpiresAt } from '@/shared/api/auth/storage';
+import { refreshSession } from '@/shared/api/http';
 
 /**
  * Запас в миллисекундах для проактивного refresh.
@@ -54,31 +46,14 @@ export function isAccessTokenFresh(): boolean {
 /**
  * Обновляет сессию через refresh, если access-токен не свежий.
  * Возвращает true, если сессия обновлена или уже была свежей.
- * Возвращает false, если refresh не удался (токены очищены).
+ * Возвращает false, если refresh не удался.
  */
 export async function ensureFreshSession(): Promise<boolean> {
     if (isAccessTokenFresh()) return true;
 
-    const rt = getRefreshToken();
-    if (!rt) return false;
-
     try {
-        const result = await authRefresh({ refreshToken: rt });
-        // apiFetch бросает на 4xx/5xx, поэтому при успехе data — AuthTokens.
-        const tokens = result.data as AuthTokens;
-        setTokensStorage(
-            tokens.accessToken,
-            tokens.refreshToken,
-            tokens.expiresAt,
-            tokens.refreshExpiresAt,
-        );
-        return true;
-    } catch (error) {
-        // Очищаем токены только при невалидном refresh (400/401).
-        if (error instanceof ApiProblem && (error.status === 400 || error.status === 401)) {
-            clearTokens();
-        }
-        // При сети, 429, 5xx — не чистим токены.
+        return await refreshSession();
+    } catch {
         return false;
     }
 }

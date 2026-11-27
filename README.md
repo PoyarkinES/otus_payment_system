@@ -117,6 +117,8 @@ and its API client is generated from `openapi/gateway.v1.json`. It currently has
 scaffold and a "System status" page (`/bff/health`); the Gateway also exposes the read-only
 wallet summary at `/bff/wallets`, while the wallet UI remains future work.
 
+The profile at `/profile` shows the signed-in user’s email, role, and account status. Active administrators can look up a user by UUID at `/admin/users`.
+
 ```bash
 cd Client
 npm ci
