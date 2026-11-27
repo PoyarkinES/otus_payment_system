@@ -67,6 +67,14 @@ describe('RegisterPage', () => {
         expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/login');
     });
 
+    it('describes the password requirements before the user types', () => {
+        renderRoute('/register');
+
+        expect(screen.getByLabelText('Пароль')).toHaveAccessibleDescription(
+            /8.*128.*латинская буква.*цифра/,
+        );
+    });
+
     it('shows validation error for short password', async () => {
         renderRoute('/register');
 

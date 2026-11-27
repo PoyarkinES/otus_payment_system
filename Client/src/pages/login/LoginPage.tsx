@@ -1,16 +1,11 @@
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Container from '@mui/material/Container';
-import Paper from '@mui/material/Paper';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import { Link, useLocation, useNavigate, type Path } from 'react-router';
+import { useLocation, useNavigate, type Path } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { z } from 'zod';
 
 import { login } from '@/shared/api/generated/identity/endpoints/auth/auth';
 import { useAuth } from '@/shared/auth/AuthContext';
+import { AuthForm } from '@/shared/ui/AuthForm';
 import { ApiProblem } from '@/shared/api/problem';
 import type { AuthTokens } from '@/shared/api/generated/identity/model';
 
@@ -43,8 +38,6 @@ export function LoginPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const queryClient = useQueryClient();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
     const [errors, setErrors] = useState<Partial<Record<keyof LoginFields, string>>>({});
     const [generalError, setGeneralError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -52,12 +45,11 @@ export function LoginPage() {
     // Восстанавливаем страницу, на которую пользователь хотел попасть до редиректа на login.
     const from = (location.state as { from?: Path } | null)?.from ?? '/wallets';
 
-    const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (fields: LoginFields) => {
         setGeneralError(null);
         setErrors({});
 
-        const result = loginSchema.safeParse({ email, password });
+        const result = loginSchema.safeParse(fields);
         if (!result.success) {
             const fieldErrors: Partial<Record<keyof LoginFields, string>> = {};
             for (const err of result.error.issues) {
@@ -102,51 +94,12 @@ export function LoginPage() {
     };
 
     return (
-        <Container maxWidth="sm" className="flex items-center justify-center min-h-[60vh]">
-            <Paper elevation={2} className="w-full max-w-md p-8">
-                <Typography variant="h4" component="h1" className="mb-6 text-center">
-                    Вход
-                </Typography>
-
-                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                    <TextField
-                        label="Email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        error={!!errors.email}
-                        helperText={errors.email}
-                        disabled={loading}
-                        autoComplete="email"
-                        fullWidth
-                    />
-
-                    <TextField
-                        label="Пароль"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        error={!!errors.password}
-                        helperText={errors.password}
-                        disabled={loading}
-                        autoComplete="current-password"
-                        fullWidth
-                    />
-
-                    {generalError && <Alert severity="error">{generalError}</Alert>}
-
-                    <Button type="submit" variant="contained" size="large" disabled={loading}>
-                        {loading ? 'Входим…' : 'Войти'}
-                    </Button>
-
-                    <Typography variant="body2" className="text-center">
-                        Нет аккаунта?{' '}
-                        <Link to="/register" className="no-underline">
-                            Зарегистрироваться
-                        </Link>
-                    </Typography>
-                </form>
-            </Paper>
-        </Container>
+        <AuthForm
+            mode="login"
+            errors={errors}
+            generalError={generalError}
+            loading={loading}
+            onSubmit={handleSubmit}
+        />
     );
 }
