@@ -1,7 +1,8 @@
-import { act, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter, RouterProvider } from 'react-router';
+import { VirtuosoMockContext } from 'react-virtuoso';
 import { describe, expect, it } from 'vitest';
 
 import { AmountVisibilityProvider } from '@/pages/wallets/AmountVisibility';
@@ -23,7 +24,11 @@ function serveWallets(wallets = [rub]) {
     );
 }
 
-function serveHistory(count: number) {
+function serveHistory(
+    count: number,
+    { failPageTwoOnce = false, prependBeforePageTwo = false } = {},
+) {
+    const requests: number[] = [];
     const records = Array.from({ length: count }, (_, index) => ({
         id: `op-${index}`,
         referenceId: null,
@@ -40,81 +45,91 @@ function serveHistory(count: number) {
             const params = new URL(request.url).searchParams;
             const page = Number(params.get('page'));
             const pageSize = Number(params.get('pageSize'));
-            if (page < 1 || ![10, 20, 50].includes(pageSize)) {
+            requests.push(page);
+            if (page === 2 && failPageTwoOnce) {
+                failPageTwoOnce = false;
+                return new HttpResponse(null, { status: 503 });
+            }
+            if (page < 1 || pageSize !== 20) {
                 return new HttpResponse(null, { status: 400 });
+            }
+            if (page === 2 && prependBeforePageTwo) {
+                records.unshift({ ...records[0], id: 'new-operation' });
+                prependBeforePageTwo = false;
             }
             return HttpResponse.json({
                 items: records.slice((page - 1) * pageSize, page * pageSize),
                 page,
                 pageSize,
-                totalCount: count,
-                totalPages: Math.ceil(count / pageSize),
+                totalCount: records.length,
+                totalPages: Math.ceil(records.length / pageSize),
             });
         }),
     );
+    return requests;
 }
 
-function openPage(path = '/operations') {
+function openPage(viewportHeight = 160) {
     const router = createMemoryRouter(
         [
             {
                 path: '/operations',
                 element: (
                     <AmountVisibilityProvider>
-                        <OperationsPage />
+                        <VirtuosoMockContext.Provider value={{ itemHeight: 64, viewportHeight }}>
+                            <OperationsPage />
+                        </VirtuosoMockContext.Provider>
                     </AmountVisibilityProvider>
                 ),
             },
         ],
-        { initialEntries: [path] },
+        { initialEntries: ['/operations'] },
     );
-    renderWithProviders(<RouterProvider router={router} />);
-    return router;
+    return renderWithProviders(<RouterProvider router={router} />);
 }
 
 describe('OperationsPage', () => {
-    it('opens a deep-linked page for the RUB wallet and displays the server order and totals', async () => {
+    it('shows the newest records in server order and only renders the viewport and its buffer', async () => {
         serveWallets([{ id: 'other', currency: 'USD' }, rub]);
-        serveHistory(23);
-        openPage('/operations?page=3');
-
-        expect(screen.getByRole('status')).toHaveTextContent('Загружаем');
-        const rows = await screen.findAllByRole('listitem');
-        expect(rows).toHaveLength(3);
-        expect(rows[0]).toHaveTextContent('+3,00 ₽');
-        expect(rows[2]).toHaveTextContent('+1,00 ₽');
-        expect(screen.getByText('21–23 из 23')).toBeVisible();
-        expect(screen.getByText('Страница 3 из 3')).toBeVisible();
-        expect(screen.getByRole('button', { name: 'Следующая страница' })).toBeDisabled();
+        const requests = serveHistory(68);
+        openPage();
+        const first = await screen.findByText('+68,00 ₽');
+        const rows = screen.getAllByRole('listitem');
+        expect(rows[0]).toContainElement(first);
+        expect(rows[1]).toHaveTextContent('+67,00 ₽');
+        expect(rows.length).toBeLessThan(20);
+        expect(rows[0]).toHaveAttribute('aria-setsize', '68');
+        expect(screen.queryByRole('combobox')).toBeNull();
+        expect(requests).toEqual([1]);
     });
 
-    it('changes pages, resets the page when resizing and restores it on Back', async () => {
+    it('fetches more when the viewport reaches the end and stops after the last page', async () => {
         serveWallets();
-        serveHistory(23);
-        const router = openPage();
-        await screen.findByText('1–10 из 23');
-        expect(screen.getByRole('button', { name: 'Предыдущая страница' })).toBeDisabled();
-
-        await userEvent.click(screen.getByRole('button', { name: 'Следующая страница' }));
-        await screen.findByText('11–20 из 23');
-        expect(new URLSearchParams(router.state.location.search).get('page')).toBe('2');
-        await userEvent.selectOptions(screen.getByRole('combobox', { name: 'На странице' }), '20');
-        await screen.findByText('1–20 из 23');
-        expect(screen.getAllByRole('listitem')).toHaveLength(20);
-        expect(new URLSearchParams(router.state.location.search).get('pageSize')).toBe('20');
-
-        await act(() => router.navigate(-1));
-        await screen.findByText('11–20 из 23');
-        expect(screen.getByRole('combobox', { name: 'На странице' })).toHaveValue('10');
+        const requests = serveHistory(23);
+        openPage(2000);
+        await screen.findByText('+1,00 ₽');
+        expect(screen.getAllByRole('listitem')).toHaveLength(23);
+        expect(requests).toEqual([1, 2]);
     });
 
-    it('redirects a link beyond the end to the last available page', async () => {
+    it('shows each operation once when a new credit shifts the page boundary', async () => {
         serveWallets();
-        serveHistory(12);
-        const router = openPage('/operations?page=9');
-        await screen.findByText('11–12 из 12');
-        expect(new URLSearchParams(router.state.location.search).get('page')).toBe('2');
-        expect(screen.getAllByRole('listitem')).toHaveLength(2);
+        serveHistory(23, { prependBeforePageTwo: true });
+        openPage(2000);
+        await screen.findByText('+1,00 ₽');
+        expect(screen.getAllByRole('listitem')).toHaveLength(23);
+        expect(screen.getAllByText('+4,00 ₽')).toHaveLength(1);
+    });
+
+    it('keeps the first page visible and retries an unsuccessful append', async () => {
+        serveWallets();
+        const requests = serveHistory(23, { failPageTwoOnce: true });
+        openPage(2000);
+        expect(await screen.findByRole('alert')).toHaveTextContent('Сервис временно недоступен');
+        expect(screen.getByText('+23,00 ₽')).toBeVisible();
+        await userEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+        await screen.findByText('+1,00 ₽');
+        expect(requests).toEqual([1, 2, 2]);
     });
 
     it('displays the empty ledger after retrying an unavailable history endpoint', async () => {
@@ -138,9 +153,8 @@ describe('OperationsPage', () => {
         );
     });
 
-    it('cancels an obsolete request when a new page size is selected', async () => {
+    it('cancels the request when leaving the history', async () => {
         serveWallets();
-        serveHistory(23);
         let firstRequest: Request | undefined;
         let release!: () => void;
         const deferred = new Promise<void>((resolve) => {
@@ -163,14 +177,10 @@ describe('OperationsPage', () => {
                 { once: true },
             ),
         );
-        openPage();
+        const { unmount } = openPage();
         try {
             await waitFor(() => expect(firstRequest).toBeDefined());
-            await userEvent.selectOptions(
-                screen.getByRole('combobox', { name: 'На странице' }),
-                '50',
-            );
-            await screen.findByText('1–23 из 23');
+            unmount();
             expect(firstRequest?.signal.aborted).toBe(true);
         } finally {
             release();

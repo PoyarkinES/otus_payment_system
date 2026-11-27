@@ -2,6 +2,7 @@ import { createTheme } from '@mui/material/styles';
 
 const inter = '"Inter Variable", system-ui, sans-serif';
 const heading = { fontFamily: inter, fontWeight: 650, letterSpacing: '-0.025em' };
+export const incomingOperationColors = { foreground: '#087468', background: '#E2F3EE' };
 export const amountTypography = {
     fontFamily: inter,
     fontVariantNumeric: 'lining-nums tabular-nums',
