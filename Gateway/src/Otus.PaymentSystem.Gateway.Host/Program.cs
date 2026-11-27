@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Otus.PaymentSystem.AspNetCore;
@@ -11,6 +12,7 @@ using Serilog;
 using Serilog.Formatting.Compact;
 using System;
 using System.Globalization;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using System.Threading.RateLimiting;
 using Otus.PaymentSystem.AspNetCore.Problems;
@@ -80,12 +82,17 @@ if (string.IsNullOrWhiteSpace(jwt.JwksUri))
         "Jwt:JwksUri не настроен. Gateway проверяет подпись по публичному ключу Identity.");
 }
 
-JwksKeyStore keyStore = new(new HttpClient { Timeout = TimeSpan.FromSeconds(5) }, jwt.JwksUri);
-builder.Services.AddSingleton(keyStore);
+builder.Services.AddSingleton(serviceProvider => new JwksKeyStore(
+    new HttpClient { Timeout = TimeSpan.FromSeconds(5) },
+    jwt.JwksUri,
+    serviceProvider.GetRequiredService<ILogger<JwksKeyStore>>()));
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+    .AddJwtBearer();
+
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<JwksKeyStore>((options, keyStore) =>
     {
         // Gateway проверяет токен локально и не ходит в Identity на каждый запрос.
         options.MapInboundClaims = false;
@@ -96,24 +103,38 @@ builder.Services
             ValidateAudience = true,
             ValidAudience = jwt.Audience,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKeyResolver = (_, _, kid, _) =>
-            {
-                IList<SecurityKey> keys = keyStore.Keys;
-
-                // Незнакомый kid = Identity перезапустился или ключ ротировали: обновляем кэш сразу,
-                // иначе новые токены будут получать 401 до истечения TTL.
-                if (kid is not null && keys.All(k => k.KeyId != kid))
-                {
-                    keyStore.RefreshAsync().GetAwaiter().GetResult();
-                    keys = keyStore.Keys;
-                }
-
-                return keys;
-            },
+            IssuerSigningKeyResolver = (_, _, _, _) => keyStore.Keys,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30),
             ValidAlgorithms = ["RS256"]
+        };
 
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = async context =>
+            {
+                const string bearerPrefix = "Bearer ";
+                string authorization = context.Request.Headers.Authorization.ToString();
+                if (!authorization.StartsWith(bearerPrefix, StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                string token = authorization[bearerPrefix.Length..].Trim();
+                var handler = new JwtSecurityTokenHandler();
+                if (!handler.CanReadToken(token))
+                    return;
+
+                try
+                {
+                    string? kid = handler.ReadJwtToken(token).Header.Kid;
+                    await keyStore.RefreshIfNeededAsync(kid, context.HttpContext.RequestAborted);
+                }
+                catch (ArgumentException)
+                {
+                }
+                catch (SecurityTokenException)
+                {
+                }
+            }
         };
     });
 
