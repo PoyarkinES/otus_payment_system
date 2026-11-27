@@ -88,7 +88,8 @@ We will enable a CI threshold after M3 stabilizes, when Payments and Fraud exist
 
 | Job | What it does | What it catches |
 |---|---|---|
-| `Pack Shared NuGet packages` | legacy: `dotnet pack` for two Shared projects + artifact; restore uses GitHub Packages | NuGet package versions and contents |
+| `Shared package version check` | `scripts/bump-shared.ps1 -Check` | Shared version differs from consumer references |
+| `Compose image tags` | `docker compose config` + `docker manifest inspect` for pinned GHCR SHAs | invalid Compose, missing manifest, or non-SHA image tag |
 | `Build` (matrix of 8 solutions) | `dotnet build -c Release` | compilation errors in any context |
 | `Test (Shared/Gateway/Identity/Wallets)` | `dotnet test` + coverage | regressions in unit/host tests |
 | `Identity integration tests (PostgreSQL)` | tests against real PostgreSQL | EF mapping and SQL discrepancies |
@@ -107,6 +108,8 @@ Filters in the `Test` matrix:
 - Wallets — `FullyQualifiedName!~Postgres & FullyQualifiedName!~IntegrationTests`.
 
 What is mandatory for a PR: every job above. A merge is blocked if any job is red: branch protection requires every mandatory check, including drift, integration tests, and the client.
+
+Image publishing is manual; after publishing, a separate check fails unless `docker-compose.yml` pins the just-published SHA.
 
 There is no nightly workflow yet. Candidates for it: a full run of all Postgres tests, a five-fold repeat of concurrency tests (`hold`/`confirm`/`deposit`/`withdraw`), a `docker compose` smoke run, and dependency vulnerability scanning. We will add it as a separate task when the first paid runner appears or PR run time grows.
 

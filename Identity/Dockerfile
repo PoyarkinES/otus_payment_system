@@ -4,7 +4,6 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 COPY Directory.Build.props NuGet.config ./
-COPY artifacts/packages/ artifacts/packages/
 
 COPY Identity/src/Otus.PaymentSystem.Identity.Domain/Otus.PaymentSystem.Identity.Domain.csproj Identity/src/Otus.PaymentSystem.Identity.Domain/
 COPY Identity/src/Otus.PaymentSystem.Identity.Application/Otus.PaymentSystem.Identity.Application.csproj Identity/src/Otus.PaymentSystem.Identity.Application/
@@ -12,10 +11,6 @@ COPY Identity/src/Otus.PaymentSystem.Identity.Infrastructure/Otus.PaymentSystem.
 COPY Identity/src/Otus.PaymentSystem.Identity.Host/Otus.PaymentSystem.Identity.Host.csproj Identity/src/Otus.PaymentSystem.Identity.Host/
 
 ARG NUGET_USERNAME=PoyarkinES
-
-RUN if ! dotnet nuget list source --configfile NuGet.config | grep -Fq "shared-packages"; then \
-        dotnet nuget add source artifacts/packages --name shared-packages --configfile NuGet.config; \
-    fi
 
 RUN --mount=type=secret,id=github_token \
     export NuGetPackageSourceCredentials_github="Username=${NUGET_USERNAME};Password=$(cat /run/secrets/github_token);ValidAuthenticationTypes=Basic" \
