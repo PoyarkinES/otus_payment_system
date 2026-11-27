@@ -1,4 +1,3 @@
-import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
@@ -6,7 +5,6 @@ import Typography from '@mui/material/Typography';
 import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
 
-import { CurrentAccount } from '@/pages/profile/CurrentAccount';
 import { ProfileDetails } from '@/pages/profile/ProfileDetails';
 import { useGetUserById } from '@/shared/api/generated/identity/endpoints/users/users';
 import { ErrorState } from '@/shared/ui/ErrorState';
@@ -14,7 +12,7 @@ import { LoadingState } from '@/shared/ui/LoadingState';
 
 const userIdSchema = z.guid();
 
-function UserLookup() {
+export function AdminUserPage() {
     const [input, setInput] = useState('');
     const [submittedId, setSubmittedId] = useState('');
     const [invalid, setInvalid] = useState(false);
@@ -35,7 +33,10 @@ function UserLookup() {
     }
 
     return (
-        <>
+        <section className="flex flex-col gap-4">
+            <Typography variant="h4" component="h1">
+                Поиск пользователя
+            </Typography>
             <Paper
                 component="form"
                 variant="outlined"
@@ -70,25 +71,6 @@ function UserLookup() {
                     userId={result.data.data.userId}
                 />
             )}
-        </>
-    );
-}
-
-export function AdminUserPage() {
-    return (
-        <section className="flex flex-col gap-4">
-            <Typography variant="h4" component="h1">
-                Поиск пользователя
-            </Typography>
-            <CurrentAccount>
-                {({ canLookUpUsers }) =>
-                    canLookUpUsers ? (
-                        <UserLookup />
-                    ) : (
-                        <Alert severity="warning">Недостаточно прав</Alert>
-                    )
-                }
-            </CurrentAccount>
         </section>
     );
 }

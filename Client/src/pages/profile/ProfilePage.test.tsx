@@ -31,12 +31,12 @@ afterEach(clearTokens);
 
 describe('ProfilePage', () => {
     it('opens the profile from the main navigation', async () => {
-        renderRoute('/', true);
+        renderRoute('/missing-page', true);
         await userEvent.click(screen.getByRole('link', { name: 'Профиль' }));
         expect(await screen.findByRole('heading', { level: 1, name: 'Профиль' })).toBeVisible();
     });
 
-    it('starts the next account on its default page after an explicit logout from the profile', async () => {
+    it('starts the next account on its default page after an explicit logout from an admin page', async () => {
         const user = userEvent.setup();
         const tokens = {
             accessToken: 'access-token',
@@ -50,18 +50,16 @@ describe('ProfilePage', () => {
             http.post('*/api/identity/auth/logout', revoke),
             http.post('*/api/identity/auth/login', () => HttpResponse.json(tokens)),
         );
-        renderRoute('/profile', true);
-        await screen.findByText('Активен');
+        mockAccount('Admin', 'Active');
+        renderRoute('/admin/users', true);
+        await screen.findByRole('textbox', { name: 'UUID пользователя' });
         await user.click(screen.getByRole('button', { name: 'Выйти' }));
         expect(await screen.findByRole('heading', { name: 'Вход' })).toBeVisible();
         expect(revoke).toHaveBeenCalledOnce();
         await user.type(screen.getByLabelText('Email'), 'next@example.test');
         await user.type(screen.getByLabelText('Пароль'), 'test-password');
         await user.click(screen.getByRole('button', { name: 'Войти' }));
-        expect(await screen.findByRole('button', { name: 'Выйти' })).toBeVisible();
-        expect(
-            screen.queryByRole('heading', { level: 1, name: 'Профиль' }),
-        ).not.toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'Профиль' })).toBeVisible();
     });
 
     it.each([
@@ -79,6 +77,7 @@ describe('ProfilePage', () => {
             expect(await screen.findByText('me@example.com')).toBeInTheDocument();
             expect(screen.getByText(roleLabel)).toBeInTheDocument();
             expect(screen.getByText(statusLabel)).toBeInTheDocument();
+            expect(screen.queryByText('Статус системы')).not.toBeInTheDocument();
             expect(
                 screen.queryByRole('link', { name: 'Поиск пользователя' }),
             ).not.toBeInTheDocument();
@@ -101,6 +100,34 @@ describe('ProfilePage', () => {
             'href',
             '/admin/users',
         );
+    });
+});
+
+describe('admin system status', () => {
+    it('opens system status from the profile of an active administrator', async () => {
+        mockAccount('Admin', 'Active');
+        renderRoute('/profile', true);
+
+        const link = await screen.findByRole('link', { name: 'Статус системы' });
+        expect(link).toHaveAttribute('href', '/admin/status');
+        await userEvent.click(link);
+
+        expect(await screen.findByText('Все сервисы работают')).toBeVisible();
+    });
+
+    it.each([
+        ['User', 'Active'],
+        ['Admin', 'Blocked'],
+    ])('denies direct access without fetching health for %s / %s', async (role, status) => {
+        mockAccount(role, status);
+        const health = vi.fn(() => HttpResponse.json({ status: 'ok', services: {} }));
+        server.use(http.get('*/bff/health', health));
+
+        renderRoute('/admin/status', true);
+
+        expect(await screen.findByText('Недостаточно прав')).toBeVisible();
+        expect(screen.queryByText('Статус системы')).not.toBeInTheDocument();
+        expect(health).not.toHaveBeenCalled();
     });
 });
 

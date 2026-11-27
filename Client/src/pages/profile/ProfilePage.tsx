@@ -23,22 +23,22 @@ export function ProfilePage() {
                 Профиль
             </Typography>
             <CurrentAccount>
-                {({ claims, status, canLookUpUsers }) => (
+                {({ claims, status, isActiveAdmin }) => (
                     <>
                         <ProfileDetails
                             email={claims.email}
                             roleLabel={roleLabel(claims.role)}
                             status={status}
                         />
-                        {canLookUpUsers && (
-                            <Button
-                                component={Link}
-                                to="/admin/users"
-                                variant="outlined"
-                                className="self-start"
-                            >
-                                Поиск пользователя
-                            </Button>
+                        {isActiveAdmin && (
+                            <nav aria-label="Администрирование" className="flex flex-wrap gap-3">
+                                <Button component={Link} to="/admin/users" variant="outlined">
+                                    Поиск пользователя
+                                </Button>
+                                <Button component={Link} to="/admin/status" variant="outlined">
+                                    Статус системы
+                                </Button>
+                            </nav>
                         )}
                     </>
                 )}

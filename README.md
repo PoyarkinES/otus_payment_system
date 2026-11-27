@@ -113,11 +113,12 @@ The demo uses published images and does not build local code or require GitHub/N
 ## Web client
 
 `Client/` is a React + TypeScript SPA built with MUI components. It talks only to the Gateway,
-and its API client is generated from `openapi/gateway.v1.json`. It currently has the app
-scaffold and a "System status" page (`/bff/health`); the Gateway also exposes the read-only
-wallet summary at `/bff/wallets`, while the wallet UI remains future work.
+using clients generated from the Gateway and Identity OpenAPI contracts. The Gateway
+also exposes the read-only wallet summary at `/bff/wallets`.
 
-The profile at `/profile` shows the signed-in user’s email, role, and account status. Active administrators can look up a user by UUID at `/admin/users`.
+After sign-in, the home page opens the profile at `/profile` with the user's email, role, and
+account status. Active administrators can use the links in their profile to look up a user by UUID
+at `/admin/users` and check service health at `/admin/status`.
 
 ```bash
 cd Client

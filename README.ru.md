@@ -125,11 +125,13 @@ Invoke-RestMethod http://localhost:8080/bff/health | ConvertTo-Json
 
 ## Веб-клиент
 
-`Client/` — SPA на React + TypeScript с компонентами MUI. Ходит только через Gateway, клиент API
-генерируется из `openapi/gateway.v1.json`. Сейчас есть каркас и страница «Статус системы»
-(`/bff/health`); BFF API-сводка кошельков доступна через `/bff/wallets`, но экран кошельков ещё не реализован.
+`Client/` — SPA на React + TypeScript с компонентами MUI. Все запросы идут через Gateway.
+Клиенты API сгенерированы из OpenAPI-контрактов Gateway и Identity. Сводка кошельков
+доступна через `/bff/wallets`.
 
-В профиле `/profile` видны email, роль и статус аккаунта. Активному администратору доступен поиск пользователя по UUID на странице `/admin/users`.
+После входа главная страница открывает профиль `/profile` с email, ролью и статусом аккаунта.
+Активному администратору в профиле доступны поиск пользователя по UUID (`/admin/users`)
+и статус сервисов (`/admin/status`).
 
 ```bash
 cd Client

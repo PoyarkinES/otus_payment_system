@@ -10,7 +10,7 @@ import { LoadingState } from '@/shared/ui/LoadingState';
 type CurrentAccountData = {
     claims: BffMeResult;
     status: GetProfileResultStatus;
-    canLookUpUsers: boolean;
+    isActiveAdmin: boolean;
 };
 
 export function CurrentAccount({
@@ -29,7 +29,7 @@ export function CurrentAccount({
     if (me.error || profile.error) {
         return <ErrorState error={me.error ?? profile.error} onRetry={retry} />;
     }
-    // При переходе в поиск дождёмся актуальных прав, даже если в кеше остался профиль.
+    // Перед показом административных страниц ждём подтверждения роли и статуса.
     if (me.isPending || profile.isPending || me.isFetching || profile.isFetching) {
         return <LoadingState label="Загружаем профиль…" />;
     }
@@ -47,6 +47,6 @@ export function CurrentAccount({
     return children({
         claims,
         status,
-        canLookUpUsers: claims.role === 'Admin' && status === 'Active',
+        isActiveAdmin: claims.role === 'Admin' && status === 'Active',
     });
 }

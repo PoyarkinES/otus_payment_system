@@ -22,20 +22,18 @@ describe('ProtectedRoute', () => {
         renderRoute('/', true);
 
         expect(screen.getByText('Otus Payment System')).toBeInTheDocument();
-        expect(
-            screen.getByRole('heading', { level: 1, name: 'Статус системы' }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'Профиль' })).toBeInTheDocument();
     });
 
     it('redirects to login when accessing any protected child route without auth', () => {
         // Любой маршрут под '/' защищён
-        renderRoute('/bff/health');
+        renderRoute('/admin/status');
 
         expect(screen.getByRole('heading', { name: 'Вход' })).toBeInTheDocument();
     });
 
     it('allows authenticated user to access child routes', () => {
-        renderRoute('/bff/health', true);
+        renderRoute('/profile', true);
 
         expect(screen.getByText('Otus Payment System')).toBeInTheDocument();
     });

@@ -12,7 +12,8 @@ Gateway** — прямых адресов Identity, Wallets и других се
 ## Профиль
 
 На странице `/profile` видны email и роль из `GET /bff/me` и статус аккаунта из `GET /api/identity/users/me`.
-Активный администратор может открыть `/admin/users` и найти пользователя по UUID.
+Для вошедшего пользователя `/` открывает профиль. Активному администратору в профиле
+доступны поиск пользователя по UUID (`/admin/users`) и статус сервисов (`/admin/status`).
 
 В режиме `npm run dev:mocks` войдите как `admin@otus.local` с любым непустым паролем и
 поищите демонстрационный аккаунт по UUID `00000000-0000-4000-8000-000000000001`.
@@ -197,5 +198,5 @@ TypeScript только ниже 6.1.
    `LoadingState` и `ErrorState` из `src/shared/ui/` — как в `pages/status/StatusPage.tsx`.
 5. Рядом положить `<Имя>Page.test.tsx`: `renderRoute('/<путь>')` открывает приложение на
    нужном адресе, `server.use(http.get(...))` задаёт ответ сервера
-   (пример — `pages/status/StatusPage.test.tsx`).
+   (пример — `pages/profile/ProfilePage.test.tsx`).
 6. Проверить: `npm run lint && npm run typecheck && npm test`.
