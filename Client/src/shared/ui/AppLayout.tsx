@@ -2,14 +2,8 @@ import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import SvgIcon from '@mui/material/SvgIcon';
 import Typography from '@mui/material/Typography';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router';
-import { useEffect, useState } from 'react';
-
-import { getSnapshot } from '@/shared/api/auth/storage';
-
-import { logout } from '@/shared/api/generated/identity/endpoints/auth/auth';
-import { ensureFreshSession, getCurrentRefreshToken } from '@/shared/api/auth/session';
-import { useAuth } from '@/shared/auth/AuthContext';
+import { Link, Outlet, useLocation } from 'react-router';
+import { useEffect } from 'react';
 
 const sections = [
     {
@@ -29,44 +23,11 @@ const sections = [
     },
 ];
 export function AppLayout() {
-    const { clearTokens } = useAuth();
-    const navigate = useNavigate();
     const { pathname, hash } = useLocation();
-    const [loggingOut, setLoggingOut] = useState(false);
 
     useEffect(() => {
         if (!hash) document.scrollingElement?.scrollTo({ top: 0 });
     }, [pathname, hash]);
-
-    const handleLogout = async () => {
-        if (loggingOut) return;
-        setLoggingOut(true);
-        const { sessionId } = getSnapshot();
-        try {
-            // Перед logout обновляем сессию, если access истёк.
-            // По архитектуре проекта logout требует валидного access-токена (RequireAuthorization).
-            const fresh = await ensureFreshSession();
-            if (fresh && getSnapshot().sessionId === sessionId) {
-                // Получаем актуальный refresh-токен после обновления сессии.
-                const rt = getCurrentRefreshToken();
-                if (rt) {
-                    await logout({ refreshToken: rt });
-                }
-            }
-        } catch {
-            // Если logout упал — всё равно очищаем токены локально.
-        } finally {
-            if (getSnapshot().sessionId === sessionId) {
-                // Покидаем защищённый экран до очистки токенов, чтобы guard не запомнил
-                // страницу предыдущего пользователя как цель следующего входа.
-                try {
-                    await navigate('/login', { replace: true, flushSync: true });
-                } finally {
-                    if (getSnapshot().sessionId === sessionId) clearTokens();
-                }
-            }
-        }
-    };
 
     return (
         <Box className="min-h-screen md:flex">
@@ -136,13 +97,6 @@ export function AppLayout() {
                         );
                     })}
                 </Box>
-                <Button
-                    onClick={handleLogout}
-                    disabled={loggingOut}
-                    className="min-h-11 md:mt-auto md:self-start"
-                >
-                    {loggingOut ? 'Выходим…' : 'Выйти'}
-                </Button>
             </Box>
             <Box
                 component="main"

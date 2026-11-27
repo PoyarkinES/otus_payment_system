@@ -3,7 +3,9 @@ import Typography from '@mui/material/Typography';
 import { Link } from 'react-router';
 
 import { CurrentAccount } from '@/pages/profile/CurrentAccount';
+import { LogoutButton } from '@/pages/profile/LogoutButton';
 import { ProfileDetails } from '@/pages/profile/ProfileDetails';
+import { ProfileWalletSection } from '@/pages/profile/ProfileWalletSection';
 
 function roleLabel(role?: string | null): string {
     switch (role) {
@@ -18,10 +20,17 @@ function roleLabel(role?: string | null): string {
 
 export function ProfilePage() {
     return (
-        <section className="flex flex-col gap-4">
-            <Typography variant="h4" component="h1">
-                Профиль
-            </Typography>
+        <section className="grid min-w-0 gap-4 sm:gap-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <Typography
+                    variant="h3"
+                    component="h1"
+                    sx={{ fontSize: { xs: '2rem', sm: '2.75rem' } }}
+                >
+                    Профиль
+                </Typography>
+                <LogoutButton />
+            </div>
             <CurrentAccount>
                 {({ claims, status, isActiveAdmin }) => (
                     <>
@@ -30,6 +39,7 @@ export function ProfilePage() {
                             roleLabel={roleLabel(claims.role)}
                             status={status}
                         />
+                        {status === 'Active' && <ProfileWalletSection />}
                         {isActiveAdmin && (
                             <nav aria-label="Администрирование" className="flex flex-wrap gap-3">
                                 <Button component={Link} to="/admin/users" variant="outlined">

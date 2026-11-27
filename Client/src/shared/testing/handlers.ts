@@ -127,8 +127,11 @@ export const handlers = [
             totalPages: Math.ceil(history.length / pageSize),
         });
     }),
-    http.post('*/api/wallets', () => {
-        if (wallets.has(currentEmail)) {
+    http.post('*/api/wallets', async ({ request }) => {
+        const email = currentEmail;
+        const { currency } = (await request.json()) as { currency: string };
+        if (currency !== 'RUB') return new HttpResponse(null, { status: 400 });
+        if (wallets.has(email)) {
             return HttpResponse.json(
                 { status: 409, detail: 'Кошелёк с такой валютой уже существует.' },
                 { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
@@ -136,14 +139,14 @@ export const handlers = [
         }
         const wallet = {
             id: crypto.randomUUID(),
-            currency: 'RUB',
+            currency,
             available: 0,
             held: 0,
             total: 0,
             status: 'Active',
             recentOperations: [],
         };
-        wallets.set(currentEmail, wallet);
+        wallets.set(email, wallet);
         return HttpResponse.json(wallet, { status: 201 });
     }),
     http.post('*/api/identity/auth/register', async ({ request }) => {
