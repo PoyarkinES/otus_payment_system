@@ -70,7 +70,7 @@
 
 - #133: добавлен `publish-shared` по тегу `shared-v*`; пакеты `1.0.0` опубликованы.
 - #134: Identity/Gateway Dockerfile’ы переведены на GitHub Packages + BuildKit secret; CI передаёт токен.
-- #135: `docker-compose.yml` переведён на закреплённые GHCR-образы Identity/Gateway; демо не требует токена.
+- #135: `docker-compose.yml` переведён на GHCR-образы Identity/Gateway; демо не требует токена.
 - В CI остался legacy job `Pack Shared NuGet packages` с artifact, который больше не участвует в restore; вынесено в техдолг #137.
 - Wallets уже на `PackageReference`, но Docker/Compose для него ещё не сделаны — #128.
 
@@ -78,7 +78,7 @@
 
 - #137: удалён локальный Shared artifact из CI и Docker; CI восстанавливает только опубликованные пакеты. Для Shared выбран release-first порядок.
 - #138: CI запускает `scripts/bump-shared.ps1 -Check` и проверяет синхронность всех consumer-ссылок.
-- #139: CI проверяет Compose и GHCR manifests; публикационный workflow открывает PR с новыми Compose SHA после публикации образов.
+- #139: CI проверяет Compose и GHCR-манифесты; #157 перевёл Compose на мутабельный `latest` + `pull_policy: always`, SHA-PR убран.
 - #128: Wallets включён в Compose; отдельная БД создаётся bootstrap-сервисом.
 - Shared `1.0.1` опубликован; Identity, Gateway и Wallets пересобраны с согласованным IdentityModel (#142/#143).
 
@@ -98,7 +98,7 @@
 ## Что этот ADR не решает
 
 - Автоматизация версий — `scripts/bump-shared.ps1`; `Directory.Packages.props` не вводим.
-- JWT blocking/JWKS — отдельный security-долг #126.
+- JWT blocking/JWKS — закрыт (#126/#150).
 - Публикация символов/SourceLink — опционально.
 - Service-to-service аутентификация — отдельный security-долг.
 
